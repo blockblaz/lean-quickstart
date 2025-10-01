@@ -46,7 +46,9 @@ else
 fi
 
 echo "Detected nodes: ${nodes[@]}"
-# nodes=("zeam_0" "ream_0" "qlean_0")
+nodes=("zeam_0" "zeam_1")
+echo "Overriden nodes: ${nodes[@]}"
+
 spin_nodes=()
 
 # Parse comma-separated or space-separated node names or handle single node/all
