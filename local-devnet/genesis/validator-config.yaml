@@ -10,7 +10,7 @@ validators:
       quic: 9000
     count: 1 # number of indices for this node
 
-  - name: "zeam_1"
+  - name: "ream_0"
     # node id bc531fc1a99a896acb45603f28a32f81ae607480af46435009de4609370cb7bb
     # peer id 16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
     privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
@@ -18,4 +18,13 @@ validators:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "127.0.0.1"
       quic: 9001
+    count: 1
+
+  - name: "qlean_0"
+    # TODO: update priv key and add a third entry in nodes.yaml
+    privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
+    enrFields:
+      #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
+      ip: "127.0.0.1"
+      quic: 9002
     count: 1
