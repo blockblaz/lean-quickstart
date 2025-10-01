@@ -18,4 +18,4 @@ node_docker="--security-opt seccomp=unconfined g11tech/zeam:latest node \
       --metrics_port $metricsPort"
 
 # choose either binary or docker
-node_setup="docker"
+node_setup="binary"
