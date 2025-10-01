@@ -16,4 +16,4 @@ node_docker="--security-opt seccomp=unconfined g11tech/zeam:latest node \
       --node-id $item --node-key /config/$item.key"
 
 # choose either binary or docker
-node_setup="docker"
+node_setup="binary"
