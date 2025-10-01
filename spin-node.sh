@@ -31,7 +31,9 @@ else
 fi
 
 echo "Detected nodes: ${nodes[@]}"
-# nodes=("zeam_0" "ream_0" "qlean_0")
+# 3. collect the nodes that the user has asked us to spin and perform setup
+# override nodes to make it handy to just spin zeam and ream when 'all' is used
+nodes=("zeam_0" "ream_0")
 spin_nodes=()
 for item in "${nodes[@]}"; do
   if [ $node == $item ] || [ $node == "all" ]

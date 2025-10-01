@@ -19,12 +19,3 @@ validators:
       ip: "127.0.0.1"
       quic: 9001
     count: 1
-
-  - name: "qlean_0"
-    # TODO: add a third entry in nodes.yaml corresponding to this
-    privkey: "c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9"
-    enrFields:
-      #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
-      ip: "127.0.0.1"
-      quic: 9002
-    count: 1
