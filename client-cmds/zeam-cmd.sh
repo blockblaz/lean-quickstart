@@ -23,4 +23,4 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet1 node \
       --metrics_port $metricsPort"
 
 # choose either binary or docker
-node_setup="docker"
+node_setup="binary"
