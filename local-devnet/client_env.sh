@@ -20,7 +20,7 @@
 zeam_BINARY_REF="$scriptDir/../zig-out/bin/zeam node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig"
-zeam_DOCKER_REF="ethpandaops/zeam:main node \
+zeam_DOCKER_REF="--security-opt seccomp=unconfined g11k-dregistry:31320/zeam:latest node \
       --custom_genesis /config \
       --data_dir /data \
       --validator_config $validatorConfig"
