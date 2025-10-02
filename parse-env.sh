@@ -66,26 +66,6 @@ then
   validatorConfig="genesis_bootnode"
 fi;
 
-# ideally read config from validatorConfig and figure out all nodes in the array
-# if validatorConfig is genesis bootnode then we read the genesis/validator_config.yaml for this
-# please note that the clients are infered from the name of the nodes
-nodes=("zeam_0" "zeam_1")
-
-# collect the nodes that the user has asked us to spin
-spin_nodes=()
-for item in "${nodes[@]}"; do
-  if [ $node == $item ] || [ $node == "all" ]
-  then
-    node_present=true
-    spin_nodes+=($item)
-  fi;
-done
-if [ ! -n "$node_present" ] && [ node != "all" ]
-then
-  echo "invalid specified node, options =${nodes[@]} all, exiting."
-  exit;
-fi;
-
 if [ -n "$freshStart" ]
 then
   echo "starting from a fresh genesis time..."

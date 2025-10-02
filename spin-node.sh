@@ -4,14 +4,29 @@
 currentDir=$(pwd)
 scriptDir=$(dirname $0)
 
+# 1. parse env and args
 source "$(dirname $0)/parse-env.sh"
-source "$(dirname $0)/set-up.sh"
-
-# get the client cmds with args set
+# 2. get the client cmds with args set
 source "$scriptDir/$NETWORK_DIR/client_env.sh"
 
-popupTerminal="gnome-terminal --disable-factory --"
+# 3. collect the nodes that the user has asked us to spin and perform setup
+spin_nodes=()
+for item in "${nodes[@]}"; do
+  if [ $node == $item ] || [ $node == "all" ]
+  then
+    node_present=true
+    spin_nodes+=($item)
+  fi;
+done
+if [ ! -n "$node_present" ] && [ node != "all" ]
+then
+  echo "invalid specified node, options =${nodes[@]} all, exiting."
+  exit;
+fi;
+source "$(dirname $0)/set-up.sh"
 
+# 4. run clients
+popupTerminal="gnome-terminal --disable-factory --"
 for item in "${spin_nodes[@]}"; do
   # extract client config
   IFS='_' read -r -a elements <<< "$item"

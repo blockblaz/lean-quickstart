@@ -1,6 +1,12 @@
 #!/bin/bash
 # set -e
 
+# ideally read config from validatorConfig and figure out all nodes in the array
+# if validatorConfig is genesis bootnode then we read the genesis/validator_config.yaml for this
+# please note that the clients are infered from the name of the nodes
+nodes=("zeam_0" "ream_0" "qlean_0")
+
+# ---------------------------------------------------------------------------------------------
 # the client binary or docker setup configuration for this devnet
 # 1. code & activate  for your client
 # 2. binary requires one standard arg: --data_dir to specify data dir at the
