@@ -48,8 +48,8 @@ for item in "${spin_nodes[@]}"; do
   if [ "$node_setup" == "binary" ]
   then
     execCmd="$node_binary \
-      --data_dir $dataDir/$item \
-      --node_key $item"
+      --data-dir $dataDir/$item \
+      --node-id $item --node-key $configDir/$item.key"
   else
     execCmd="docker run --rm"
     if [ -n "$dockerWithSudo" ]
@@ -58,7 +58,7 @@ for item in "${spin_nodes[@]}"; do
     fi;
 
     execCmd="$execCmd --name $item --network host -v $configDir:/config -v $dataDir/$item:/data $node_docker \
-      --node_key $item"
+      --node-id $item --node-key /config/$item.key"
   fi;
 
   if [ ! -n "$inTerminal" ]
