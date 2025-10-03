@@ -13,7 +13,7 @@ A single command line quickstart to spin up lean node(s)
 ### Quickly startup two zeam nodes as a local devnet
 
 ```sh
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --freshStart
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --freshStart --popupTerminal
 ```
   
 ## Args
@@ -27,7 +27,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --freshStart
     d. `config.yaml` the actual network config
 
 2. `--freshStart` reset the genesis time in the `config.yaml` to now
-3. `--inTerminal` if you don't want to pop out new terminals to run the nodes, else by default opens gnome terminals
+3. `--popupTerminal` if you want to pop out new terminals to run the nodes, opens gnome terminals
 4. `--node` specify which node you want to run, use `all` to run all the nodes in a single go, otherwise you may specify which node you want to run from `validator_config.yaml`. 
   The client is provided this input so as to parse the correct node configuration to startup the node.
 5. `--validatorConfig` is the path to specify your nodes `validator_config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode. 

@@ -39,8 +39,8 @@ while [[ $# -gt 0 ]]; do
       cleanData=true
       shift # past argument
       ;;
-    --inTerminal)
-      inTerminal=true
+    --popupTerminal)
+      popupTerminal=true
       shift # past argument
       ;;
     --dockerWithSudo)
@@ -78,4 +78,4 @@ echo "dataDir = $dataDir"
 echo "spin_nodes(s) = ${spin_nodes[@]}"
 echo "freshStart = $freshStart"
 echo "cleanData = $cleanData"
-echo "inTerminal = $inTerminal"
+echo "popupTerminal = $popupTerminal"

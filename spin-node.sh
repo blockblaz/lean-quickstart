@@ -76,7 +76,7 @@ for item in "${spin_nodes[@]}"; do
       --node-id $item --node-key /config/$item.key"
   fi;
 
-  if [ ! -n "$inTerminal" ]
+  if [ -n "$popupTerminal" ]
   then
     execCmd="$popupTerminal $execCmd"
   fi;
