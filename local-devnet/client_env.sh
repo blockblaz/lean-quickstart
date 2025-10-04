@@ -4,7 +4,7 @@
 # ideally read config from validatorConfig and figure out all nodes in the array
 # if validatorConfig is genesis bootnode then we read the genesis/validator_config.yaml for this
 # please note that the clients are infered from the name of the nodes
-nodes=("zeam_0" "ream_0" "qlean_0")
+nodes=("zeam_0" "ream_0")
 
 # ---------------------------------------------------------------------------------------------
 # the client binary or docker setup configuration for this devnet
@@ -28,7 +28,7 @@ zeam_BINARY_REF="$scriptDir/../zig-out/bin/zeam node \
       --validator_config $validatorConfig"
 zeam_DOCKER_REF="--security-opt seccomp=unconfined g11tech/zeam:latest node \
       --custom_genesis /config \
-      --data_dir /data \
+      --data-dir /data \
       --validator_config $validatorConfig"
 # choose either binary or docker
 zeam_setup="docker"
