@@ -33,7 +33,7 @@ fi;
 
 # 4. run clients
 mkdir $dataDir
-popupTerminal="gnome-terminal --disable-factory --"
+popupTerminalCmd="gnome-terminal --disable-factory --"
 for item in "${spin_nodes[@]}"; do
   # create and/or cleanup datadirs
   itemDataDir="$dataDir/$item"
@@ -78,7 +78,7 @@ for item in "${spin_nodes[@]}"; do
 
   if [ -n "$popupTerminal" ]
   then
-    execCmd="$popupTerminal $execCmd"
+    execCmd="$popupTerminalCmd $execCmd"
   fi;
 
   echo "$execCmd"
