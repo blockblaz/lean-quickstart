@@ -16,10 +16,7 @@ source "$(dirname $0)/set-up.sh"
 # should take config.yaml and validator-config.yaml and generate files
 # 1. nodes.yaml 2. validators.yaml 3. .key files for each of nodes
 
-# 2. get the client cmds with args set
-source "$scriptDir/$NETWORK_DIR/client_env.sh"
-
-# 3. collect the nodes that the user has asked us to spin and perform setup
+# 2. collect the nodes that the user has asked us to spin and perform setup
 if [ "$validatorConfig" == "genesis_bootnode" ] || [ -z "$validatorConfig" ]; then
     validator_config_file="$configDir/validator-config.yaml"
 else
@@ -49,7 +46,7 @@ then
   exit;
 fi;
 
-# 4. run clients
+# 3. run clients
 mkdir -p $dataDir
 popupTerminalCmd="gnome-terminal --disable-factory --"
 for item in "${spin_nodes[@]}"; do
