@@ -43,8 +43,8 @@ for item in "${spin_nodes[@]}"; do
   echo $cmd
   eval $cmd
 
-  # parse validator-config.yaml for $item
-  source 
+  # parse validator-config.yaml for $item to load args values
+  source parse-vc.sh
 
   # extract client config
   IFS='_' read -r -a elements <<< "$item"
