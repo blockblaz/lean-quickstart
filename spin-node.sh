@@ -17,7 +17,7 @@ source "$(dirname $0)/set-up.sh"
 source "$scriptDir/$NETWORK_DIR/client_env.sh"
 
 # 3. collect the nodes that the user has asked us to spin and perform setup
-nodes=("zeam_0" "ream_0")
+nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
 for item in "${nodes[@]}"; do
   if [ $node == $item ] || [ $node == "all" ]
