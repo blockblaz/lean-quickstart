@@ -71,7 +71,10 @@ for item in "${spin_nodes[@]}"; do
       execCmd="sudo $execCmd"
     fi;
 
-    execCmd="$execCmd --name $item --network host -v $configDir:/config -v $dataDir/$item:/data $node_docker"
+    execCmd="$execCmd --name $item --network host \
+          -v $configDir:/config \
+          -v $dataDir/$item:/data \
+          $node_docker"
   fi;
 
   if [ -n "$popupTerminal" ]
