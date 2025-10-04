@@ -17,6 +17,7 @@ source "$(dirname $0)/set-up.sh"
 source "$scriptDir/$NETWORK_DIR/client_env.sh"
 
 # 3. collect the nodes that the user has asked us to spin and perform setup
+nodes=("zeam_0" "ream_0")
 spin_nodes=()
 for item in "${nodes[@]}"; do
   if [ $node == $item ] || [ $node == "all" ]
@@ -42,29 +43,27 @@ for item in "${spin_nodes[@]}"; do
   echo $cmd
   eval $cmd
 
+  # parse validator-config.yaml for $item
+  source 
+
   # extract client config
   IFS='_' read -r -a elements <<< "$item"
   client="${elements[0]}"
 
-  setup_var_name="${client}_setup"
-  node_setup="${!setup_var_name}"
-
-  binary_var_name="${client}_BINARY_REF"
-  node_binary="${!binary_var_name}"
-
-  docker_var_name="${client}_DOCKER_REF"
-  node_docker="${!docker_var_name}"
+  # get client specific cmd and its mode (docker, binary)
+  sourceCmd="source client-cmds/$client-cmd.sh"
+  echo "$sourceCmd"
+  eval $sourceCmd
 
   # spin nodes
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
   echo
 
+
   if [ "$node_setup" == "binary" ]
   then
-    execCmd="$node_binary \
-      --data-dir $dataDir/$item \
-      --node-id $item --node-key $configDir/$item.key"
+    execCmd="$node_binary"
   else
     execCmd="docker run --rm"
     if [ -n "$dockerWithSudo" ]
@@ -72,8 +71,7 @@ for item in "${spin_nodes[@]}"; do
       execCmd="sudo $execCmd"
     fi;
 
-    execCmd="$execCmd --name $item --network host -v $configDir:/config -v $dataDir/$item:/data $node_docker \
-      --node-id $item --node-key /config/$item.key"
+    execCmd="$execCmd --name $item --network host -v $configDir:/config -v $dataDir/$item:/data $node_docker"
   fi;
 
   if [ -n "$popupTerminal" ]
