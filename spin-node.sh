@@ -17,7 +17,21 @@ source "$(dirname $0)/set-up.sh"
 source "$scriptDir/$NETWORK_DIR/client_env.sh"
 
 # 3. collect the nodes that the user has asked us to spin and perform setup
-nodes=("zeam_0" "ream_0" "qlean_0")
+if [ "$validatorConfig" == "genesis_bootnode" ] || [ -z "$validatorConfig" ]; then
+    validator_config_file="$configDir/validator-config.yaml"
+else
+    validator_config_file="$validatorConfig"
+fi
+
+if [ -f "$validator_config_file" ]; then
+    nodes=($(grep -A 1 "^\s*-\s*name:" "$validator_config_file" | grep "name:" | sed 's/.*name:\s*"\(.*\)".*/\1/'))
+else
+    echo "Error: Validator config file not found at $validator_config_file"
+    nodes=()
+fi
+
+echo "Detected nodes: ${nodes[@]}"
+# nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
 for item in "${nodes[@]}"; do
   if [ $node == $item ] || [ $node == "all" ]
