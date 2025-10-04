@@ -3,6 +3,9 @@
 
 currentDir=$(pwd)
 scriptDir=$(dirname $0)
+if [ "$scriptDir" == "." ]; then
+  scriptDir="$currentDir"
+fi
 
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
@@ -47,12 +50,12 @@ then
 fi;
 
 # 4. run clients
-mkdir $dataDir
+mkdir -p $dataDir
 popupTerminalCmd="gnome-terminal --disable-factory --"
 for item in "${spin_nodes[@]}"; do
   # create and/or cleanup datadirs
   itemDataDir="$dataDir/$item"
-  mkdir $itemDataDir
+  mkdir -p $itemDataDir
   cmd="sudo rm -rf $itemDataDir/*"
   echo $cmd
   eval $cmd

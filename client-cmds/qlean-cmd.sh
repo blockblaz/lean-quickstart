@@ -1,8 +1,18 @@
 #!/bin/bash
 
 #-----------------------qlean setup----------------------
-node_binary=
+# expects "qlean" submodule or symlink inside "lean-quickstart" root directory
+# https://github.com/qdrvm/qlean-mini
+node_binary="$scriptDir/qlean/build/src/executable/qlean \
+      --modules-dir $scriptDir/qlean/build/src/modules \
+      --genesis $configDir/config.yaml \
+      --validator-registry-path $configDir/validators.yaml \
+      --bootnodes $configDir/nodes.yaml
+      --node-id $item --node-key /config/$privKeyPath \
+      --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
+      2>&1 | tee $dataDir/$item.log"
+
 node_docker=
 
 # choose either binary or docker
-node_setup="docker"
+node_setup="binary"
