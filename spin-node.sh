@@ -34,29 +34,33 @@ echo "Detected nodes: ${nodes[@]}"
 # nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
 
-# Parse comma-separated node names or handle single node/all
-if [ $node == "all" ]; then
+# Parse comma-separated or space-separated node names or handle single node/all
+if [[ "$node" == "all" ]]; then
   # Spin all nodes
   spin_nodes=("${nodes[@]}")
   node_present=true
 else
-  # Split by comma to handle comma-separated node names
-  IFS=',' read -r -a requested_nodes <<< "$node"
+  # Handle both comma-separated and space-separated node names
+  if [[ "$node" == *","* ]]; then
+    IFS=',' read -r -a requested_nodes <<< "$node"
+  else
+    IFS=' ' read -r -a requested_nodes <<< "$node"
+  fi
 
   # Check each requested node against available nodes
-  for requested in "${requested_nodes[@]}"; do
-    found=false
-    for item in "${nodes[@]}"; do
-      if [ "$requested" == "$item" ]; then
-        spin_nodes+=("$item")
+  for requested_node in "${requested_nodes[@]}"; do
+    node_found=false
+    for available_node in "${nodes[@]}"; do
+      if [[ "$requested_node" == "$available_node" ]]; then
+        spin_nodes+=("$available_node")
         node_present=true
-        found=true
+        node_found=true
         break
       fi
     done
 
-    if [ "$found" == false ]; then
-      echo "Error: Node '$requested' not found in validator config"
+    if [[ "$node_found" == false ]]; then
+      echo "Error: Node '$requested_node' not found in validator config"
       echo "Available nodes: ${nodes[@]}"
       exit 1
     fi
