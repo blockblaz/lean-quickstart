@@ -19,8 +19,11 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --freshStart --popupTerminal
 ### Startup specific nodes only
 
 ```sh
-# Run only zeam_0 and ream_0 nodes
+# Run only zeam_0 and ream_0 nodes (comma-separated)
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0,ream_0 --freshStart --popupTerminal
+
+# Run only zeam_0 and ream_0 nodes (space-separated)
+NETWORK_DIR=local-devnet ./spin-node.sh --node "zeam_0 ream_0" --freshStart --popupTerminal
 
 # Run only a single node
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --freshStart --popupTerminal
@@ -42,6 +45,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --freshStart --popupTermin
    - Use `all` to run all the nodes in a single go
    - Specify a single node name (e.g., `zeam_0`) to run just that node
    - Use comma-separated node names (e.g., `zeam_0,ream_0`) to run multiple specific nodes
+   - Use whitespace-separated node names (e.g., `"zeam_0 ream_0"`) to run multiple specific nodes
    
    The client is provided this input so as to parse the correct node configuration to startup the node.
 5. `--validatorConfig` is the path to specify your nodes `validator-config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode. 
