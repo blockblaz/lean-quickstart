@@ -74,7 +74,6 @@ fi;
 
 # 3. run clients
 mkdir -p $dataDir
-# popupTerminalCmd="gnome-terminal --disable-factory --"
 popupTerminalCmd="gnome-terminal --"
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
