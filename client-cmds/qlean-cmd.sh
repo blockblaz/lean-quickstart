@@ -9,8 +9,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --validator-registry-path $configDir/validators.yaml \
       --bootnodes $configDir/nodes.yaml
       --node-id $item --node-key /config/$privKeyPath \
-      --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
-      2>&1 | tee $dataDir/$item.log"
+      --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1"
 
 node_docker=
 
