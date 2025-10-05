@@ -33,22 +33,45 @@ fi
 echo "Detected nodes: ${nodes[@]}"
 # nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
-for item in "${nodes[@]}"; do
-  if [ $node == $item ] || [ $node == "all" ]
-  then
-    node_present=true
-    spin_nodes+=($item)
-  fi;
-done
-if [ ! -n "$node_present" ] && [ node != "all" ]
-then
+
+# Parse comma-separated node names or handle single node/all
+if [ $node == "all" ]; then
+  # Spin all nodes
+  spin_nodes=("${nodes[@]}")
+  node_present=true
+else
+  # Split by comma to handle comma-separated node names
+  IFS=',' read -r -a requested_nodes <<< "$node"
+
+  # Check each requested node against available nodes
+  for requested in "${requested_nodes[@]}"; do
+    found=false
+    for item in "${nodes[@]}"; do
+      if [ "$requested" == "$item" ]; then
+        spin_nodes+=("$item")
+        node_present=true
+        found=true
+        break
+      fi
+    done
+
+    if [ "$found" == false ]; then
+      echo "Error: Node '$requested' not found in validator config"
+      echo "Available nodes: ${nodes[@]}"
+      exit 1
+    fi
+  done
+fi
+
+if [ ! -n "$node_present" ]; then
   echo "invalid specified node, options =${nodes[@]} all, exiting."
   exit;
 fi;
 
 # 3. run clients
 mkdir -p $dataDir
-popupTerminalCmd="gnome-terminal --disable-factory --"
+# popupTerminalCmd="gnome-terminal --disable-factory --"
+popupTerminalCmd="gnome-terminal --"
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
   # create and/or cleanup datadirs
