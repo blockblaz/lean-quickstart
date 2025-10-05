@@ -49,6 +49,7 @@ fi;
 # 3. run clients
 mkdir -p $dataDir
 popupTerminalCmd="gnome-terminal --disable-factory --"
+spinned_pids=()
 for item in "${spin_nodes[@]}"; do
   # create and/or cleanup datadirs
   itemDataDir="$dataDir/$item"
@@ -98,4 +99,33 @@ for item in "${spin_nodes[@]}"; do
 
   echo "$execCmd"
   eval "$execCmd" &
+  pid=$!
+  spinned_pids+=($pid)
 done;
+
+container_names="${spin_nodes[*]}"
+process_ids="${spinned_pids[*]}"
+
+cleanup() {
+  echo "cleaning up"
+
+  # try for docker containers
+  execCmd="docker rm -f $container_names"
+  if [ -n "$dockerWithSudo" ]
+    then
+      execCmd="sudo $execCmd"
+  fi;
+  echo "$execCmd"
+  eval "$execCmd"
+
+  # try for process ids
+  execCmd="kill -9 $process_ids"
+  echo "$execCmd"
+  eval "$execCmd"
+}
+
+trap "echo exit signal received;cleanup" SIGINT SIGTERM
+echo "waiting for nodes to exit"
+echo "press Ctrl+C to exit and cleanup..."
+wait -n $process_ids
+cleanup
