@@ -2,7 +2,7 @@
 
 #-----------------------ream setup----------------------
 node_binary=
-node_docker="ghcr.io/reamlabs/ream:latest --data-dir /data \
+node_docker="syjn99/ream:temp-amd64 --data-dir /data \
         lean_node \
         --network /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
