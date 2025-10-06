@@ -7,6 +7,9 @@ A single command line quickstart to spin up lean node(s)
 1. Shell terminal: Preferably linux especially if you want to pop out separate new terminals for node
 2. Genesis configuration
 3. Zeam Build (other clients to be supported soon)
+4. **yq**: YAML processor for automated configuration parsing
+   - Install on macOS: `brew install yq`
+   - Install on Linux: See [yq installation guide](https://github.com/mikefarah/yq#install)
 
 ## Scenarios
 
@@ -51,6 +54,18 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --freshStart --popupTermin
 5. `--validatorConfig` is the path to specify your nodes `validator-config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode. 
   If unspecified it assumes value of `genesis_bootnode` which is to say that your node config is to be picked from `genesis` folder with `--node` as the node key index.
   This value is further provided to the client so that they can parse the correct config information.
+
+## Automation Features
+
+This quickstart now includes automated configuration parsing:
+
+- **QUIC Port Detection**: Automatically extracts QUIC ports from `validator-config.yaml` using `yq`
+- **Node Detection**: Dynamically discovers available nodes from the validator configuration
+- **Private Key Management**: Automatically extracts and creates `.key` files for each node
+- **Error Handling**: Provides clear error messages when nodes or ports are not found
+- **No Hardcoding**: Eliminates the need for manual port assignments in scripts
+
+The system now reads all configuration from YAML files, making it easy to add new nodes or modify existing ones without changing any scripts.
 
 ## Client branches
 

@@ -23,11 +23,27 @@ else
     validator_config_file="$validatorConfig"
 fi
 
+# Check if yq is installed
+if ! command -v yq &> /dev/null; then
+    echo "Error: yq is required but not installed. Please install yq first."
+    echo "On macOS: brew install yq"
+    echo "On Linux: https://github.com/mikefarah/yq#install"
+    exit 1
+fi
+
 if [ -f "$validator_config_file" ]; then
-    nodes=($(grep -A 1 "^\s*-\s*name:" "$validator_config_file" | grep "name:" | sed 's/.*name:\s*"\(.*\)".*/\1/'))
+    # Use yq to extract node names from validator config
+    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+    
+    # Validate that we found nodes
+    if [ ${#nodes[@]} -eq 0 ]; then
+        echo "Error: No validators found in $validator_config_file"
+        exit 1
+    fi
 else
     echo "Error: Validator config file not found at $validator_config_file"
     nodes=()
+    exit 1
 fi
 
 echo "Detected nodes: ${nodes[@]}"
