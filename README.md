@@ -2,7 +2,16 @@
 
 A single command line quickstart to spin up lean node(s)
 
-## Requirements
+### Benefits
+
+- ✅ **Official Tool**: Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
+- ✅ **Complete Genesis State**: Generates full genesis state (JSON + SSZ) plus config files
+- ✅ **No hardcoded files** - All genesis files are generated dynamically
+- ✅ **Single source of truth** - `validator-config.yaml` defines everything
+- ✅ **Easy to modify** - Add/remove nodes by editing `validator-config.yaml`
+- ✅ **Standards compliant** - Uses ethpandaops maintained tool
+
+### Requirements
 
 1. Shell terminal: Preferably linux especially if you want to pop out separate new terminals for node
 2. Genesis configuration
@@ -104,22 +113,6 @@ You can also run the generator standalone:
 ```sh
 ./generate-genesis.sh local-devnet/genesis
 ```
-
-### Requirements
-
-- **Docker**: To run PK's eth-beacon-genesis tool
-- **yq**: YAML processor (already required)
-
-**No longer needed**: zeam-tools (PK's tool handles ENR generation)
-
-### Benefits
-
-- ✅ **Official Tool**: Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
-- ✅ **Complete Genesis State**: Generates full genesis state (JSON + SSZ) plus config files
-- ✅ **No hardcoded files** - All genesis files are generated dynamically
-- ✅ **Single source of truth** - `validator-config.yaml` defines everything
-- ✅ **Easy to modify** - Add/remove nodes by editing `validator-config.yaml`
-- ✅ **Standards compliant** - Uses ethpandaops maintained tool
 
 ## Automation Features
 
