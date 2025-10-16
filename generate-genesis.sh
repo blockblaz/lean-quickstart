@@ -115,10 +115,78 @@ echo "  ✅ validator-config.yaml found"
 
 echo ""
 
+# Convert to absolute paths early for use throughout the script
+GENESIS_DIR_ABS="$(cd "$GENESIS_DIR" && pwd)"
+PARENT_DIR_ABS="$(cd "$GENESIS_DIR/.." && pwd)"
+
 # ========================================
-# Step 1: Update Genesis Time
+# Step 1: Generate Hash-Sig Validator Keys
 # ========================================
-echo "⏰ Step 1: Updating genesis time..."
+echo "🔐 Step 1: Generating hash-sig validator keys..."
+
+# Determine the number of validators
+VALIDATOR_COUNT=$(yq eval '.VALIDATOR_COUNT' "$CONFIG_FILE")
+if [ -z "$VALIDATOR_COUNT" ] || [ "$VALIDATOR_COUNT" == "null" ]; then
+    # Count validators from validator-config.yaml
+    VALIDATOR_COUNT=$(yq eval '.validators | length' "$VALIDATOR_CONFIG_FILE")
+fi
+
+echo "   Number of validators: $VALIDATOR_COUNT"
+
+# Path to hash-sig CLI binary (from git submodule)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+HASHSIG_CLI_DIR="$SCRIPT_DIR/tools/hash-sig-cli"
+HASHSIG_CLI="$HASHSIG_CLI_DIR/target/release/hashsig"
+
+# Check if hash-sig submodule exists
+if [ ! -d "$HASHSIG_CLI_DIR" ]; then
+    echo "   ❌ Error: hash-sig-cli submodule not found at $HASHSIG_CLI_DIR"
+    echo "   Please initialize the submodule:"
+    echo "   cd $SCRIPT_DIR && git submodule add https://github.com/blockblaz/hash-sig-cli.git tools/hash-sig-cli"
+    echo "   cd tools/hash-sig-cli && git submodule update --init --recursive"
+    exit 1
+fi
+
+# Check if hash-sig CLI binary exists, build if needed
+if [ ! -f "$HASHSIG_CLI" ]; then
+    echo "   ⚠️  Hash-sig CLI binary not found"
+    echo "   Building hash-sig CLI from submodule..."
+    (cd "$HASHSIG_CLI_DIR" && cargo build --release)
+    
+    if [ ! -f "$HASHSIG_CLI" ]; then
+        echo "   ❌ Error: Failed to build hash-sig CLI"
+        exit 1
+    fi
+fi
+
+echo "   ✅ Hash-sig CLI found: $HASHSIG_CLI"
+
+# Create hash-sig keys directory
+HASH_SIG_KEYS_DIR="$GENESIS_DIR_ABS/hash-sig-keys"
+mkdir -p "$HASH_SIG_KEYS_DIR"
+
+# Generate hash-sig keys for all validators
+echo "   Generating keys for $VALIDATOR_COUNT validators..."
+"$HASHSIG_CLI" generate-for-genesis \
+    --num-validators "$VALIDATOR_COUNT" \
+    --log-num-active-epochs 18 \
+    --output-dir "$HASH_SIG_KEYS_DIR"
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "   ❌ Error: Hash-sig key generation failed!"
+    exit 1
+fi
+
+echo ""
+echo "   ✅ Generated $VALIDATOR_COUNT validator key pairs"
+echo "   ✅ Keys saved to: $HASH_SIG_KEYS_DIR"
+echo ""
+
+# ========================================
+# Step 2: Update Genesis Time
+# ========================================
+echo "⏰ Step 2: Updating genesis time..."
 TIME_NOW="$(date +%s)"
 GENESIS_TIME=$((TIME_NOW + 30))
 
@@ -129,18 +197,14 @@ echo "   ✅ Genesis time set to: $GENESIS_TIME"
 echo ""
 
 # ========================================
-# Step 2: Run PK's Genesis Generator
+# Step 3: Run PK's Genesis Generator
 # ========================================
-echo "🔧 Step 2: Running PK's eth-beacon-genesis tool..."
+echo "🔧 Step 3: Running PK's eth-beacon-genesis tool..."
 echo "   Docker image: $PK_DOCKER_IMAGE"
 echo "   Command: leanchain"
 echo ""
 
-# Convert to absolute path for docker volume mount
-GENESIS_DIR_ABS="$(cd "$GENESIS_DIR" && pwd)"
-PARENT_DIR_ABS="$(cd "$GENESIS_DIR/.." && pwd)"
-
-# Run PK's tool
+# Run PK's tool (GENESIS_DIR_ABS and PARENT_DIR_ABS already defined above)
 # Note: PK's tool expects parent directory as mount point
 echo "   Executing docker command..."
 
@@ -172,9 +236,9 @@ echo "   ✅ Generated: genesis.ssz"
 echo ""
 
 # ========================================
-# Step 3: Generate Private Key Files
+# Step 4: Generate Private Key Files (for ENR)
 # ========================================
-echo "🔑 Step 3: Generating private key files..."
+echo "🔑 Step 4: Generating private key files (for ENR)..."
 
 # Extract node names from validator-config.yaml
 NODE_NAMES=($(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE"))
@@ -202,9 +266,9 @@ done
 echo ""
 
 # ========================================
-# Step 4: Validate Generated Files
+# Step 5: Validate Generated Files
 # ========================================
-echo "✓ Step 4: Validating generated files..."
+echo "✓ Step 5: Validating generated files..."
 
 required_files=("config.yaml" "validators.yaml" "nodes.yaml" "genesis.json" "genesis.ssz")
 all_good=true
@@ -243,10 +307,22 @@ for node in "${NODE_NAMES[@]}"; do
     fi
 done
 echo ""
+echo "🔐 Hash-Sig Validator Keys:"
+echo "   $GENESIS_DIR/hash-sig-keys/validator-keys-manifest.yaml"
+for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
+    echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_pk.json"
+    echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_sk.json"
+done
+echo ""
 echo "🎯 Next steps:"
 echo "   Run your nodes with: NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis"
 echo ""
 echo "ℹ️  Using PK's eth-beacon-genesis docker image:"
 echo "   Image: $PK_DOCKER_IMAGE"
 echo "   PR: https://github.com/ethpandaops/eth-beacon-genesis/pull/36"
+echo ""
+echo "ℹ️  Hash-sig keys generated with:"
+echo "   Scheme: SIGTopLevelTargetSumLifetime32Dim64Base8"
+echo "   Active Epochs: 2^18 (262,144)"
+echo "   Total Lifetime: 2^32 (4,294,967,296)"
 echo ""
