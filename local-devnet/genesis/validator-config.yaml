@@ -4,6 +4,9 @@ validators:
     # node id 7d0904dc6d8d7130e0e68d5d3175d0c3cf470f8725f67bd8320882f5b9753cc0
     # peer id 16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
+    # Hash-sig validator key configuration
+    keyType: "hash-sig"  # Use hash-based signatures for post-quantum security
+    hashSigKeyIndex: 0   # Index into generated hash-sig keys
     enrFields:
       # verify /ip4/127.0.0.1/udp/9000/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
       ip: "127.0.0.1"
@@ -15,6 +18,9 @@ validators:
     # node id bc531fc1a99a896acb45603f28a32f81ae607480af46435009de4609370cb7bb
     # peer id 16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
     privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
+    # Hash-sig validator key configuration
+    keyType: "hash-sig"  # Use hash-based signatures for post-quantum security
+    hashSigKeyIndex: 1   # Index into generated hash-sig keys
     enrFields:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "127.0.0.1"
@@ -25,6 +31,9 @@ validators:
   - name: "qlean_0"
     # TODO: add a third entry in nodes.yaml corresponding to this
     privkey: "c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9"
+    # Hash-sig validator key configuration
+    keyType: "hash-sig"  # Use hash-based signatures for post-quantum security
+    hashSigKeyIndex: 2   # Index into generated hash-sig keys
     enrFields:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "127.0.0.1"

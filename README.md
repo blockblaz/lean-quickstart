@@ -114,6 +114,213 @@ You can also run the generator standalone:
 ./generate-genesis.sh local-devnet/genesis
 ```
 
+## Hash-Based Signature (Post-Quantum) Validator Keys
+
+This quickstart includes integrated support for **post-quantum secure hash-based signatures** for validator keys. The system automatically generates and manages hash-sig keys during genesis generation.
+
+
+### How It Works
+
+The genesis generator automatically:
+1. **Generates hash-sig keys** for N validators (Step 1 of genesis generation)
+2. **Stores keys** in `genesis/hash-sig-keys/` directory
+3. **Creates manifest** with key metadata and scheme information
+4. **Loads keys** automatically when nodes start via environment variables
+
+### Key Files Generated
+
+For each validator, two files are created:
+
+```
+genesis/hash-sig-keys/
+├── validator_0_pk.json          # Public key (~240 bytes)
+├── validator_0_sk.json          # Secret key (~106 MB for 2^18 epochs)
+├── validator_1_pk.json
+├── validator_1_sk.json
+├── validator_2_pk.json
+├── validator_2_sk.json
+└── validator-keys-manifest.yaml # Metadata about all keys
+```
+
+**Note**: Secret keys are large (~106 MB each for 2^18 epochs) because they contain the entire Merkle tree structure for efficient signing.
+
+### Dual-Key System
+
+Each validator uses **two separate key systems**:
+
+| Key Type | Purpose | Location |
+|----------|---------|----------|
+| **Hash-sig keys** | Block signing (post-quantum secure) | `genesis/hash-sig-keys/validator_N_*.json` |
+| **Standard keys** | P2P networking (ENR) | `genesis/node_name.key` |
+
+This separation allows post-quantum security for critical operations (signing) while maintaining compatibility with existing P2P protocols (networking).
+
+### Configuring Validators for Hash-Sig
+
+In `validator-config.yaml`, add these fields to each validator:
+
+```yaml
+validators:
+  - name: "zeam_0"
+    privkey: "bdf953..."              # For ENR/networking (kept for compatibility)
+    keyType: "hash-sig"               # Enable hash-based signatures
+    hashSigKeyIndex: 0                # Index into generated keys (0, 1, 2, ...)
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9000
+    metricsPort: 8080
+    count: 1
+```
+
+**Required fields**:
+- `keyType: "hash-sig"` - Tells the system to use hash-based signatures
+- `hashSigKeyIndex: N` - Maps validator to generated key file (validator_N_*.json)
+
+### Running with Hash-Sig Keys
+
+#### **Option 1: Fresh Start (Recommended)**
+```sh
+# Generate everything fresh with hash-sig keys
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+```
+
+This will:
+1. Generate hash-sig keys for all validators
+2. Create genesis files
+3. Start nodes with keys loaded
+
+#### **Option 2: Standalone Genesis Generation**
+```sh
+# Generate only genesis files (including hash-sig keys)
+./generate-genesis.sh local-devnet/genesis
+
+# Then start nodes (uses existing keys)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all
+```
+
+#### **Option 3: Start Without Regenerating Keys**
+```sh
+# Use existing genesis and hash-sig keys (no regeneration)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all
+```
+
+### Key Loading Process
+
+When nodes start, the system automatically:
+
+1. **Detects** `keyType: "hash-sig"` in `validator-config.yaml`
+2. **Extracts** `hashSigKeyIndex` for the validator
+3. **Validates** key files exist at expected paths
+4. **Exports** environment variables for the client:
+   ```bash
+   HASH_SIG_PUBLIC_KEY=/path/to/validator_N_pk.json
+   HASH_SIG_SECRET_KEY=/path/to/validator_N_sk.json
+   HASH_SIG_KEY_INDEX=N
+   ```
+5. **Starts** validator client with keys available
+
+You'll see this output when nodes start:
+```
+🔐 Validator uses hash-based signatures (post-quantum secure)
+Hash-Sig Key Index: 0
+Hash-Sig Public Key: /path/to/validator_0_pk.json
+Hash-Sig Secret Key: /path/to/validator_0_sk.json
+```
+
+### Configuring Number of Validators
+
+To change the number of validators:
+
+1. **Edit** `genesis/config.yaml`:
+   ```yaml
+   VALIDATOR_COUNT: 5  # Change this number
+   ```
+
+2. **Edit** `genesis/validator-config.yaml` - add/remove validator entries:
+   ```yaml
+   validators:
+     - name: "validator_0"
+       keyType: "hash-sig"
+       hashSigKeyIndex: 0
+       # ... other fields ...
+     - name: "validator_1"
+       keyType: "hash-sig"
+       hashSigKeyIndex: 1
+       # ... other fields ...
+     # Add more as needed...
+   ```
+
+3. **Run** genesis generation:
+   ```sh
+   ./generate-genesis.sh local-devnet/genesis
+   ```
+
+The system will automatically generate the correct number of hash-sig key pairs.
+
+### Hash-Sig Tool Integration
+
+The hash-sig keys are generated using the `hash-sig-cli` tool, integrated as a git submodule:
+
+```
+tools/hash-sig-cli/          # Git submodule
+└── target/release/hashsig   # CLI binary
+```
+
+**Submodule Setup** (if needed):
+```sh
+# Initialize submodule
+git submodule add https://github.com/blockblaz/hash-sig-cli.git tools/hash-sig-cli
+cd tools/hash-sig-cli
+git submodule update --init --recursive
+cargo build --release
+```
+
+The genesis generator automatically checks for the tool and builds it if needed.
+
+### Troubleshooting
+
+**Keys not found error:**
+```
+Error: Hash-sig public key not found at .../validator_0_pk.json
+Run generate-genesis.sh to generate hash-sig keys first
+```
+**Solution**: Run `./generate-genesis.sh local-devnet/genesis`
+
+**Genesis time expired:**
+```
+Genesis time is X but should be greater than Y
+```
+**Solution**: Regenerate genesis with fresh time:
+```sh
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+```
+
+**Large file sizes:**
+- Secret keys are ~106 MB each for 2^18 epochs
+- This is normal - they contain the entire Merkle tree
+- Ensure sufficient disk space (N × 106 MB for N validators)
+
+### Technical Details
+
+**Key Generation Command**:
+```sh
+# Called automatically by generate-genesis.sh
+hashsig generate-for-genesis \
+  --num-validators 3 \
+  --log-num-active-epochs 18 \
+  --output-dir genesis/hash-sig-keys
+```
+
+**Output Structure**:
+- Public keys: JSON with root hash and parameters
+- Secret keys: JSON with PRF seed and full Merkle tree
+- Manifest: YAML with scheme info and key mappings
+
+**Security Properties**:
+- Post-quantum secure (resistant to quantum attacks)
+- Stateful: Each (secret_key, epoch) pair must be used only once
+- Forward secure: Compromise at epoch N doesn't affect epochs < N
+
 ## Automation Features
 
 This quickstart includes automated configuration parsing:
