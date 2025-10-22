@@ -8,14 +8,14 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --validator_config $validatorConfig \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$item.key \
-      --metrics-port $metricsPort"
+      --metrics_port $metricsPort"
 
 node_docker="--security-opt seccomp=unconfined g11tech/zeam:latest node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
-      --metrics-port $metricsPort"
+      --metrics_port $metricsPort"
 
 # choose either binary or docker
 node_setup="docker"
