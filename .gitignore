@@ -2,5 +2,10 @@ data
 *.key
 *.backup
 *.old
-genesis.json
-genesis.ssz
+
+# Generated genesis files (created by generate-genesis.sh)
+local-devnet/genesis/config.yaml
+local-devnet/genesis/validators.yaml
+local-devnet/genesis/nodes.yaml
+local-devnet/genesis/genesis.json
+local-devnet/genesis/genesis.ssz
