@@ -46,9 +46,15 @@
     mode: '0644'
 
 - name: Get absolute path for genesis directory
+  shell: |
+    cd {{ genesis_dir }} && pwd
+  register: genesis_dir_abs_result
+  changed_when: false
+
+- name: Set absolute paths
   set_fact:
-    genesis_dir_abs: "{{ genesis_dir | expanduser | abspath }}"
-    parent_dir_abs: "{{ (genesis_dir | expanduser | abspath | dirname) }}"
+    genesis_dir_abs: "{{ genesis_dir_abs_result.stdout }}"
+    parent_dir_abs: "{{ genesis_dir | dirname }}"
 
 - name: Ensure parent directory exists
   file:
@@ -56,34 +62,23 @@
     state: directory
 
 - name: Pull PK's genesis docker image
-  community.docker.docker_image:
-    name: "{{ pk_docker_image }}"
-    source: pull
+  command: docker pull {{ pk_docker_image }}
+  register: docker_pull_result
+  changed_when: '"Downloaded newer image" in docker_pull_result.stdout'
 
 - name: Run PK's genesis generator
-  community.docker.docker_container:
-    name: eth-beacon-genesis-temp
-    image: "{{ pk_docker_image }}"
-    volumes:
-      - "{{ parent_dir_abs }}:/data"
-    command:
-      - leanchain
-      - --config
-      - "/data/genesis/config.yaml"
-      - --mass-validators
-      - "/data/genesis/validator-config.yaml"
-      - --state-output
-      - "/data/genesis/genesis.ssz"
-      - --json-output
-      - "/data/genesis/genesis.json"
-      - --nodes-output
-      - "/data/genesis/nodes.yaml"
-      - --validators-output
-      - "/data/genesis/validators.yaml"
-      - --config-output
-      - "/data/genesis/config.yaml"
-    auto_remove: true
-    network_mode: host
+  command: >-
+    docker run --rm
+    -v {{ parent_dir_abs }}:/data
+    {{ pk_docker_image }}
+    leanchain
+    --config /data/genesis/config.yaml
+    --mass-validators /data/genesis/validator-config.yaml
+    --state-output /data/genesis/genesis.ssz
+    --json-output /data/genesis/genesis.json
+    --nodes-output /data/genesis/nodes.yaml
+    --validators-output /data/genesis/validators.yaml
+    --config-output /data/genesis/config.yaml
   register: genesis_run
 
 - name: Extract node names from validator-config.yaml
@@ -96,23 +91,16 @@
   set_fact:
     node_names: "{{ node_names_raw.stdout_lines }}"
 
-- name: Generate private key files for each node
-  block:
-    - name: Extract private key for node
-      shell: |
-        yq eval ".validators[] | select(.name == \"{{ item }}\") | .privkey" {{ validator_config_file }}
-      register: node_privkey
-      changed_when: false
-      failed_when: false
+- name: Ensure node_names is a list
+  set_fact:
+    node_names_list: "{{ node_names | default([]) | list }}"
 
-    - name: Create private key file
-      copy:
-        content: "{{ node_privkey.stdout }}"
-        dest: "{{ genesis_dir }}/{{ item }}.key"
-        mode: '0600'
-      when: node_privkey.stdout != "null" and node_privkey.stdout | length > 0
-  loop: "{{ node_names }}"
-  when: node_names is defined
+- name: Generate private key files for each node
+  include_tasks: generate-key.yml
+  loop: "{{ node_names_list }}"
+  loop_control:
+    loop_var: current_node
+  when: node_names_list | length > 0
 
 - name: Validate generated genesis files
   stat:

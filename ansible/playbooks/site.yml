@@ -4,9 +4,7 @@
 
 - name: Generate Genesis Files
   import_playbook: genesis.yml
-  vars:
-    generate_genesis: "{{ generate_genesis | default(true) }}"
-  when: generate_genesis | default(true)
+  when: generate_genesis | default(true) | bool
 
 - name: Deploy Nodes
   import_playbook: deploy-nodes.yml

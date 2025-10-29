@@ -13,6 +13,8 @@
     - name: Include common role for dependency checks
       include_role:
         name: common
+      vars:
+        node_names: []
       tags:
         - genesis
         - setup

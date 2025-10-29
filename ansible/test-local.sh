@@ -45,7 +45,17 @@ echo ""
 # Check playbook syntax
 echo "3️⃣  Checking playbook syntax..."
 cd "$SCRIPT_DIR"
+# Task files (included via include_tasks) cannot be syntax-checked directly
+# They are validated when parent playbooks are checked
+task_files=("deploy-single-node.yml")
 for playbook in playbooks/*.yml; do
+    playbook_name=$(basename "$playbook")
+    # Skip task files - they're validated when parent playbooks run
+    if [[ " ${task_files[@]} " =~ " ${playbook_name} " ]]; then
+        echo "   ⏭️  $(basename $playbook) (task file, validated via parent playbook)"
+        continue
+    fi
+    
     if ansible-playbook --syntax-check "$playbook" > /dev/null 2>&1; then
         echo "   ✅ $(basename $playbook)"
     else

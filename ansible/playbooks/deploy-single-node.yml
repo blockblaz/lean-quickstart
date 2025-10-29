@@ -6,23 +6,26 @@
   set_fact:
     client_type: "{{ node_name.split('_')[0] }}"
 
+- name: Set validator config file path
+  set_fact:
+    actual_validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+
 - name: Extract node configuration
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .name" {{ validator_config_file }}
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .name" {{ actual_validator_config_file }}
   register: node_check
   changed_when: false
   failed_when: false
 
 - name: Fail if node not found in config
   fail:
-    msg: "Node '{{ node_name }}' not found in {{ validator_config_file }}"
+    msg: "Node '{{ node_name }}' not found in {{ actual_validator_config_file }}"
   when: node_check.stdout == "" or node_check.rc != 0
 
 - name: Deploy Zeam node
   include_role:
     name: zeam
   vars:
-    node_name: "{{ node_name }}"
     validator_config: "{{ validator_config | default('genesis_bootnode') }}"
   when: client_type == "zeam"
   tags:
@@ -53,4 +56,3 @@
   fail:
     msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, or qlean"
   when: client_type not in ["zeam", "ream", "qlean"]
-

@@ -116,11 +116,15 @@
     - "{{ data_dir }}"
   when: network_dir is defined
 
+- name: Ensure node_names is a list
+  set_fact:
+    node_names_list: "{{ (node_names | default([]) | type_debug == 'list' and node_names) or (node_names | default([]) | type_debug == 'str' and [node_names]) or [] }}"
+
 - name: Create data directories for each node
   file:
     path: "{{ data_dir }}/{{ item }}"
     state: directory
     mode: '0755'
-  loop: "{{ node_names | default([]) }}"
-  when: node_names is defined and node_names | length > 0
+  loop: "{{ node_names_list }}"
+  when: node_names_list | length > 0
 
