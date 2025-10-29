@@ -22,11 +22,15 @@
     msg: "Node '{{ node_name }}' not found in {{ actual_validator_config_file }}"
   when: node_check.stdout == "" or node_check.rc != 0
 
+- name: Set zeam validator config
+  set_fact:
+    zeam_validator_config: "{{ validator_config if validator_config is defined and validator_config != '' else 'genesis_bootnode' }}"
+
 - name: Deploy Zeam node
   include_role:
     name: zeam
   vars:
-    validator_config: "{{ validator_config | default('genesis_bootnode') }}"
+    validator_config: "{{ zeam_validator_config }}"
   when: client_type == "zeam"
   tags:
     - zeam
