@@ -37,7 +37,7 @@
       when: 
         - node_names is defined
         - node_names is string
-        - ',' in node_names
+        - ("," in node_names)
 
     - name: Parse node names if provided as space-separated string
       set_fact:
@@ -45,8 +45,8 @@
       when: 
         - node_names is defined
         - node_names is string
-        - ',' not in node_names
-        - ' ' in node_names
+        - ("," not in node_names)
+        - (" " in node_names)
 
     - name: Handle 'all' node specification
       set_fact:
