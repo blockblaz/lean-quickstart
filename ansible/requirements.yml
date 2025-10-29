@@ -1,0 +1,8 @@
+---
+# Ansible Galaxy requirements
+# Install with: ansible-galaxy install -r requirements.yml
+
+collections:
+  - name: community.docker
+    version: ">=3.0.0"
+

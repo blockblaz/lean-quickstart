@@ -1,0 +1,88 @@
+---
+# Ream role: Deploy and manage Ream nodes
+# Converts client-cmds/ream-cmd.sh logic to Ansible tasks
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ validator_config_file }}"
+  register: ream_node_config
+  changed_when: false
+  loop:
+    - enrFields.quic
+    - metricsPort
+    - privkey
+  when: node_name is defined
+
+- name: Set node ports
+  set_fact:
+    ream_quic_port: "{{ ream_node_config.results[0].stdout }}"
+    ream_metrics_port: "{{ ream_node_config.results[1].stdout }}"
+    ream_privkey: "{{ ream_node_config.results[2].stdout }}"
+  when: ream_node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not node_key_stat.stat.exists
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false)
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Ream node using Docker
+  block:
+    - name: Ensure Ream docker image is pulled
+      community.docker.docker_image:
+        name: "{{ ream_docker_image }}"
+        source: pull
+
+    - name: Stop existing Ream container (if any)
+      community.docker.docker_container:
+        name: "{{ node_name }}"
+        state: absent
+      ignore_errors: true
+
+    - name: Start Ream container
+      community.docker.docker_container:
+        name: "{{ node_name }}"
+        image: "{{ ream_docker_image }}"
+        state: started
+        restart_policy: unless-stopped
+        network_mode: host
+        volumes:
+          - "{{ genesis_dir }}:/config:ro"
+          - "{{ data_dir }}/{{ node_name }}:/data"
+        command:
+          - --data-dir
+          - "/data"
+          - lean_node
+          - --network
+          - "/config/config.yaml"
+          - --validator-registry-path
+          - "/config/validators.yaml"
+          - --bootnodes
+          - "/config/nodes.yaml"
+          - --node-id
+          - "{{ node_name }}"
+          - --node-key
+          - "/config/{{ node_name }}.key"
+          - --socket-port
+          - "{{ ream_quic_port }}"
+          - --metrics-port
+          - "{{ ream_metrics_port }}"
+      register: ream_container
+  when: deployment_mode == 'docker'
+

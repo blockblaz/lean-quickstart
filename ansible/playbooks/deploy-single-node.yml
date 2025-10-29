@@ -1,0 +1,56 @@
+---
+# Deploy single node: Helper tasks for deploying individual nodes
+# Determines client type and includes appropriate role
+
+- name: Extract client type from node name
+  set_fact:
+    client_type: "{{ node_name.split('_')[0] }}"
+
+- name: Extract node configuration
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .name" {{ validator_config_file }}
+  register: node_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if node not found in config
+  fail:
+    msg: "Node '{{ node_name }}' not found in {{ validator_config_file }}"
+  when: node_check.stdout == "" or node_check.rc != 0
+
+- name: Deploy Zeam node
+  include_role:
+    name: zeam
+  vars:
+    node_name: "{{ node_name }}"
+    validator_config: "{{ validator_config | default('genesis_bootnode') }}"
+  when: client_type == "zeam"
+  tags:
+    - zeam
+    - deploy
+
+- name: Deploy Ream node
+  include_role:
+    name: ream
+  vars:
+    node_name: "{{ node_name }}"
+  when: client_type == "ream"
+  tags:
+    - ream
+    - deploy
+
+- name: Deploy Qlean node
+  include_role:
+    name: qlean
+  vars:
+    node_name: "{{ node_name }}"
+  when: client_type == "qlean"
+  tags:
+    - qlean
+    - deploy
+
+- name: Fail if unknown client type
+  fail:
+    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, or qlean"
+  when: client_type not in ["zeam", "ream", "qlean"]
+

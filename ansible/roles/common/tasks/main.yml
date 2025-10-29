@@ -1,0 +1,126 @@
+---
+# Common role: Install dependencies and setup directories
+# Handles Docker, yq, and directory creation
+
+- name: Check if running on localhost
+  set_fact:
+    is_localhost: "{{ ansible_connection == 'local' }}"
+  when: ansible_connection is defined
+
+- name: Install system dependencies (non-localhost)
+  package:
+    name:
+      - python3
+      - python3-pip
+      - curl
+    state: present
+  become: yes
+  when: not is_localhost | default(false)
+
+- name: Check if Docker is installed
+  command: which docker
+  register: docker_check
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Install Docker (non-localhost)
+  block:
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+        state: present
+      become: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+        state: present
+      become: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker packages
+      package:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+      become: yes
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+      become: yes
+  when: not is_localhost | default(false) and docker_check.rc != 0
+
+- name: Check if yq is installed
+  command: which yq
+  register: yq_check
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Install yq (non-localhost)
+  block:
+    - name: Download yq binary
+      get_url:
+        url: "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_{{ ansible_architecture }}"
+        dest: /usr/local/bin/yq
+        mode: '0755'
+        become: yes
+      when: ansible_os_family == "Linux" and ansible_architecture in ["amd64", "arm64"]
+
+    - name: Install yq via Homebrew (macOS)
+      homebrew:
+        name: yq
+        state: present
+      when: ansible_os_family == "Darwin"
+  when: not is_localhost | default(false) and yq_check.rc != 0
+
+- name: Verify Docker is available
+  command: docker --version
+  register: docker_version
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Fail if Docker is not available
+  fail:
+    msg: "Docker is required but not installed. Please install Docker first."
+  when: docker_version.rc != 0
+
+- name: Verify yq is available
+  command: yq --version
+  register: yq_version
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Fail if yq is not available
+  fail:
+    msg: "yq is required but not installed. Install on macOS: brew install yq, or see https://github.com/mikefarah/yq"
+  when: yq_version.rc != 0
+
+- name: Create network directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ network_dir }}"
+    - "{{ genesis_dir }}"
+    - "{{ data_dir }}"
+  when: network_dir is defined
+
+- name: Create data directories for each node
+  file:
+    path: "{{ data_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ node_names | default([]) }}"
+  when: node_names is defined and node_names | length > 0
+

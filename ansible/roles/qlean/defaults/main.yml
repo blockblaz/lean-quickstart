@@ -1,0 +1,9 @@
+---
+# Default variables for qlean role
+
+qlean_docker_image: "qdrvm/qlean-mini:dd67521"
+qlean_docker_platform: "linux/amd64"
+qlean_binary_path: "{{ playbook_dir }}/../qlean/build/src/executable/qlean"
+qlean_modules_dir: "{{ playbook_dir }}/../qlean/build/src/modules"
+deployment_mode: docker  # docker or binary
+

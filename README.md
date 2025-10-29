@@ -26,12 +26,20 @@ A single command line quickstart to spin up lean node(s)
 
 ### Quickly startup various nodes as a local devnet
 
+**Using shell scripts (quick local setup):**
 ```sh
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --popupTerminal
 ```
 
+**Using Ansible (recommended for production/remote):**
+```sh
+./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+```
+> 📖 See [Ansible Deployment](#ansible-deployment) section or [ansible/README.md](ansible/README.md) for details
+
 ### Startup specific nodes only
 
+**Using shell scripts:**
 ```sh
 # Run only zeam_0 and ream_0 nodes (comma-separated)
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0,ream_0 --generateGenesis --popupTerminal
@@ -41,6 +49,15 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node "zeam_0 qlean_0" --generateGenesi
 
 # Run only a single node
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupTerminal
+```
+
+**Using Ansible:**
+```sh
+# Run only zeam_0 and ream_0 nodes
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --generate-genesis
+
+# Run only a single node
+./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --generate-genesis
 ```
   
 ## Args
@@ -130,6 +147,8 @@ The system reads all configuration from YAML files, making it easy to add new no
 ## Ansible Deployment
 
 The repository now includes Ansible-based deployment for enhanced automation, remote deployment capabilities, and better infrastructure management. Ansible provides idempotency, declarative configuration, and support for deploying to multiple remote hosts.
+
+📖 **For detailed Ansible documentation, see [ansible/README.md](ansible/README.md)**
 
 ### Ansible Benefits
 

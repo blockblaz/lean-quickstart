@@ -1,0 +1,89 @@
+---
+# Qlean role: Deploy and manage Qlean nodes
+# Converts client-cmds/qlean-cmd.sh logic to Ansible tasks
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ validator_config_file }}"
+  register: qlean_node_config
+  changed_when: false
+  loop:
+    - enrFields.quic
+    - metricsPort
+    - privkey
+  when: node_name is defined
+
+- name: Set node ports
+  set_fact:
+    qlean_quic_port: "{{ qlean_node_config.results[0].stdout }}"
+    qlean_metrics_port: "{{ qlean_node_config.results[1].stdout }}"
+    qlean_privkey: "{{ qlean_node_config.results[2].stdout }}"
+  when: qlean_node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not node_key_stat.stat.exists
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false)
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Qlean node using Docker
+  block:
+    - name: Ensure Qlean docker image is pulled
+      community.docker.docker_image:
+        name: "{{ qlean_docker_image }}"
+        source: pull
+        platform: "{{ qlean_docker_platform }}"
+
+    - name: Stop existing Qlean container (if any)
+      community.docker.docker_container:
+        name: "{{ node_name }}"
+        state: absent
+      ignore_errors: true
+
+    - name: Start Qlean container
+      community.docker.docker_container:
+        name: "{{ node_name }}"
+        image: "{{ qlean_docker_image }}"
+        state: started
+        restart_policy: unless-stopped
+        network_mode: host
+        volumes:
+          - "{{ genesis_dir }}:/config:ro"
+          - "{{ data_dir }}/{{ node_name }}:/data"
+        command:
+          - --genesis
+          - "/config/config.yaml"
+          - --validator-registry-path
+          - "/config/validators.yaml"
+          - --bootnodes
+          - "/config/nodes.yaml"
+          - --data-dir
+          - "/data"
+          - --node-id
+          - "{{ node_name }}"
+          - --node-key
+          - "/config/{{ node_name }}.key"
+          - --listen-addr
+          - "/ip4/0.0.0.0/udp/{{ qlean_quic_port }}/quic-v1"
+          - --metrics-port
+          - "{{ qlean_metrics_port }}"
+      register: qlean_container
+      platform: "{{ qlean_docker_platform }}"
+  when: deployment_mode == 'docker'
+

@@ -1,0 +1,6 @@
+---
+# Default variables for genesis role
+
+pk_docker_image: "ethpandaops/eth-beacon-genesis:pk910-leanchain"
+genesis_time_offset: 30
+

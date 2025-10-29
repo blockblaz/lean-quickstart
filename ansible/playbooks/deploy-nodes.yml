@@ -1,0 +1,79 @@
+---
+# Deploy nodes playbook: Deploy and manage Lean nodes
+# Supports deploying specific nodes or all nodes
+
+- name: Deploy Lean Nodes
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  vars:
+    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+
+  pre_tasks:
+    - name: Validate validator-config.yaml exists
+      stat:
+        path: "{{ validator_config_file }}"
+      register: validator_config_stat
+
+    - name: Fail if validator-config.yaml missing
+      fail:
+        msg: "validator-config.yaml not found at {{ validator_config_file }}"
+      when: not validator_config_stat.stat.exists
+
+    - name: Extract all node names
+      shell: |
+        yq eval '.validators[].name' {{ validator_config_file }}
+      register: all_node_names_raw
+      changed_when: false
+
+    - name: Set all node names
+      set_fact:
+        all_node_names: "{{ all_node_names_raw.stdout_lines }}"
+        deploy_nodes: "{{ node_names | default(all_node_names_raw.stdout_lines) }}"
+
+    - name: Parse node names if provided as comma-separated string
+      set_fact:
+        deploy_nodes: "{{ node_names.split(',') | map('trim') | list }}"
+      when: 
+        - node_names is defined
+        - node_names is string
+        - ',' in node_names
+
+    - name: Parse node names if provided as space-separated string
+      set_fact:
+        deploy_nodes: "{{ node_names.split(' ') | map('trim') | select('length') | list }}"
+      when: 
+        - node_names is defined
+        - node_names is string
+        - ',' not in node_names
+        - ' ' in node_names
+
+    - name: Handle 'all' node specification
+      set_fact:
+        deploy_nodes: "{{ all_node_names }}"
+      when: node_names is defined and node_names == 'all'
+
+    - name: Display deployment targets
+      debug:
+        msg: "Deploying nodes: {{ deploy_nodes | join(', ') }}"
+
+  tasks:
+    - name: Include common role
+      include_role:
+        name: common
+      vars:
+        node_names: "{{ deploy_nodes }}"
+      tags:
+        - setup
+        - deploy
+
+    - name: Deploy each node
+      include_tasks: deploy-single-node.yml
+      loop: "{{ deploy_nodes }}"
+      loop_control:
+        loop_var: node_name
+      vars:
+        node_name: "{{ item }}"
+      tags:
+        - deploy
+

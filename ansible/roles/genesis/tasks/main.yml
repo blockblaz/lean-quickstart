@@ -1,0 +1,143 @@
+---
+# Genesis role: Generate genesis files using PK's eth-beacon-genesis tool
+# Converts generate-genesis.sh logic to Ansible tasks
+
+- name: Check if validator-config.yaml exists
+  stat:
+    path: "{{ validator_config_file }}"
+  register: validator_config_stat
+
+- name: Fail if validator-config.yaml is missing
+  fail:
+    msg: "validator-config.yaml not found at {{ validator_config_file }}"
+  when: not validator_config_stat.stat.exists
+
+- name: Read validator counts from validator-config.yaml
+  shell: |
+    yq eval '.validators[].count' {{ validator_config_file }} | awk '{sum+=$1} END {print sum}'
+  register: total_validators_raw
+  changed_when: false
+
+- name: Set total validator count
+  set_fact:
+    total_validators: "{{ total_validators_raw.stdout | int }}"
+
+- name: Validate total validator count
+  fail:
+    msg: "Total validator count is 0 or invalid. Check validator-config.yaml"
+  when: total_validators | int < 1
+
+- name: Calculate genesis time
+  set_fact:
+    genesis_time: "{{ (ansible_date_time.epoch | int) + genesis_time_offset }}"
+
+- name: Display validator counts
+  debug:
+    msg: "Total validator count: {{ total_validators }}"
+
+- name: Generate config.yaml
+  copy:
+    content: |
+      # Genesis Settings
+      GENESIS_TIME: {{ genesis_time }}
+      # Validator Settings  
+      VALIDATOR_COUNT: {{ total_validators }}
+    dest: "{{ genesis_dir }}/config.yaml"
+    mode: '0644'
+
+- name: Get absolute path for genesis directory
+  set_fact:
+    genesis_dir_abs: "{{ genesis_dir | expanduser | abspath }}"
+    parent_dir_abs: "{{ (genesis_dir | expanduser | abspath | dirname) }}"
+
+- name: Ensure parent directory exists
+  file:
+    path: "{{ parent_dir_abs }}"
+    state: directory
+
+- name: Pull PK's genesis docker image
+  community.docker.docker_image:
+    name: "{{ pk_docker_image }}"
+    source: pull
+
+- name: Run PK's genesis generator
+  community.docker.docker_container:
+    name: eth-beacon-genesis-temp
+    image: "{{ pk_docker_image }}"
+    volumes:
+      - "{{ parent_dir_abs }}:/data"
+    command:
+      - leanchain
+      - --config
+      - "/data/genesis/config.yaml"
+      - --mass-validators
+      - "/data/genesis/validator-config.yaml"
+      - --state-output
+      - "/data/genesis/genesis.ssz"
+      - --json-output
+      - "/data/genesis/genesis.json"
+      - --nodes-output
+      - "/data/genesis/nodes.yaml"
+      - --validators-output
+      - "/data/genesis/validators.yaml"
+      - --config-output
+      - "/data/genesis/config.yaml"
+    auto_remove: true
+    network_mode: host
+  register: genesis_run
+
+- name: Extract node names from validator-config.yaml
+  shell: |
+    yq eval '.validators[].name' {{ validator_config_file }}
+  register: node_names_raw
+  changed_when: false
+
+- name: Set node names list
+  set_fact:
+    node_names: "{{ node_names_raw.stdout_lines }}"
+
+- name: Generate private key files for each node
+  block:
+    - name: Extract private key for node
+      shell: |
+        yq eval ".validators[] | select(.name == \"{{ item }}\") | .privkey" {{ validator_config_file }}
+      register: node_privkey
+      changed_when: false
+      failed_when: false
+
+    - name: Create private key file
+      copy:
+        content: "{{ node_privkey.stdout }}"
+        dest: "{{ genesis_dir }}/{{ item }}.key"
+        mode: '0600'
+      when: node_privkey.stdout != "null" and node_privkey.stdout | length > 0
+  loop: "{{ node_names }}"
+  when: node_names is defined
+
+- name: Validate generated genesis files
+  stat:
+    path: "{{ genesis_dir }}/{{ item }}"
+  register: genesis_file_stat
+  loop:
+    - config.yaml
+    - validators.yaml
+    - nodes.yaml
+    - genesis.json
+    - genesis.ssz
+
+- name: Fail if required genesis files are missing
+  fail:
+    msg: "Required genesis file {{ item.item }} is missing"
+  loop: "{{ genesis_file_stat.results }}"
+  when: not item.stat.exists
+
+- name: Display generated files
+  debug:
+    msg: "✅ Generated {{ item }}"
+  loop:
+    - config.yaml
+    - validators.yaml
+    - nodes.yaml
+    - genesis.json
+    - genesis.ssz
+

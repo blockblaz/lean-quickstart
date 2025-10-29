@@ -1,0 +1,112 @@
+---
+# Zeam role: Deploy and manage Zeam nodes
+# Converts client-cmds/zeam-cmd.sh logic to Ansible tasks
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ validator_config_file }}"
+  register: node_config
+  changed_when: false
+  loop:
+    - metricsPort
+    - privkey
+  when: node_name is defined
+
+- name: Set node metrics port
+  set_fact:
+    zeam_metrics_port: "{{ node_config.results[0].stdout }}"
+  when: node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not node_key_stat.stat.exists
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false)
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Zeam node using Docker
+  block:
+    - name: Ensure Zeam docker image is pulled
+      community.docker.docker_image:
+        name: "{{ zeam_docker_image }}"
+        source: pull
+
+    - name: Stop existing Zeam container (if any)
+      community.docker.docker_container:
+        name: "{{ node_name }}"
+        state: absent
+      ignore_errors: true
+
+    - name: Start Zeam container
+      community.docker.docker_container:
+        name: "{{ node_name }}"
+        image: "{{ zeam_docker_image }}"
+        state: started
+        restart_policy: unless-stopped
+        network_mode: host
+        volumes:
+          - "{{ genesis_dir }}:/config:ro"
+          - "{{ data_dir }}/{{ node_name }}:/data"
+        security_opts:
+          - seccomp=unconfined
+        command:
+          - node
+          - --custom_genesis
+          - "/config"
+          - --validator_config
+          - "{{ validator_config | default('genesis_bootnode') }}"
+          - --data-dir
+          - "/data"
+          - --node-id
+          - "{{ node_name }}"
+          - --node-key
+          - "/config/{{ node_name }}.key"
+          - --metrics_port
+          - "{{ zeam_metrics_port }}"
+      register: zeam_container
+
+- name: Deploy Zeam node using binary
+  block:
+    - name: Check if binary exists
+      stat:
+        path: "{{ zeam_binary_path }}"
+      register: binary_stat
+
+    - name: Fail if binary not found
+      fail:
+        msg: "Zeam binary not found at {{ zeam_binary_path }}"
+      when: not binary_stat.stat.exists
+
+    - name: Create systemd service for Zeam
+      template:
+        src: zeam.service.j2
+        dest: "/etc/systemd/system/zeam-{{ node_name }}.service"
+        mode: '0644'
+      become: yes
+      when: ansible_connection != 'local'
+
+    - name: Start and enable Zeam service
+      systemd:
+        name: "zeam-{{ node_name }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      become: yes
+      when: ansible_connection != 'local'
+  when: deployment_mode == 'binary'
+
