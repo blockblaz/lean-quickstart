@@ -127,6 +127,203 @@ This quickstart includes automated configuration parsing:
 
 The system reads all configuration from YAML files, making it easy to add new nodes or modify existing ones without changing any scripts.
 
+## Ansible Deployment
+
+The repository now includes Ansible-based deployment for enhanced automation, remote deployment capabilities, and better infrastructure management. Ansible provides idempotency, declarative configuration, and support for deploying to multiple remote hosts.
+
+### Ansible Benefits
+
+- ✅ **Remote Deployment**: Deploy nodes to remote servers
+- ✅ **Idempotency**: Safe to run multiple times
+- ✅ **Infrastructure as Code**: Version-controlled deployment configuration
+- ✅ **Multi-Host Support**: Deploy to multiple hosts in parallel
+- ✅ **Better State Management**: Track and manage node lifecycle
+- ✅ **Extensible**: Easy to add new roles and playbooks
+
+### Installing Ansible
+
+**macOS:**
+```sh
+brew install ansible
+```
+
+**Ubuntu/Debian:**
+```sh
+sudo apt-get update
+sudo apt-get install ansible
+```
+
+**Using pip:**
+```sh
+pip install ansible
+```
+
+### Installing Ansible Dependencies
+
+Install required Ansible collections:
+
+```sh
+cd ansible
+ansible-galaxy install -r requirements.yml
+```
+
+### Quick Start with Ansible
+
+**Deploy all nodes with genesis generation:**
+```sh
+./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+```
+
+**Deploy specific nodes:**
+```sh
+# Single node
+./ansible-deploy.sh --node zeam_0 --network-dir local-devnet
+
+# Multiple nodes (comma-separated)
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet
+
+# Multiple nodes (space-separated)
+./ansible-deploy.sh --node "zeam_0 ream_0" --network-dir local-devnet
+```
+
+**Generate genesis files only:**
+```sh
+./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet
+```
+
+**Deploy with clean data directories:**
+```sh
+./ansible-deploy.sh --node all --network-dir local-devnet --clean-data --generate-genesis
+```
+
+### Ansible Command-Line Options
+
+The `ansible-deploy.sh` wrapper script provides the following options:
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--node NODES` | Nodes to deploy (all, single, or comma/space-separated) | `--node zeam_0,ream_0` |
+| `--network-dir DIR` | Network directory | `--network-dir local-devnet` |
+| `--generate-genesis` | Force regeneration of genesis files | `--generate-genesis` |
+| `--clean-data` | Clean data directories before deployment | `--clean-data` |
+| `--validator-config PATH` | Path to validator-config.yaml | `--validator-config custom/path.yaml` |
+| `--deployment-mode MODE` | Deployment mode: docker or binary | `--deployment-mode docker` |
+| `--playbook PLAYBOOK` | Ansible playbook to run | `--playbook genesis.yml` |
+| `--tags TAGS` | Run only tasks with specific tags | `--tags zeam,genesis` |
+| `--check` | Dry run (check mode) | `--check` |
+| `--diff` | Show file changes | `--diff` |
+| `--verbose` | Verbose output | `--verbose` |
+
+### Ansible Directory Structure
+
+```
+ansible/
+├── ansible.cfg              # Ansible configuration
+├── requirements.yml          # Ansible Galaxy dependencies
+├── inventory/
+│   ├── hosts.yml            # Host inventory (localhost or remote hosts)
+│   └── group_vars/          # Group variables
+│       └── all.yml           # Global variables
+├── playbooks/
+│   ├── site.yml             # Main playbook (genesis + deploy)
+│   ├── genesis.yml          # Genesis generation playbook
+│   ├── deploy-nodes.yml     # Node deployment playbook
+│   └── deploy-single-node.yml # Helper for single node deployment
+└── roles/
+    ├── common/              # Common setup (Docker, yq, directories)
+    ├── genesis/             # Genesis file generation
+    ├── zeam/                # Zeam node role
+    ├── ream/                # Ream node role
+    └── qlean/               # Qlean node role
+```
+
+### Remote Deployment
+
+To deploy to remote hosts, update `ansible/inventory/hosts.yml`:
+
+```yaml
+all:
+  children:
+    zeam_nodes:
+      hosts:
+        zeam_0:
+          ansible_host: 192.168.1.10
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+    ream_nodes:
+      hosts:
+        ream_0:
+          ansible_host: 192.168.1.11
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+```
+
+Then deploy normally:
+```sh
+./ansible-deploy.sh --node all --network-dir local-devnet
+```
+
+**Note:** For remote deployment, ensure:
+- SSH key-based authentication is configured
+- Docker is installed on remote hosts (or use `--deployment-mode binary`)
+- Required ports are open (QUIC ports, metrics ports)
+- Genesis files are accessible (copied or mounted)
+
+### Using Ansible Directly
+
+You can also run Ansible playbooks directly:
+
+```sh
+cd ansible
+
+# Run main playbook
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
+  -e "network_dir=$(pwd)/../local-devnet" \
+  -e "node_names=all" \
+  -e "generate_genesis=true"
+
+# Run only genesis generation
+ansible-playbook -i inventory/hosts.yml playbooks/genesis.yml \
+  -e "network_dir=$(pwd)/../local-devnet"
+
+# Run with specific tags
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-nodes.yml \
+  -e "network_dir=$(pwd)/../local-devnet" \
+  -e "node_names=zeam_0" \
+  --tags zeam
+```
+
+### Ansible Variables
+
+Key variables can be set via command-line or in `inventory/group_vars/all.yml`:
+
+- `network_dir`: Network directory path (required)
+- `genesis_dir`: Genesis directory path (derived from network_dir)
+- `data_dir`: Data directory path (derived from network_dir)
+- `node_names`: Nodes to deploy (default: 'all')
+- `generate_genesis`: Generate genesis files (default: true)
+- `clean_data`: Clean data directories (default: false)
+- `deployment_mode`: docker or binary (default: docker)
+- `validator_config`: Validator config path (default: 'genesis_bootnode')
+
+### Comparing Shell Scripts vs Ansible
+
+Both deployment methods are available:
+
+| Feature | Shell Scripts (`spin-node.sh`) | Ansible (`ansible-deploy.sh`) |
+|---------|-------------------------------|-------------------------------|
+| **Use Case** | Local development, quick setup | Production, remote deployment |
+| **Complexity** | Simple, direct | More structured |
+| **Remote Deployment** | No | Yes |
+| **Idempotency** | No | Yes |
+| **State Management** | Manual | Declarative |
+| **Multi-Host** | No | Yes |
+| **Rollback** | Manual | Built-in capabilities |
+
+**Recommendation:** 
+- Use `spin-node.sh` for local development and quick testing
+- Use `ansible-deploy.sh` for production deployments and remote hosts
+
 ## Client branches
 
 Clients can maintain their own branches to integrated and use binay with their repos as the static targets (check `git diff main zeam_repo`). And those branches can be rebased as per client convinience whenever the `main` code is updated.
