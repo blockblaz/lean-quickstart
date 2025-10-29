@@ -39,8 +39,6 @@
 - name: Deploy Ream node
   include_role:
     name: ream
-  vars:
-    node_name: "{{ node_name }}"
   when: client_type == "ream"
   tags:
     - ream
@@ -49,8 +47,6 @@
 - name: Deploy Qlean node
   include_role:
     name: qlean
-  vars:
-    node_name: "{{ node_name }}"
   when: client_type == "qlean"
   tags:
     - qlean

@@ -4,7 +4,7 @@
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ validator_config_file }}"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
   register: ream_node_config
   changed_when: false
   loop:
@@ -44,45 +44,36 @@
 
 - name: Deploy Ream node using Docker
   block:
-    - name: Ensure Ream docker image is pulled
-      community.docker.docker_image:
-        name: "{{ ream_docker_image }}"
-        source: pull
+    - name: Pull Ream docker image
+      command: docker pull {{ ream_docker_image }}
+      register: ream_docker_pull
+      changed_when: '"Downloaded newer image" in ream_docker_pull.stdout'
 
     - name: Stop existing Ream container (if any)
-      community.docker.docker_container:
-        name: "{{ node_name }}"
-        state: absent
-      ignore_errors: true
+      command: docker rm -f {{ node_name }}
+      register: ream_stop
+      failed_when: false
+      changed_when: ream_stop.rc == 0
 
     - name: Start Ream container
-      community.docker.docker_container:
-        name: "{{ node_name }}"
-        image: "{{ ream_docker_image }}"
-        state: started
-        restart_policy: unless-stopped
-        network_mode: host
-        volumes:
-          - "{{ genesis_dir }}:/config:ro"
-          - "{{ data_dir }}/{{ node_name }}:/data"
-        command:
-          - --data-dir
-          - "/data"
-          - lean_node
-          - --network
-          - "/config/config.yaml"
-          - --validator-registry-path
-          - "/config/validators.yaml"
-          - --bootnodes
-          - "/config/nodes.yaml"
-          - --node-id
-          - "{{ node_name }}"
-          - --node-key
-          - "/config/{{ node_name }}.key"
-          - --socket-port
-          - "{{ ream_quic_port }}"
-          - --metrics-port
-          - "{{ ream_metrics_port }}"
+      command: >-
+        docker run -d
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ ream_docker_image }}
+        --data-dir /data
+        lean_node
+        --network /config/config.yaml
+        --validator-registry-path /config/validators.yaml
+        --bootnodes /config/nodes.yaml
+        --node-id {{ node_name }}
+        --node-key /config/{{ node_name }}.key
+        --socket-port {{ ream_quic_port }}
+        --metrics-port {{ ream_metrics_port }}
       register: ream_container
+      changed_when: ream_container.rc == 0
   when: deployment_mode == 'docker'
 

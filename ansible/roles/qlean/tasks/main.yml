@@ -4,7 +4,7 @@
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ validator_config_file }}"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
   register: qlean_node_config
   changed_when: false
   loop:
@@ -44,46 +44,36 @@
 
 - name: Deploy Qlean node using Docker
   block:
-    - name: Ensure Qlean docker image is pulled
-      community.docker.docker_image:
-        name: "{{ qlean_docker_image }}"
-        source: pull
-        platform: "{{ qlean_docker_platform }}"
+    - name: Pull Qlean docker image
+      command: docker pull {{ qlean_docker_image }}
+      register: qlean_docker_pull
+      changed_when: '"Downloaded newer image" in qlean_docker_pull.stdout'
 
     - name: Stop existing Qlean container (if any)
-      community.docker.docker_container:
-        name: "{{ node_name }}"
-        state: absent
-      ignore_errors: true
+      command: docker rm -f {{ node_name }}
+      register: qlean_stop
+      failed_when: false
+      changed_when: qlean_stop.rc == 0
 
     - name: Start Qlean container
-      community.docker.docker_container:
-        name: "{{ node_name }}"
-        image: "{{ qlean_docker_image }}"
-        state: started
-        restart_policy: unless-stopped
-        network_mode: host
-        volumes:
-          - "{{ genesis_dir }}:/config:ro"
-          - "{{ data_dir }}/{{ node_name }}:/data"
-        command:
-          - --genesis
-          - "/config/config.yaml"
-          - --validator-registry-path
-          - "/config/validators.yaml"
-          - --bootnodes
-          - "/config/nodes.yaml"
-          - --data-dir
-          - "/data"
-          - --node-id
-          - "{{ node_name }}"
-          - --node-key
-          - "/config/{{ node_name }}.key"
-          - --listen-addr
-          - "/ip4/0.0.0.0/udp/{{ qlean_quic_port }}/quic-v1"
-          - --metrics-port
-          - "{{ qlean_metrics_port }}"
+      command: >-
+        docker run -d
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        --platform {{ qlean_docker_platform }}
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ qlean_docker_image }}
+        --genesis /config/config.yaml
+        --validator-registry-path /config/validators.yaml
+        --bootnodes /config/nodes.yaml
+        --data-dir /data
+        --node-id {{ node_name }}
+        --node-key /config/{{ node_name }}.key
+        --listen-addr /ip4/0.0.0.0/udp/{{ qlean_quic_port }}/quic-v1
+        --metrics-port {{ qlean_metrics_port }}
       register: qlean_container
-      platform: "{{ qlean_docker_platform }}"
+      changed_when: qlean_container.rc == 0
   when: deployment_mode == 'docker'
 

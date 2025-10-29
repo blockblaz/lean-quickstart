@@ -1,0 +1,17 @@
+---
+# Helper task file for generating private key files
+
+- name: Extract private key for node
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ current_node }}\") | .privkey" {{ validator_config_file }}
+  register: node_privkey
+  changed_when: false
+  failed_when: false
+
+- name: Create private key file
+  copy:
+    content: "{{ node_privkey.stdout }}"
+    dest: "{{ genesis_dir }}/{{ current_node }}.key"
+    mode: '0600'
+  when: node_privkey.stdout != "null" and node_privkey.stdout | length > 0
+
