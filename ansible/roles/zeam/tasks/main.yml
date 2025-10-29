@@ -41,44 +41,36 @@
 
 - name: Deploy Zeam node using Docker
   block:
-    - name: Ensure Zeam docker image is pulled
-      community.docker.docker_image:
-        name: "{{ zeam_docker_image }}"
-        source: pull
+    - name: Pull Zeam docker image
+      command: docker pull {{ zeam_docker_image }}
+      register: docker_pull_result
+      changed_when: '"Downloaded newer image" in docker_pull_result.stdout'
 
     - name: Stop existing Zeam container (if any)
-      community.docker.docker_container:
-        name: "{{ node_name }}"
-        state: absent
-      ignore_errors: true
+      command: docker rm -f {{ node_name }}
+      register: docker_stop_result
+      failed_when: false
+      changed_when: docker_stop_result.rc == 0
 
     - name: Start Zeam container
-      community.docker.docker_container:
-        name: "{{ node_name }}"
-        image: "{{ zeam_docker_image }}"
-        state: started
-        restart_policy: unless-stopped
-        network_mode: host
-        volumes:
-          - "{{ genesis_dir }}:/config:ro"
-          - "{{ data_dir }}/{{ node_name }}:/data"
-        security_opts:
-          - seccomp=unconfined
-        command:
-          - node
-          - --custom_genesis
-          - "/config"
-          - --validator_config
-          - "{{ validator_config | default('genesis_bootnode') }}"
-          - --data-dir
-          - "/data"
-          - --node-id
-          - "{{ node_name }}"
-          - --node-key
-          - "/config/{{ node_name }}.key"
-          - --metrics_port
-          - "{{ zeam_metrics_port }}"
-      register: zeam_container
+      command: >-
+        docker run -d
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        --security-opt seccomp=unconfined
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ zeam_docker_image }}
+        node
+        --custom_genesis /config
+        --validator_config {{ validator_config | default('genesis_bootnode') }}
+        --data-dir /data
+        --node-id {{ node_name }}
+        --node-key /config/{{ node_name }}.key
+        --metrics_port {{ zeam_metrics_port }}
+      register: zeam_container_result
+      changed_when: zeam_container_result.rc == 0
 
 - name: Deploy Zeam node using binary
   block:
