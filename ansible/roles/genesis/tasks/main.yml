@@ -89,11 +89,7 @@
 
 - name: Set node names list
   set_fact:
-    node_names: "{{ node_names_raw.stdout_lines }}"
-
-- name: Ensure node_names is a list
-  set_fact:
-    node_names_list: "{{ node_names | default([]) | list }}"
+    node_names_list: "{{ node_names_raw.stdout_lines | default([]) }}"
 
 - name: Generate private key files for each node
   include_tasks: generate-key.yml
