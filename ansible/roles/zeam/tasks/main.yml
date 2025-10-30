@@ -201,27 +201,26 @@
         validator_config: "{{ actual_validator_config }}"
 
     - name: Create Kubernetes deployment and services
-      kubernetes.core.k8s:
-        state: present
-        definition: "{{ lookup('file', '/tmp/' + node_name + '-deployment.yml') | from_yaml_all | list }}"
-        wait: yes
-        wait_timeout: 300
+      shell: kubectl apply -f /tmp/{{ node_name }}-deployment.yml
+      register: apply_result
+      
+    - name: Display kubectl apply output
+      debug:
+        var: apply_result.stdout_lines
 
     - name: Clean up temporary manifest file
       file:
         path: /tmp/{{ node_name }}-deployment.yml
         state: absent
 
-    - name: Wait for deployment to be ready
-      kubernetes.core.k8s_info:
-        api_version: apps/v1
-        kind: Deployment
-        name: "{{ node_name | replace('_', '-') }}"
-        namespace: "{{ k8s_namespace }}"
-        wait: yes
-        wait_timeout: 300
-        wait_condition:
-          type: Available
-          status: "True"
+    - name: Display deployment status
+      shell: kubectl get deploy,pods,svc -n {{ k8s_namespace }}
+      register: k8s_status
+      changed_when: false
+      
+    - name: Show deployment status
+      debug:
+        var: k8s_status.stdout_lines
+        
   when: deployment_mode == 'kubernetes'
 
