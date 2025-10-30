@@ -4,7 +4,19 @@ This directory contains Ansible playbooks and roles for deploying Lean blockchai
 
 For detailed documentation, see the [main README](../README.md#ansible-deployment).
 
+## Deployment Modes
+
+This Ansible setup supports three deployment modes:
+
+1. **Docker** (default) - Deploy containers directly on hosts
+2. **Binary** - Deploy binaries as systemd services
+3. **Kubernetes** - Deploy to Kubernetes clusters
+
+See [KUBERNETES.md](KUBERNETES.md) for detailed Kubernetes deployment guide.
+
 ## Quick Start
+
+### Docker (Default)
 
 1. **Install Ansible:**
    ```sh
@@ -31,6 +43,37 @@ For detailed documentation, see the [main README](../README.md#ansible-deploymen
    ```sh
    # From repository root
    ./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+   ```
+
+### Kubernetes
+
+1. **Prerequisites:**
+   ```sh
+   # Install kubectl
+   brew install kubectl  # macOS
+   # or apt-get install kubectl  # Ubuntu/Debian
+   
+   # Verify cluster access
+   kubectl cluster-info
+   ```
+
+2. **Install Ansible dependencies** (includes Kubernetes collection):
+   ```sh
+   cd ansible
+   ansible-galaxy install -r requirements.yml
+   ```
+
+3. **Deploy to Kubernetes:**
+   ```sh
+   # From repository root
+   ./ansible-deploy.sh --node all --network-dir local-devnet \
+     --deployment-mode kubernetes --generate-genesis
+   ```
+
+4. **Verify deployment:**
+   ```sh
+   kubectl get pods -n lean-network
+   kubectl logs -n lean-network zeam_0 -f
    ```
 
 ## Quick Local Testing
@@ -68,8 +111,10 @@ docker ps | grep zeam_0
 - `ansible.cfg` - Ansible configuration
 - `inventory/` - Host inventory and variables
 - `playbooks/` - Main playbooks
-- `roles/` - Reusable role modules
+- `roles/` - Reusable role modules (zeam, ream, qlean, genesis, common)
+- `manifests/` - Kubernetes manifest templates
 - `requirements.yml` - Ansible Galaxy dependencies
+- `KUBERNETES.md` - Kubernetes deployment documentation
 
 ## Usage
 

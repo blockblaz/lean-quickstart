@@ -77,3 +77,89 @@
       changed_when: ream_container.rc == 0
   when: deployment_mode == 'docker'
 
+- name: Deploy Ream node using Kubernetes
+  block:
+    - name: Ensure kubectl is available
+      command: kubectl version --client
+      register: kubectl_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if kubectl not found
+      fail:
+        msg: "kubectl is required for Kubernetes deployment mode"
+      when: kubectl_check.rc != 0
+
+    - name: Create Kubernetes namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ k8s_namespace }}"
+            labels:
+              app: lean-network
+              managed-by: ansible
+
+    - name: Create PersistentVolumeClaim for node data
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: "{{ node_name }}-data"
+            namespace: "{{ k8s_namespace }}"
+            labels:
+              app: "{{ node_name }}"
+              managed-by: ansible
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: "{{ k8s_storage_class }}"
+            resources:
+              requests:
+                storage: "{{ k8s_storage_size }}"
+
+    - name: Wait for PVC to be bound
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        name: "{{ node_name }}-data"
+        namespace: "{{ k8s_namespace }}"
+        wait: yes
+        wait_condition:
+          type: Bound
+          status: "True"
+
+    - name: Render Kubernetes deployment manifest
+      template:
+        src: ../manifests/ream-deployment.yml.j2
+        dest: /tmp/{{ node_name }}-deployment.yml
+      vars:
+        metrics_port: "{{ ream_metrics_port }}"
+        quic_port: "{{ ream_quic_port }}"
+
+    - name: Create Kubernetes deployment and services
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', '/tmp/' + node_name + '-deployment.yml') | from_yaml }}"
+
+    - name: Clean up temporary manifest file
+      file:
+        path: /tmp/{{ node_name }}-deployment.yml
+        state: absent
+
+    - name: Wait for deployment to be ready
+      kubernetes.core.k8s_status:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ node_name }}"
+        namespace: "{{ k8s_namespace }}"
+        wait: yes
+        wait_timeout: 300
+        wait_condition:
+          type: Available
+          status: "True"
+  when: deployment_mode == 'kubernetes'
+

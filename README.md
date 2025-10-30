@@ -226,7 +226,7 @@ The `ansible-deploy.sh` wrapper script provides the following options:
 | `--generate-genesis` | Force regeneration of genesis files | `--generate-genesis` |
 | `--clean-data` | Clean data directories before deployment | `--clean-data` |
 | `--validator-config PATH` | Path to validator-config.yaml | `--validator-config custom/path.yaml` |
-| `--deployment-mode MODE` | Deployment mode: docker or binary | `--deployment-mode docker` |
+| `--deployment-mode MODE` | Deployment mode: docker, binary, or kubernetes | `--deployment-mode kubernetes` |
 | `--playbook PLAYBOOK` | Ansible playbook to run | `--playbook genesis.yml` |
 | `--tags TAGS` | Run only tasks with specific tags | `--tags zeam,genesis` |
 | `--check` | Dry run (check mode) | `--check` |
@@ -342,6 +342,185 @@ Both deployment methods are available:
 **Recommendation:** 
 - Use `spin-node.sh` for local development and quick testing
 - Use `ansible-deploy.sh` for production deployments and remote hosts
+
+## Deployment Modes
+
+Ansible supports three deployment modes:
+
+| Mode | Use Case | Command |
+|------|----------|---------|
+| **Docker** | Local development, simple testing | `--deployment-mode docker` (default) |
+| **Binary** | Remote servers without Docker | `--deployment-mode binary` |
+| **Kubernetes** | Production-like, multi-host, orchestration | `--deployment-mode kubernetes` |
+
+## Kubernetes Deployment
+
+Deploy Lean nodes to a Kubernetes cluster for production-like testing and multi-host deployments.
+
+### Prerequisites
+
+#### 1. Install kubectl
+
+```bash
+# macOS
+brew install kubectl
+
+# Ubuntu/Debian
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# Verify installation
+kubectl version --client
+```
+
+#### 2. Set Up Local Kubernetes Cluster
+
+Choose one option:
+
+**Minikube (Recommended):**
+```bash
+# Install
+brew install minikube  # macOS
+# Start
+minikube start
+```
+
+**Docker Desktop:**
+```bash
+# Docker Desktop → Settings → Kubernetes → Enable Kubernetes
+```
+
+**kind:**
+```bash
+# Install
+brew install kind
+# Create cluster
+kind create cluster --name lean-test
+```
+
+#### 3. Configure Access
+
+```bash
+# Verify cluster is running
+kubectl cluster-info
+```
+
+#### 4. Install Ansible Collections
+
+```bash
+cd ansible
+ansible-galaxy install -r requirements.yml
+```
+
+### Deployment
+
+#### Quick Deploy
+
+```bash
+# Deploy all nodes
+./ansible-deploy.sh --node all --network-dir local-devnet \
+  --deployment-mode kubernetes --generate-genesis
+
+# Deploy specific nodes
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet \
+  --deployment-mode kubernetes
+```
+
+#### Automated Testing
+
+Run the automated test script:
+```bash
+# Basic test
+./ansible/test-k8s-deployment.sh
+
+# Test with cleanup
+./ansible/test-k8s-deployment.sh cleanup
+```
+
+### Verification & Management
+
+#### Check Status
+
+```bash
+# List all resources
+kubectl get all -n lean-network
+
+# View pods
+kubectl get pods -n lean-network
+
+# View services
+kubectl get svc -n lean-network
+```
+
+#### Access Logs
+
+```bash
+# Follow logs
+kubectl logs -n lean-network zeam_0 -f
+
+# Recent logs only
+kubectl logs -n lean-network zeam_0 --tail=50
+```
+
+#### Access Metrics
+
+```bash
+# Port forward metrics service
+kubectl port-forward -n lean-network svc/zeam_0-metrics 8080:8080
+
+# Access metrics (in another terminal)
+curl http://localhost:8080/metrics
+```
+
+#### Troubleshooting
+
+```bash
+# Pod not starting?
+kubectl describe pod -n lean-network <pod-name>
+
+# Check events
+kubectl get events -n lean-network --sort-by=.metadata.creationTimestamp
+
+# PVC issues?
+kubectl get pvc -n lean-network
+kubectl describe pvc -n lean-network <pvc-name>
+
+# Check storage classes
+kubectl get storageclass
+```
+
+#### Cleanup
+
+```bash
+# Delete namespace (removes everything)
+kubectl delete namespace lean-network
+
+# Delete specific deployment
+kubectl delete deployment zeam_0 -n lean-network
+```
+
+### Configuration
+
+Edit `ansible/inventory/group_vars/all.yml` to customize:
+
+```yaml
+k8s_namespace: lean-network       # Change namespace
+k8s_storage_size: 20Gi            # Increase storage
+k8s_memory_limit: 4Gi             # More memory
+k8s_storage_class: standard       # Your storage class
+```
+
+### Comparison: Docker vs Kubernetes
+
+| Task | Docker | Kubernetes |
+|------|--------|------------|
+| Deploy | `--deployment-mode docker` | `--deployment-mode kubernetes` |
+| Status | `docker ps` | `kubectl get pods -n lean-network` |
+| Logs | `docker logs <name>` | `kubectl logs -n lean-network <name>` |
+| Access | `curl localhost:PORT` | `kubectl port-forward svc/<svc> PORT` |
+| Clean | `docker rm -f <name>` | `kubectl delete namespace lean-network` |
+
+📖 **Detailed Kubernetes documentation:** [ansible/KUBERNETES.md](ansible/KUBERNETES.md)
 
 ## Client branches
 

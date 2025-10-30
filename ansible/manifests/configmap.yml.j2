@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ node_name }}-config
+  namespace: {{ k8s_namespace }}
+  labels:
+    app: {{ node_name }}
+    managed-by: ansible
+data:
+  # Genesis files are mounted as files from host path or external volume
+  # This ConfigMap is just for metadata
+  
