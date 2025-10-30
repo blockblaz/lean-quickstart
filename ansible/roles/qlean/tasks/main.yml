@@ -72,7 +72,7 @@
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
         --listen-addr /ip4/0.0.0.0/udp/{{ qlean_quic_port }}/quic-v1
-        --metrics-port {{ qlean_metrics_port }}
+        --prometheus_port {{ qlean_metrics_port }}
       register: qlean_container
       changed_when: qlean_container.rc == 0
   when: deployment_mode == 'docker'
