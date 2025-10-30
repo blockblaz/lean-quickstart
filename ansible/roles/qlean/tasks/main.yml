@@ -102,6 +102,10 @@
               app: lean-network
               managed-by: ansible
 
+    - name: Set sanitized PVC name
+      set_fact:
+        pvc_name: "{{ node_name | replace('_', '-') }}-data"
+
     - name: Create PersistentVolumeClaim for node data
       kubernetes.core.k8s:
         state: present
@@ -109,7 +113,7 @@
           apiVersion: v1
           kind: PersistentVolumeClaim
           metadata:
-            name: "{{ node_name }}-data"
+            name: "{{ pvc_name }}"
             namespace: "{{ k8s_namespace }}"
             labels:
               app: "{{ node_name }}"
@@ -122,15 +126,24 @@
               requests:
                 storage: "{{ k8s_storage_size }}"
 
+    - name: Check PVC binding mode
+      kubernetes.core.k8s_info:
+        kind: StorageClass
+        name: "{{ k8s_storage_class }}"
+      register: storageclass_info
+
     - name: Wait for PVC to be bound
       kubernetes.core.k8s_info:
         kind: PersistentVolumeClaim
-        name: "{{ node_name }}-data"
+        name: "{{ pvc_name }}"
         namespace: "{{ k8s_namespace }}"
         wait: yes
         wait_condition:
           type: Bound
           status: "True"
+      when: >
+        storageclass_info['resources'] | length > 0 and
+        storageclass_info['resources'][0].volumeBindingMode != 'WaitForFirstConsumer'
 
     - name: Render Kubernetes deployment manifest
       template:
@@ -143,7 +156,9 @@
     - name: Create Kubernetes deployment and services
       kubernetes.core.k8s:
         state: present
-        definition: "{{ lookup('file', '/tmp/' + node_name + '-deployment.yml') | from_yaml }}"
+        definition: "{{ lookup('file', '/tmp/' + node_name + '-deployment.yml') | from_yaml_all | list }}"
+        wait: yes
+        wait_timeout: 300
 
     - name: Clean up temporary manifest file
       file:
@@ -151,10 +166,10 @@
         state: absent
 
     - name: Wait for deployment to be ready
-      kubernetes.core.k8s_status:
+      kubernetes.core.k8s_info:
         api_version: apps/v1
         kind: Deployment
-        name: "{{ node_name }}"
+        name: "{{ node_name | replace('_', '-') }}"
         namespace: "{{ k8s_namespace }}"
         wait: yes
         wait_timeout: 300

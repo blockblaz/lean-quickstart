@@ -362,7 +362,10 @@ Deploy Lean nodes to a Kubernetes cluster for production-like testing and multi-
 #### 1. Install kubectl
 
 ```bash
-# macOS
+# macOS (ARM/Apple Silicon)
+arch -arm64 brew install kubectl
+
+# macOS (Intel)
 brew install kubectl
 
 # Ubuntu/Debian
@@ -379,8 +382,12 @@ Choose one option:
 
 **Minikube (Recommended):**
 ```bash
-# Install
-brew install minikube  # macOS
+# Install (macOS ARM/Apple Silicon)
+arch -arm64 brew install minikube
+
+# Install (macOS Intel)
+brew install minikube
+
 # Start
 minikube start
 ```
@@ -392,8 +399,12 @@ minikube start
 
 **kind:**
 ```bash
-# Install
+# Install (macOS ARM/Apple Silicon)
+arch -arm64 brew install kind
+
+# Install (macOS Intel)
 brew install kind
+
 # Create cluster
 kind create cluster --name lean-test
 ```

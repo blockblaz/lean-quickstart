@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ node_name }}
+  name: {{ node_name | replace('_', '-') }}
   namespace: {{ k8s_namespace }}
   labels:
-    app: {{ node_name }}
+    app: {{ node_name | replace('_', '-') }}
     managed-by: ansible
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ node_name }}
+      app: {{ node_name | replace('_', '-') }}
   template:
     metadata:
       labels:
-        app: {{ node_name }}
+        app: {{ node_name | replace('_', '-') }}
     spec:
       containers:
       - name: ream
@@ -55,20 +55,20 @@ spec:
           type: Directory
       - name: data
         persistentVolumeClaim:
-          claimName: {{ node_name }}-data
+          claimName: {{ node_name | replace('_', '-') }}-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ node_name }}-metrics
+  name: {{ node_name | replace('_', '-') }}-metrics
   namespace: {{ k8s_namespace }}
   labels:
-    app: {{ node_name }}
+    app: {{ node_name | replace('_', '-') }}
     managed-by: ansible
 spec:
   type: NodePort
   selector:
-    app: {{ node_name }}
+    app: {{ node_name | replace('_', '-') }}
   ports:
   - name: metrics
     port: {{ metrics_port }}
@@ -77,15 +77,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ node_name }}-quic
+  name: {{ node_name | replace('_', '-') }}-quic
   namespace: {{ k8s_namespace }}
   labels:
-    app: {{ node_name }}
+    app: {{ node_name | replace('_', '-') }}
     managed-by: ansible
 spec:
   type: ClusterIP
   selector:
-    app: {{ node_name }}
+    app: {{ node_name | replace('_', '-') }}
   ports:
   - name: quic
     port: {{ quic_port }}

@@ -17,10 +17,13 @@
     yq eval '.validators[].count' {{ validator_config_file }} | awk '{sum+=$1} END {print sum}'
   register: total_validators_raw
   changed_when: false
+  args:
+    executable: /bin/bash
+  when: not ansible_check_mode
 
 - name: Set total validator count
   set_fact:
-    total_validators: "{{ total_validators_raw.stdout | int }}"
+    total_validators: "{{ (total_validators_raw.stdout | default(3) | int) if not ansible_check_mode else 3 }}"
 
 - name: Validate total validator count
   fail:
