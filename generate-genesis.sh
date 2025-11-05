@@ -23,12 +23,13 @@ Generates: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, 
 Arguments:
   genesis-directory    Path to the genesis directory containing:
                        - validator-config.yaml (with node configurations and individual counts)
+                       - validator-config.yaml must include key: config.activeEpoch (positive integer)
 
 Example:
   $0 local-devnet/genesis
 
 Generated Files:
-  - config.yaml        Auto-generated with GENESIS_TIME and VALIDATOR_COUNT
+  - config.yaml        Auto-generated with GENESIS_TIME, VALIDATOR_COUNT, shuffle, and config.activeEpoch
   - validators.yaml    Validator index assignments for each node
   - nodes.yaml         ENR (Ethereum Node Records) for peer discovery
   - genesis.json       Genesis state in JSON format
@@ -38,9 +39,10 @@ Generated Files:
 How It Works:
   1. Calculates GENESIS_TIME (current time + 30 seconds)
   2. Reads individual validator 'count' fields from validator-config.yaml
-  3. Automatically sums them to calculate total VALIDATOR_COUNT
-  4. Generates config.yaml from scratch with calculated values
-  5. Runs PK's genesis generator with correct parameters
+  3. Reads config.activeEpoch from validator-config.yaml (required)
+  4. Automatically sums them to calculate total VALIDATOR_COUNT
+  5. Generates config.yaml from scratch with calculated values including config.activeEpoch
+  6. Runs PK's genesis generator with correct parameters
 
 Note: config.yaml is a generated file - only edit validator-config.yaml
 
@@ -96,6 +98,10 @@ if ! command -v docker &> /dev/null; then
 fi
 echo "  ✅ docker found: $(which docker)"
 
+# Hash-sig-cli Docker image
+HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"
+echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
+
 echo ""
 
 # ========================================
@@ -118,9 +124,72 @@ echo "  ✅ validator-config.yaml found"
 echo ""
 
 # ========================================
-# Step 1: Generate config.yaml
+# Step 1: Generate Hash-Sig Validator Keys
 # ========================================
-echo "🔧 Step 1: Generating config.yaml..."
+echo "🔐 Step 1: Generating hash-sig validator keys..."
+
+# Create hash-sig keys directory
+HASH_SIG_KEYS_DIR="$GENESIS_DIR/hash-sig-keys"
+mkdir -p "$HASH_SIG_KEYS_DIR"
+
+# Count total validators from validator-config.yaml
+VALIDATOR_COUNT=$(yq eval '.validators | length' "$VALIDATOR_CONFIG_FILE")
+
+if [ -z "$VALIDATOR_COUNT" ] || [ "$VALIDATOR_COUNT" == "null" ] || [ "$VALIDATOR_COUNT" -eq 0 ]; then
+    echo "❌ Error: Could not determine validator count from $VALIDATOR_CONFIG_FILE"
+    exit 1
+fi
+
+echo "   Generating keys for $VALIDATOR_COUNT validators..."
+echo "   Using scheme: SIGTopLevelTargetSumLifetime32Dim64Base8"
+echo "   Key directory: $HASH_SIG_KEYS_DIR"
+echo ""
+
+# Read required active epoch exponent from validator-config.yaml
+ACTIVE_EPOCH=$(yq eval '.config.activeEpoch' "$VALIDATOR_CONFIG_FILE" 2>/dev/null)
+if [ "$ACTIVE_EPOCH" == "null" ] || [ -z "$ACTIVE_EPOCH" ]; then
+    echo "❌ Error: validator-config.yaml missing valid key config.activeEpoch (positive integer required)" >&2
+    exit 1
+fi
+if ! [[ "$ACTIVE_EPOCH" =~ ^[0-9]+$ ]] || [ "$ACTIVE_EPOCH" -le 0 ]; then
+    echo "❌ Error: validator-config.yaml missing valid key config.activeEpoch (positive integer required)" >&2
+    exit 1
+fi
+
+# Generate hash-sig keys for all validators using Docker
+# Scheme: SIGTopLevelTargetSumLifetime32Dim64Base8
+# Active epochs: 2^ACTIVE_EPOCH (from validator-config.yaml)
+# Total lifetime: 2^32 (4,294,967,296)
+# Convert to absolute path for Docker volume mounting
+GENESIS_DIR_ABS="$(cd "$GENESIS_DIR" && pwd)"
+
+docker run --rm \
+  -v "$GENESIS_DIR_ABS:/genesis" \
+  "$HASH_SIG_CLI_IMAGE" \
+  generate \
+  --num-validators "$VALIDATOR_COUNT" \
+  --log-num-active-epochs "$ACTIVE_EPOCH" \
+  --output-dir "/genesis/hash-sig-keys"
+
+if [ $? -ne 0 ]; then
+    echo "   ❌ Failed to generate hash-sig keys"
+    exit 1
+fi
+
+echo "   ✅ Generated keys for $VALIDATOR_COUNT validators"
+echo "   ✅ Files created:"
+for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
+    echo "      - validator_${i}_pk.json and validator_${i}_sk.json"
+done
+
+echo ""
+echo "   ✅ Hash-sig key generation complete!"
+echo ""
+
+# ========================================
+# Step 2: Generate config.yaml
+# ========================================
+echo "🔧 Step 2: Generating config.yaml..."
 
 # Calculate genesis time (30 seconds from now)
 TIME_NOW="$(date +%s)"
@@ -159,15 +228,19 @@ cat > "$CONFIG_FILE" << EOF
 GENESIS_TIME: $GENESIS_TIME
 # Validator Settings  
 VALIDATOR_COUNT: $TOTAL_VALIDATORS
+# Shuffle Settings
+shuffle: roundrobin
+config:
+  activeEpoch: $ACTIVE_EPOCH
 EOF
 
 echo "   ✅ Generated config.yaml"
 echo ""
 
 # ========================================
-# Step 2: Run PK's Genesis Generator
+# Step 3: Run PK's Genesis Generator
 # ========================================
-echo "🔧 Step 2: Running PK's eth-beacon-genesis tool..."
+echo "🔧 Step 3: Running PK's eth-beacon-genesis tool..."
 echo "   Docker image: $PK_DOCKER_IMAGE"
 echo "   Command: leanchain"
 echo ""
@@ -208,9 +281,9 @@ echo "   ✅ Generated: genesis.ssz"
 echo ""
 
 # ========================================
-# Step 3: Generate Private Key Files
+# Step 4: Generate Private Key Files
 # ========================================
-echo "🔑 Step 3: Generating private key files..."
+echo "🔑 Step 4: Generating private key files..."
 
 # Extract node names from validator-config.yaml
 NODE_NAMES=($(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE"))
@@ -238,9 +311,9 @@ done
 echo ""
 
 # ========================================
-# Step 4: Validate Generated Files
+# Step 5: Validate Generated Files
 # ========================================
-echo "✓ Step 4: Validating generated files..."
+echo "✓ Step 5: Validating generated files..."
 
 required_files=("config.yaml" "validators.yaml" "nodes.yaml" "genesis.json" "genesis.ssz")
 all_good=true
@@ -279,10 +352,22 @@ for node in "${NODE_NAMES[@]}"; do
     fi
 done
 echo ""
+echo "🔐 Hash-Sig Validator Keys:"
+for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
+    echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_pk.json"
+    echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_sk.json"
+done
+echo ""
 echo "🎯 Next steps:"
 echo "   Run your nodes with: NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis"
 echo ""
 echo "ℹ️  Using PK's eth-beacon-genesis docker image:"
 echo "   Image: $PK_DOCKER_IMAGE"
 echo "   PR: https://github.com/ethpandaops/eth-beacon-genesis/pull/36"
+echo ""
+echo "ℹ️  Hash-sig keys generated with:"
+echo "   Docker Image: $HASH_SIG_CLI_IMAGE"
+echo "   Scheme: SIGTopLevelTargetSumLifetime32Dim64Base8"
+echo "   Active Epochs: 2^$ACTIVE_EPOCH"
+echo "   Total Lifetime: 2^32 (4,294,967,296)"
 echo ""

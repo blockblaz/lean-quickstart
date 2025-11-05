@@ -9,3 +9,6 @@ local-devnet/genesis/validators.yaml
 local-devnet/genesis/nodes.yaml
 local-devnet/genesis/genesis.json
 local-devnet/genesis/genesis.ssz
+
+# Hash-sig validator keys (contains sensitive secret keys)
+local-devnet/genesis/hash-sig-keys/

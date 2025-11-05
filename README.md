@@ -16,11 +16,23 @@ A single command line quickstart to spin up lean node(s)
 1. Shell terminal: Preferably linux especially if you want to pop out separate new terminals for node
 2. Genesis configuration
 3. Zeam Build (other clients to be supported soon)
-4. **Docker**: Required to run PK's eth-beacon-genesis tool
+4. **Docker**: Required to run PK's eth-beacon-genesis tool and hash-sig-cli for post-quantum keys
    - Install from: [Docker Desktop](https://docs.docker.com/get-docker/)
 5. **yq**: YAML processor for automated configuration parsing
    - Install on macOS: `brew install yq`
    - Install on Linux: See [yq installation guide](https://github.com/mikefarah/yq#install)
+
+## Quick Start
+
+### First Time Setup:
+```sh
+# 1. Clone the repository
+git clone <repo-url>
+cd lean-quickstart
+
+# 2. **Run** genesis generation:
+./generate-genesis.sh local-devnet/genesis
+```
 
 ## Scenarios
 
@@ -79,14 +91,9 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupT
    - Use whitespace-separated node names (e.g., `"zeam_0 ream_0"`) to run multiple specific nodes
    
    The client is provided this input so as to parse the correct node configuration to startup the node.
-5. `--validatorConfig` is the path to specify your nodes `validator-config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode. 
-3. `--generateGenesis` force regeneration of genesis files (`validators.yaml`, `nodes.yaml`, and `.key` files) from `validator-config.yaml`
-4. `--popupTerminal` if you want to pop out new terminals to run the nodes, opens gnome terminals
-5. `--node` specify which node you want to run, use `all` to run all the nodes in a single go, otherwise you may specify which node you want to run from `validator_config.yaml`.
-  The client is provided this input so as to parse the correct node configuration to startup the node.
-6. `--validatorConfig` is the path to specify your nodes `validator_config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode.
-  If unspecified it assumes value of `genesis_bootnode` which is to say that your node config is to be picked from `genesis` folder with `--node` as the node key index.
-  This value is further provided to the client so that they can parse the correct config information.
+5. `--validatorConfig` is the path to specify your nodes `validator-config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode.
+   If unspecified it assumes value of `genesis_bootnode` which is to say that your node config is to be picked from `genesis` folder with `--node` as the node key index.
+   This value is further provided to the client so that they can parse the correct config information.
 
 ## Genesis Generator
 
@@ -127,6 +134,168 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 ```
 
 You can also run the generator standalone:
+```sh
+./generate-genesis.sh local-devnet/genesis
+```
+
+## Hash-Based Signature (Post-Quantum) Validator Keys
+
+This quickstart includes integrated support for **post-quantum secure hash-based signatures** for validator keys. The system automatically generates and manages hash-sig keys during genesis generation.
+
+### How It Works
+
+The genesis generator automatically:
+1. **Uses Docker image** `blockblaz/hash-sig-cli:latest` to generate hash-sig keys
+2. **Generates hash-sig keys** for N validators (Step 1 of genesis generation)
+3. **Stores keys** in `genesis/hash-sig-keys/` directory
+4. **Loads keys** automatically when nodes start via environment variables
+
+### Key Generation
+
+When you run the genesis generator, it creates post-quantum secure keys for each validator:
+
+```sh
+./generate-genesis.sh local-devnet/genesis
+```
+
+**Generated files:**
+```
+local-devnet/genesis/hash-sig-keys/
+├── validator-keys-manifest.yaml    # Metadata for all keys
+├── validator_0_pk.json             # Public key for validator 0
+├── validator_0_sk.json             # Secret key for validator 0
+├── validator_1_pk.json             # Public key for validator 1
+├── validator_1_sk.json             # Secret key for validator 1
+└── ...                             # Keys for additional validators
+```
+
+### Signature Scheme
+
+The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based signature scheme, which provides:
+
+- **Post-quantum security**: Resistant to attacks from quantum computers
+- **Active epochs**: 2^18 (262,144 signatures)
+- **Total lifetime**: 2^32 (4,294,967,296 signatures)
+- **Stateful signatures**: Uses hierarchical signature tree structure
+
+### Configuration
+
+The `validator-config.yaml` file defines the shuffle algorithm, active epoch configuration, and validator specifications:
+
+```yaml
+shuffle: roundrobin
+config:
+  activeEpoch: 18              # Required: Exponent for active epochs (2^18 = 262,144 signatures)
+  keyType: "hash-sig"          # Required: Network-wide signature scheme (hash-sig for post-quantum security)
+validators:
+  - name: "zeam_0"
+    privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9000
+    metricsPort: 8080
+    count: 1
+```
+
+**Required Top-Level Fields:**
+- `shuffle`: Validator shuffle algorithm (e.g., `roundrobin`)
+- `config.activeEpoch`: Exponent for active epochs used in hash-sig key generation (2^activeEpoch signatures per active period)
+- `config.keyType`: Network-wide signature scheme - must be `"hash-sig"` for post-quantum security
+
+**Validator Fields:**
+- Hash-sig key files are automatically mapped based on validator position in the array (first validator uses `validator_0_*.json`, second uses `validator_1_*.json`, etc.)
+
+### Key Loading
+
+The `parse-vc.sh` script automatically loads hash-sig keys when starting nodes:
+
+1. Reads `config.keyType` from validator config (network-wide setting)
+2. Automatically calculates key index based on validator position in the array
+3. Locates corresponding key files in `genesis/hash-sig-keys/`
+4. Exports environment variables for client use:
+   - `HASH_SIG_PK_PATH`: Path to public key file
+   - `HASH_SIG_SK_PATH`: Path to secret key file
+   - `HASH_SIG_KEY_INDEX`: Validator's key index (auto-calculated)
+
+**Client Integration:**
+
+Your client implementation should read these environment variables and use the hash-sig keys for validator operations.
+
+### Key Management
+
+#### Key Lifetime
+
+Each hash-sig key has a **finite lifetime** of 2^32 signatures. The keys are structured as:
+- **Active epochs**: 2^18 epochs before requiring key rotation
+- **Total lifetime**: 2^32 total signatures possible
+
+#### Key Rotation
+
+Hash-based signatures are **stateful** - each signature uses a unique one-time key from the tree. Once exhausted, keys must be rotated:
+
+```sh
+# Regenerate all hash-sig keys
+./generate-genesis.sh local-devnet/genesis
+```
+
+**Warning**: Keep track of signature counts to avoid key exhaustion.
+
+#### Key Security
+
+**Secret keys are highly sensitive:**
+- ⚠️ **Never commit** `validator_*_sk.json` files to version control
+- ⚠️ **Never share** secret keys
+- ✅ **Backup** secret keys in secure, encrypted storage
+- ✅ **Restrict permissions** on key files (e.g., `chmod 600`)
+
+The `.gitignore` should already exclude hash-sig keys:
+```
+local-devnet/genesis/hash-sig-keys/
+```
+
+### Verifying Keys
+
+The manifest file (`validator-keys-manifest.yaml`) contains metadata about all generated keys:
+
+```yaml
+# Hash-Sig Validator Keys Manifest
+# Generated: 2024-01-15T10:30:00Z
+
+scheme: "SIGTopLevelTargetSumLifetime32Dim64Base8"
+activeEpochs: 262144  # 2^18
+totalLifetime: 4294967296  # 2^32
+validatorCount: 3
+
+validators:
+  - index: 0
+    publicKey: "validator_0_pk.json"
+    secretKey: "validator_0_sk.json"
+  - index: 1
+    publicKey: "validator_1_pk.json"
+    secretKey: "validator_1_sk.json"
+  # ... additional validators
+```
+
+### Troubleshooting
+
+**Problem**: Hash-sig keys not loading during node startup
+```
+Warning: Hash-sig public key not found at genesis/hash-sig-keys/validator_0_pk.json
+```
+
+**Solution**: Run the genesis generator to create keys:
+```sh
+./generate-genesis.sh local-devnet/genesis
+```
+
+---
+
+**Problem**: Hash-sig key file not found
+```
+Warning: Hash-sig secret key not found at genesis/hash-sig-keys/validator_5_sk.json
+```
+
+**Solution**: This usually means you have more validators configured than hash-sig keys generated. Regenerate genesis files:
 ```sh
 ./generate-genesis.sh local-devnet/genesis
 ```
