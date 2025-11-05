@@ -169,7 +169,6 @@
       shell: kubectl get deploy,pods,svc -n {{ k8s_namespace }}
       register: k8s_status
       changed_when: false
-      
     - name: Show deployment status
       debug:
         var: k8s_status.stdout_lines
