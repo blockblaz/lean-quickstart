@@ -156,7 +156,6 @@
     - name: Create Kubernetes deployment and services
       shell: kubectl apply -f /tmp/{{ node_name }}-deployment.yml
       register: apply_result
-      
     - name: Display kubectl apply output
       debug:
         var: apply_result.stdout_lines
