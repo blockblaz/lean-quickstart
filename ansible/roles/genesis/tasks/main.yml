@@ -43,7 +43,7 @@
     content: |
       # Genesis Settings
       GENESIS_TIME: {{ genesis_time }}
-      # Validator Settings  
+      # Validator Settings
       VALIDATOR_COUNT: {{ total_validators }}
     dest: "{{ genesis_dir }}/config.yaml"
     mode: '0644'
