@@ -57,7 +57,43 @@ fi
 privKeyPath="$item.key"
 echo "$privKey" > "$configDir/$privKeyPath"
 
-echo "Node: $item"
-echo "QUIC Port: $quicPort"
-echo "Metrics Port: $metricsPort"
-echo "Private Key File: $privKeyPath"
+# Extract hash-sig key configuration from top-level config
+keyType=$(yq eval ".config.keyType" "$validator_config_file")
+hashSigKeyIndex=$(yq eval ".validators | to_entries | .[] | select(.value.name == \"$item\") | .key" "$validator_config_file")
+
+# Load hash-sig keys if configured
+if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$hashSigKeyIndex" ]; then
+    # Set hash-sig key paths
+    hashSigPkPath="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_pk.json"
+    hashSigSkPath="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_sk.json"
+    
+    # Validate that hash-sig keys exist
+    if [ ! -f "$hashSigPkPath" ]; then
+        echo "Warning: Hash-sig public key not found at $hashSigPkPath"
+        echo "Run genesis generator to create hash-sig keys: ./generate-genesis.sh $configDir"
+    fi
+    
+    if [ ! -f "$hashSigSkPath" ]; then
+        echo "Warning: Hash-sig secret key not found at $hashSigSkPath"
+        echo "Run genesis generator to create hash-sig keys: ./generate-genesis.sh $configDir"
+    fi
+    
+    # Export hash-sig key paths for client use
+    export HASH_SIG_PK_PATH="$hashSigPkPath"
+    export HASH_SIG_SK_PATH="$hashSigSkPath"
+    export HASH_SIG_KEY_INDEX="$hashSigKeyIndex"
+    
+    echo "Node: $item"
+    echo "QUIC Port: $quicPort"
+    echo "Metrics Port: $metricsPort"
+    echo "Private Key File: $privKeyPath"
+    echo "Key Type: $keyType"
+    echo "Hash-Sig Key Index: $hashSigKeyIndex"
+    echo "Hash-Sig Public Key: $hashSigPkPath"
+    echo "Hash-Sig Secret Key: $hashSigSkPath"
+else
+    echo "Node: $item"
+    echo "QUIC Port: $quicPort"
+    echo "Metrics Port: $metricsPort"
+    echo "Private Key File: $privKeyPath"
+fi
