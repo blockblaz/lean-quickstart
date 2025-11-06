@@ -84,6 +84,10 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupT
 5. `--validatorConfig` is the path to specify your nodes `validator-config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode.
    If unspecified it assumes value of `genesis_bootnode` which is to say that your node config is to be picked from `genesis` folder with `--node` as the node key index.
    This value is further provided to the client so that they can parse the correct config information.
+6. `--deploymentMode` specifies the deployment mode: `local` or `ansible`. 
+   - If provided, this overrides the `deployment_mode` field in `validator-config.yaml`
+   - If not provided, the value from `validator-config.yaml` is used (defaults to `local` if not specified)
+   - Examples: `--deploymentMode local` or `--deploymentMode ansible`
 
 ## Genesis Generator
 

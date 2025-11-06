@@ -48,6 +48,11 @@ while [[ $# -gt 0 ]]; do
       cleanData=true  # generateGenesis implies clean data
       shift # past argument
       ;;
+    --deploymentMode)
+      deploymentMode="$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)    # unknown option
       shift # past argument
       ;;

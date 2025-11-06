@@ -57,32 +57,16 @@ EOF
 # Extract node information from validator-config.yaml
 nodes=($(yq eval '.validators[].name' "$VALIDATOR_CONFIG"))
 
-# Process each node and build inventory entries
-declare -A node_groups
-declare -A node_ips
-declare -A node_quics
-declare -A node_client_types
-
+# Process each node and generate inventory entries
 for node_name in "${nodes[@]}"; do
     # Extract client type (zeam, ream, qlean)
     IFS='_' read -r -a elements <<< "$node_name"
     client_type="${elements[0]}"
-    node_groups["$node_name"]="${client_type}_nodes"
-    node_client_types["$node_name"]="$client_type"
+    group_name="${client_type}_nodes"
     
     # Extract node-specific information
     node_ip=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.ip // \"127.0.0.1\"" "$VALIDATOR_CONFIG")
     node_quic=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.quic // \"9000\"" "$VALIDATOR_CONFIG")
-    node_ips["$node_name"]="$node_ip"
-    node_quics["$node_name"]="$node_quic"
-done
-
-# Generate inventory entries using yq
-for node_name in "${nodes[@]}"; do
-    client_type="${node_client_types[$node_name]}"
-    group_name="${node_groups[$node_name]}"
-    node_ip="${node_ips[$node_name]}"
-    node_quic="${node_quics[$node_name]}"
     
     # Check if this is a remote deployment (IP is not localhost/127.0.0.1)
     is_remote=false
