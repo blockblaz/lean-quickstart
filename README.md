@@ -38,20 +38,18 @@ cd lean-quickstart
 
 ### Quickly startup various nodes as a local devnet
 
-**Using shell scripts (quick local setup):**
+**Using spin-node.sh (unified entry point):**
 ```sh
+# Local deployment (default)
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --popupTerminal
-```
 
-**Using Ansible (recommended for production/remote):**
-```sh
-./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+# Ansible deployment (set deployment_mode: ansible in validator-config.yaml)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 ```
-> 📖 See [Ansible Deployment](#ansible-deployment) section or [ansible/README.md](ansible/README.md) for details
+> 📖 The deployment mode is controlled by the `deployment_mode` field in `validator-config.yaml`. See [Ansible Deployment](#ansible-deployment) section or [ansible/README.md](ansible/README.md) for details
 
 ### Startup specific nodes only
 
-**Using shell scripts:**
 ```sh
 # Run only zeam_0 and ream_0 nodes (comma-separated)
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0,ream_0 --generateGenesis --popupTerminal
@@ -62,15 +60,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node "zeam_0 qlean_0" --generateGenesi
 # Run only a single node
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupTerminal
 ```
-
-**Using Ansible:**
-```sh
-# Run only zeam_0 and ream_0 nodes
-./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --generate-genesis
-
-# Run only a single node
-./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --generate-genesis
-```
+> 💡 **Note**: The same `spin-node.sh` command works for both local and Ansible deployments. The deployment mode is determined by the `deployment_mode` field in `validator-config.yaml`.
   
 ## Args
 
@@ -198,6 +188,7 @@ validators:
 ```
 
 **Required Top-Level Fields:**
+- `deployment_mode`: Deployment mode - `"local"` (default) for local shell script deployment, or `"ansible"` for Ansible-based remote deployment
 - `shuffle`: Validator shuffle algorithm (e.g., `roundrobin`)
 - `config.activeEpoch`: Exponent for active epochs used in hash-sig key generation (2^activeEpoch signatures per active period)
 - `config.keyType`: Network-wide signature scheme - must be `"hash-sig"` for post-quantum security
@@ -395,7 +386,7 @@ The `ansible-deploy.sh` wrapper script provides the following options:
 | `--generate-genesis` | Force regeneration of genesis files | `--generate-genesis` |
 | `--clean-data` | Clean data directories before deployment | `--clean-data` |
 | `--validator-config PATH` | Path to validator-config.yaml | `--validator-config custom/path.yaml` |
-| `--deployment-mode MODE` | Deployment mode: docker, binary, or kubernetes | `--deployment-mode kubernetes` |
+| `--deployment-mode MODE` | Deployment mode: docker or binary | `--deployment-mode binary` |
 | `--playbook PLAYBOOK` | Ansible playbook to run | `--playbook genesis.yml` |
 | `--tags TAGS` | Run only tasks with specific tags | `--tags zeam,genesis` |
 | `--check` | Dry run (check mode) | `--check` |
@@ -427,39 +418,40 @@ ansible/
 
 ### Remote Deployment
 
-To deploy to remote hosts, update `ansible/inventory/hosts.yml`:
+The Ansible inventory is **automatically generated** from `validator-config.yaml`. To deploy to remote hosts, update the IP addresses in your validator configuration:
 
 ```yaml
-all:
-  children:
-    zeam_nodes:
-      hosts:
-        zeam_0:
-          ansible_host: 192.168.1.10
-          ansible_user: ubuntu
-          ansible_ssh_private_key_file: ~/.ssh/id_rsa
-    ream_nodes:
-      hosts:
-        ream_0:
-          ansible_host: 192.168.1.11
-          ansible_user: ubuntu
-          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+deployment_mode: ansible
+validators:
+  - name: "zeam_0"
+    enrFields:
+      ip: "192.168.1.10"  # Remote IP address
+      quic: 9000
+  - name: "ream_0"
+    enrFields:
+      ip: "192.168.1.11"  # Remote IP address
+      quic: 9001
 ```
 
-Then deploy normally:
+Then use the same `spin-node.sh` command:
 ```sh
-./ansible-deploy.sh --node all --network-dir local-devnet
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 ```
+
+The inventory generator will automatically:
+- Detect remote IPs (non-localhost) and configure remote connections
+- Group nodes by client type (zeam_nodes, ream_nodes, qlean_nodes)
+- Set appropriate connection parameters
 
 **Note:** For remote deployment, ensure:
-- SSH key-based authentication is configured
-- Docker is installed on remote hosts (or use `--deployment-mode binary`)
+- SSH key-based authentication is configured (you may need to manually add `ansible_user` and `ansible_ssh_private_key_file` to the generated inventory if not using defaults)
+- Docker is installed on remote hosts (or use `deployment_mode: binary` in group_vars)
 - Required ports are open (QUIC ports, metrics ports)
 - Genesis files are accessible (copied or mounted)
 
 ### Using Ansible Directly
 
-You can also run Ansible playbooks directly:
+You can also run Ansible playbooks directly (after setting `deployment_mode: ansible` and running `spin-node.sh` once to generate the inventory):
 
 ```sh
 cd ansible
@@ -494,12 +486,12 @@ Key variables can be set via command-line or in `inventory/group_vars/all.yml`:
 - `deployment_mode`: docker or binary (default: docker)
 - `validator_config`: Validator config path (default: 'genesis_bootnode')
 
-### Comparing Shell Scripts vs Ansible
+### Comparing Local vs Ansible Deployment
 
-Both deployment methods are available:
+Both deployment modes use the same `spin-node.sh` entry point, controlled by `deployment_mode` in `validator-config.yaml`:
 
-| Feature | Shell Scripts (`spin-node.sh`) | Ansible (`ansible-deploy.sh`) |
-|---------|-------------------------------|-------------------------------|
+| Feature | Local (`deployment_mode: local`) | Ansible (`deployment_mode: ansible`) |
+|---------|----------------------------------|--------------------------------------|
 | **Use Case** | Local development, quick setup | Production, remote deployment |
 | **Complexity** | Simple, direct | More structured |
 | **Remote Deployment** | No | Yes |
@@ -507,200 +499,22 @@ Both deployment methods are available:
 | **State Management** | Manual | Declarative |
 | **Multi-Host** | No | Yes |
 | **Rollback** | Manual | Built-in capabilities |
+| **Entry Point** | `spin-node.sh` | `spin-node.sh` (same command) |
+| **Inventory** | N/A | Auto-generated from validator-config.yaml |
 
 **Recommendation:** 
-- Use `spin-node.sh` for local development and quick testing
-- Use `ansible-deploy.sh` for production deployments and remote hosts
+- Use `deployment_mode: local` for local development and quick testing
+- Use `deployment_mode: ansible` for production deployments and remote hosts
+- Both modes use the same `spin-node.sh` command - just change the `deployment_mode` in `validator-config.yaml`
 
 ## Deployment Modes
 
-Ansible supports three deployment modes:
+Ansible supports two deployment modes:
 
 | Mode | Use Case | Command |
 |------|----------|---------|
 | **Docker** | Local development, simple testing | `--deployment-mode docker` (default) |
 | **Binary** | Remote servers without Docker | `--deployment-mode binary` |
-| **Kubernetes** | Production-like, multi-host, orchestration | `--deployment-mode kubernetes` |
-
-## Kubernetes Deployment
-
-Deploy Lean nodes to a Kubernetes cluster for production-like testing and multi-host deployments.
-
-### Prerequisites
-
-#### 1. Install kubectl
-
-```bash
-# macOS (ARM/Apple Silicon)
-arch -arm64 brew install kubectl
-
-# macOS (Intel)
-brew install kubectl
-
-# Ubuntu/Debian
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-
-# Verify installation
-kubectl version --client
-```
-
-#### 2. Set Up Local Kubernetes Cluster
-
-Choose one option:
-
-**Minikube (Recommended):**
-```bash
-# Install (macOS ARM/Apple Silicon)
-arch -arm64 brew install minikube
-
-# Install (macOS Intel)
-brew install minikube
-
-# Start
-minikube start
-```
-
-**Docker Desktop:**
-```bash
-# Docker Desktop → Settings → Kubernetes → Enable Kubernetes
-```
-
-**kind:**
-```bash
-# Install (macOS ARM/Apple Silicon)
-arch -arm64 brew install kind
-
-# Install (macOS Intel)
-brew install kind
-
-# Create cluster
-kind create cluster --name lean-test
-```
-
-#### 3. Configure Access
-
-```bash
-# Verify cluster is running
-kubectl cluster-info
-```
-
-#### 4. Install Ansible Collections
-
-```bash
-cd ansible
-ansible-galaxy install -r requirements.yml
-```
-
-### Deployment
-
-#### Quick Deploy
-
-```bash
-# Deploy all nodes
-./ansible-deploy.sh --node all --network-dir local-devnet \
-  --deployment-mode kubernetes --generate-genesis
-
-# Deploy specific nodes
-./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet \
-  --deployment-mode kubernetes
-```
-
-#### Automated Testing
-
-Run the automated test script:
-```bash
-# Basic test
-./ansible/test-k8s-deployment.sh
-
-# Test with cleanup
-./ansible/test-k8s-deployment.sh cleanup
-```
-
-### Verification & Management
-
-#### Check Status
-
-```bash
-# List all resources
-kubectl get all -n lean-network
-
-# View pods
-kubectl get pods -n lean-network
-
-# View services
-kubectl get svc -n lean-network
-```
-
-#### Access Logs
-
-```bash
-# Follow logs
-kubectl logs -n lean-network zeam_0 -f
-
-# Recent logs only
-kubectl logs -n lean-network zeam_0 --tail=50
-```
-
-#### Access Metrics
-
-```bash
-# Port forward metrics service
-kubectl port-forward -n lean-network svc/zeam_0-metrics 8080:8080
-
-# Access metrics (in another terminal)
-curl http://localhost:8080/metrics
-```
-
-#### Troubleshooting
-
-```bash
-# Pod not starting?
-kubectl describe pod -n lean-network <pod-name>
-
-# Check events
-kubectl get events -n lean-network --sort-by=.metadata.creationTimestamp
-
-# PVC issues?
-kubectl get pvc -n lean-network
-kubectl describe pvc -n lean-network <pvc-name>
-
-# Check storage classes
-kubectl get storageclass
-```
-
-#### Cleanup
-
-```bash
-# Delete namespace (removes everything)
-kubectl delete namespace lean-network
-
-# Delete specific deployment
-kubectl delete deployment zeam_0 -n lean-network
-```
-
-### Configuration
-
-Edit `ansible/inventory/group_vars/all.yml` to customize:
-
-```yaml
-k8s_namespace: lean-network       # Change namespace
-k8s_storage_size: 20Gi            # Increase storage
-k8s_memory_limit: 4Gi             # More memory
-k8s_storage_class: standard       # Your storage class
-```
-
-### Comparison: Docker vs Kubernetes
-
-| Task | Docker | Kubernetes |
-|------|--------|------------|
-| Deploy | `--deployment-mode docker` | `--deployment-mode kubernetes` |
-| Status | `docker ps` | `kubectl get pods -n lean-network` |
-| Logs | `docker logs <name>` | `kubectl logs -n lean-network <name>` |
-| Access | `curl localhost:PORT` | `kubectl port-forward svc/<svc> PORT` |
-| Clean | `docker rm -f <name>` | `kubectl delete namespace lean-network` |
-
-📖 **Detailed Kubernetes documentation:** [ansible/KUBERNETES.md](ansible/KUBERNETES.md)
 
 ## Client branches
 

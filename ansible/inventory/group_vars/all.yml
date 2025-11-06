@@ -15,16 +15,7 @@ genesis_time_offset: 30  # seconds from now
 docker_with_sudo: false
 docker_network_mode: host
 
-# Kubernetes settings
-k8s_namespace: lean-network
-k8s_storage_class: standard  # Change based on your cluster
-k8s_storage_size: 10Gi
-k8s_cpu_request: "100m"
-k8s_memory_request: "256Mi"
-k8s_cpu_limit: "1000m"
-k8s_memory_limit: "2Gi"
-
-# Node deployment mode: 'docker', 'binary', or 'kubernetes'
+# Node deployment mode: 'docker' or 'binary'
 deployment_mode: docker
 
 # Generate genesis by default

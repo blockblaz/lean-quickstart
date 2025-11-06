@@ -1,0 +1,112 @@
+#!/bin/bash
+# Generate Ansible inventory from validator-config.yaml
+# This script reads validator-config.yaml and generates hosts.yml for Ansible
+
+set -e
+
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 <validator-config.yaml> <output-hosts.yml>"
+    exit 1
+fi
+
+VALIDATOR_CONFIG="$1"
+OUTPUT_FILE="$2"
+
+# Check if yq is installed
+if ! command -v yq &> /dev/null; then
+    echo "Error: yq is required but not installed. Please install yq first."
+    echo "On macOS: brew install yq"
+    echo "On Linux: https://github.com/mikefarah/yq#install"
+    exit 1
+fi
+
+# Check if validator config exists
+if [ ! -f "$VALIDATOR_CONFIG" ]; then
+    echo "Error: Validator config file not found: $VALIDATOR_CONFIG"
+    exit 1
+fi
+
+# Create output directory if it doesn't exist
+OUTPUT_DIR=$(dirname "$OUTPUT_FILE")
+mkdir -p "$OUTPUT_DIR"
+
+# Start generating the inventory file
+cat > "$OUTPUT_FILE" << 'EOF'
+---
+# Ansible Inventory for Lean Quickstart
+# Auto-generated from validator-config.yaml
+# DO NOT EDIT MANUALLY - This file is auto-generated
+
+all:
+  children:
+    local:
+      hosts:
+        localhost:
+          ansible_connection: local
+          ansible_python_interpreter: auto_silent
+    bootnodes:
+      hosts: {}
+    zeam_nodes:
+      hosts: {}
+    ream_nodes:
+      hosts: {}
+    qlean_nodes:
+      hosts: {}
+EOF
+
+# Extract node information from validator-config.yaml
+nodes=($(yq eval '.validators[].name' "$VALIDATOR_CONFIG"))
+
+# Process each node and build inventory entries
+declare -A node_groups
+declare -A node_ips
+declare -A node_quics
+declare -A node_client_types
+
+for node_name in "${nodes[@]}"; do
+    # Extract client type (zeam, ream, qlean)
+    IFS='_' read -r -a elements <<< "$node_name"
+    client_type="${elements[0]}"
+    node_groups["$node_name"]="${client_type}_nodes"
+    node_client_types["$node_name"]="$client_type"
+    
+    # Extract node-specific information
+    node_ip=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.ip // \"127.0.0.1\"" "$VALIDATOR_CONFIG")
+    node_quic=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.quic // \"9000\"" "$VALIDATOR_CONFIG")
+    node_ips["$node_name"]="$node_ip"
+    node_quics["$node_name"]="$node_quic"
+done
+
+# Generate inventory entries using yq
+for node_name in "${nodes[@]}"; do
+    client_type="${node_client_types[$node_name]}"
+    group_name="${node_groups[$node_name]}"
+    node_ip="${node_ips[$node_name]}"
+    node_quic="${node_quics[$node_name]}"
+    
+    # Check if this is a remote deployment (IP is not localhost/127.0.0.1)
+    is_remote=false
+    if [[ "$node_ip" != "127.0.0.1" ]] && [[ "$node_ip" != "localhost" ]]; then
+        is_remote=true
+    fi
+    
+    # Add node to the appropriate group
+    if [ "$is_remote" = true ]; then
+        # Remote deployment
+        yq eval -i ".all.children.$group_name.hosts.$node_name.ansible_host = \"$node_ip\"" "$OUTPUT_FILE"
+        yq eval -i ".all.children.$group_name.hosts.$node_name.node_name = \"$node_name\"" "$OUTPUT_FILE"
+        yq eval -i ".all.children.$group_name.hosts.$node_name.client_type = \"$client_type\"" "$OUTPUT_FILE"
+        yq eval -i ".all.children.$group_name.hosts.$node_name.quic_port = $node_quic" "$OUTPUT_FILE"
+    else
+        # Local deployment
+        yq eval -i ".all.children.$group_name.hosts.$node_name.ansible_host = \"localhost\"" "$OUTPUT_FILE"
+        yq eval -i ".all.children.$group_name.hosts.$node_name.ansible_connection = \"local\"" "$OUTPUT_FILE"
+        yq eval -i ".all.children.$group_name.hosts.$node_name.node_name = \"$node_name\"" "$OUTPUT_FILE"
+        yq eval -i ".all.children.$group_name.hosts.$node_name.client_type = \"$client_type\"" "$OUTPUT_FILE"
+        yq eval -i ".all.children.$group_name.hosts.$node_name.quic_port = $node_quic" "$OUTPUT_FILE"
+    fi
+done
+
+echo "✅ Generated Ansible inventory at: $OUTPUT_FILE"
+echo "   Processed ${#nodes[@]} node(s): ${nodes[*]}"
+
