@@ -61,25 +61,54 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        # Create version tag if version label exists
+        CREATE_VERSION_TAG=false
+        CREATE_NETWORK_TAG=false
+
+        # Check if version tag should be created
         if [ -n "${{ steps.get_tags_labels.outputs.version }}" ] && [ "${{ steps.get_tags_labels.outputs.version }}" != "null" ]; then
           if git rev-parse "${{ steps.get_tags_labels.outputs.git_tag }}" >/dev/null 2>&1; then
-            echo "⚠️ Tag ${{ steps.get_tags_labels.outputs.git_tag }} already exists, skipping"
+            echo "❌ Version tag ${{ steps.get_tags_labels.outputs.git_tag }} already exists. Please create a new tag."
+            exit 1
           else
-            git tag -a "${{ steps.get_tags_labels.outputs.git_tag }}" -m "Release version ${{ steps.get_tags_labels.outputs.version }}"
-            git push origin "${{ steps.get_tags_labels.outputs.git_tag }}"
-            echo "✅ Created version tag ${{ steps.get_tags_labels.outputs.git_tag }}"
+            CREATE_VERSION_TAG=true
           fi
         fi
 
-        # Create zeam network tag if network label exists
+        # Check if network tag should be created
         if [ "${{ steps.get_tags_labels.outputs.has_network_tag }}" = "true" ]; then
           ZEAM_GIT_TAG="${{ steps.get_tags_labels.outputs.zeam_tag }}"
           if git rev-parse "$ZEAM_GIT_TAG" >/dev/null 2>&1; then
-            echo "⚠️ Zeam tag $ZEAM_GIT_TAG already exists, skipping"
+            echo "❌ Network tag $ZEAM_GIT_TAG already exists. Please create a new tag."
+            exit 1
           else
-            git tag -a "$ZEAM_GIT_TAG" -m "Zeam network tag for ${{ steps.get_tags_labels.outputs.zeam_tag }}"
-            git push origin "$ZEAM_GIT_TAG"
-            echo "✅ Created zeam tag $ZEAM_GIT_TAG"
+            CREATE_NETWORK_TAG=true
           fi
         fi
+
+        # Create version tag if needed
+        if [ "$CREATE_VERSION_TAG" = "true" ]; then
+          git tag -a "${{ steps.get_tags_labels.outputs.git_tag }}" -m "Release version ${{ steps.get_tags_labels.outputs.version }}"
+          git push origin "${{ steps.get_tags_labels.outputs.git_tag }}"
+          echo "✅ Created version tag ${{ steps.get_tags_labels.outputs.git_tag }}"
+        fi
+
+        # Create network tag if needed
+        if [ "$CREATE_NETWORK_TAG" = "true" ]; then
+          git tag -a "$ZEAM_GIT_TAG" -m "Zeam network tag for $ZEAM_GIT_TAG"
+          git push origin "$ZEAM_GIT_TAG"
+          echo "✅ Created zeam tag $ZEAM_GIT_TAG"
+        fi
+        echo "create_version_tag=$CREATE_VERSION_TAG" >> $GITHUB_OUTPUT
+        echo "create_network_tag=$CREATE_NETWORK_TAG" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      if: ${{ steps.create_tags.outputs.create_version_tag == 'true' || steps.create_tags.outputs.create_network_tag == 'true' }}
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
+        release_name: Release ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
+        body: Release ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
+        draft: false
+        prerelease: false
+      env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
