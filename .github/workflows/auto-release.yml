@@ -57,6 +57,7 @@ jobs:
         fi
 
     - name: Create and push git tags
+      id: create_tags
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -111,4 +112,4 @@ jobs:
         draft: false
         prerelease: false
       env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
