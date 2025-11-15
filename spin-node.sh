@@ -100,84 +100,9 @@ fi;
 
 # Check deployment mode and route to ansible if needed
 if [ "$deployment_mode" == "ansible" ]; then
-  echo "Deployment mode: ansible - routing to Ansible deployment"
-  
-  # Check if Ansible is installed
-  if ! command -v ansible-playbook &> /dev/null; then
-    echo "Error: ansible-playbook is not installed."
-    echo "Install Ansible:"
-    echo "  macOS:   brew install ansible"
-    echo "  Ubuntu:  sudo apt-get install ansible"
-    echo "  pip:     pip install ansible"
-    exit 1
-  fi
-  
-  # Check if docker collection is available
-  if ! ansible-galaxy collection list | grep -q "community.docker" 2>/dev/null; then
-    echo "Warning: community.docker collection not found. Installing..."
-    ansible-galaxy collection install community.docker
-  fi
-  
-  # Generate ansible inventory from validator-config.yaml
-  ANSIBLE_DIR="$scriptDir/ansible"
-  INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
-  
-  # Generate inventory if it doesn't exist or if validator config is newer
-  if [ ! -f "$INVENTORY_FILE" ] || [ "$validator_config_file" -nt "$INVENTORY_FILE" ]; then
-    echo "Generating Ansible inventory from validator-config.yaml..."
-    "$scriptDir/generate-ansible-inventory.sh" "$validator_config_file" "$INVENTORY_FILE"
-  fi
-  
-  # Build ansible extra-vars from spin-node.sh arguments
-  EXTRA_VARS="network_dir=$configDir"
-  
-  if [ -n "$node" ]; then
-    EXTRA_VARS="$EXTRA_VARS node_names=$node"
-  fi
-  
-  if [ -n "$generateGenesis" ]; then
-    EXTRA_VARS="$EXTRA_VARS generate_genesis=true"
-  fi
-  
-  if [ -n "$cleanData" ]; then
-    EXTRA_VARS="$EXTRA_VARS clean_data=true"
-  fi
-  
-  if [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ]; then
-    EXTRA_VARS="$EXTRA_VARS validator_config=$validatorConfig"
-  fi
-  
-  # Determine deployment mode (docker/binary) - default to docker for ansible
-  # Note: node_setup is not set yet in ansible mode, so we default to docker
-  # This can be overridden by adding a 'deployment_mode' field per node in validator-config.yaml if needed
-  EXTRA_VARS="$EXTRA_VARS deployment_mode=docker"
-  
-  # Build ansible-playbook command
-  ANSIBLE_CMD="ansible-playbook"
-  ANSIBLE_CMD="$ANSIBLE_CMD -i $INVENTORY_FILE"
-  ANSIBLE_CMD="$ANSIBLE_CMD $ANSIBLE_DIR/playbooks/site.yml"
-  ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
-  
-  echo "Running Ansible playbook..."
-  echo "Command: $ANSIBLE_CMD"
-  echo ""
-  
-  # Change to Ansible directory and execute
-  cd "$ANSIBLE_DIR"
-  eval $ANSIBLE_CMD
-  
-  EXIT_CODE=$?
-  if [ $EXIT_CODE -eq 0 ]; then
-    echo ""
-    echo "✅ Ansible deployment completed successfully!"
-  else
-    echo ""
-    echo "❌ Ansible deployment failed with exit code $EXIT_CODE"
-    exit $EXIT_CODE
-  fi
-  
-  # Exit early - ansible handles everything
-  exit $EXIT_CODE
+  # Call separate Ansible execution script
+  "$scriptDir/run-ansible.sh" "$configDir" "$node" "$generateGenesis" "$cleanData" "$validatorConfig" "$validator_config_file"
+  exit $?
 fi
 
 # 3. run clients (local deployment)

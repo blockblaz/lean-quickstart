@@ -12,3 +12,6 @@ local-devnet/genesis/genesis.ssz
 
 # Hash-sig validator keys (contains sensitive secret keys)
 local-devnet/genesis/hash-sig-keys/
+
+# Auto-generated Ansible inventory (generated from validator-config.yaml)
+ansible/inventory/hosts.yml

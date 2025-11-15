@@ -1,7 +1,7 @@
 ---
 # Default variables for zeam role
 
-zeam_docker_image: "chethack/zeam:latest"
+zeam_docker_image: "blockblaz/zeam:latest"
 zeam_binary_path: "{{ playbook_dir }}/../zig-out/bin/zeam"
 deployment_mode: docker  # docker or binary
 
