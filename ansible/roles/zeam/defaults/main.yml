@@ -1,0 +1,13 @@
+---
+# Default variables for zeam role
+
+zeam_docker_image: "blockblaz/zeam:latest"
+zeam_binary_path: "{{ playbook_dir }}/../zig-out/bin/zeam"
+deployment_mode: docker  # docker or binary
+
+# These should be passed from the playbook
+node_name: ""
+genesis_dir: ""
+data_dir: ""
+validator_config: "genesis_bootnode"
+

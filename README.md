@@ -38,9 +38,15 @@ cd lean-quickstart
 
 ### Quickly startup various nodes as a local devnet
 
+**Using spin-node.sh (unified entry point):**
 ```sh
+# Local deployment (default)
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --popupTerminal
+
+# Ansible deployment (set deployment_mode: ansible in validator-config.yaml)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 ```
+> 📖 The deployment mode is controlled by the `deployment_mode` field in `validator-config.yaml`. See [Ansible Deployment](#ansible-deployment) section or [ansible/README.md](ansible/README.md) for details
 
 ### Startup specific nodes only
 
@@ -54,6 +60,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node "zeam_0 qlean_0" --generateGenesi
 # Run only a single node
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupTerminal
 ```
+> 💡 **Note**: The same `spin-node.sh` command works for both local and Ansible deployments. The deployment mode is determined by the `deployment_mode` field in `validator-config.yaml`.
   
 ## Args
 
@@ -77,6 +84,10 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupT
 5. `--validatorConfig` is the path to specify your nodes `validator-config.yaml`, `validators.yaml` (for which `--node` is still the node key to index) if your node is not a bootnode.
    If unspecified it assumes value of `genesis_bootnode` which is to say that your node config is to be picked from `genesis` folder with `--node` as the node key index.
    This value is further provided to the client so that they can parse the correct config information.
+6. `--deploymentMode` specifies the deployment mode: `local` or `ansible`. 
+   - If provided, this overrides the `deployment_mode` field in `validator-config.yaml`
+   - If not provided, the value from `validator-config.yaml` is used (defaults to `local` if not specified)
+   - Examples: `--deploymentMode local` or `--deploymentMode ansible`
 
 ## Genesis Generator
 
@@ -181,6 +192,7 @@ validators:
 ```
 
 **Required Top-Level Fields:**
+- `deployment_mode`: Deployment mode - `"local"` (default) for local shell script deployment, or `"ansible"` for Ansible-based remote deployment
 - `shuffle`: Validator shuffle algorithm (e.g., `roundrobin`)
 - `config.activeEpoch`: Exponent for active epochs used in hash-sig key generation (2^activeEpoch signatures per active period)
 - `config.keyType`: Network-wide signature scheme - must be `"hash-sig"` for post-quantum security
@@ -295,6 +307,266 @@ This quickstart includes automated configuration parsing:
 - **Error Handling**: Provides clear error messages when nodes or ports are not found
 
 The system reads all configuration from YAML files, making it easy to add new nodes or modify existing ones without changing any scripts.
+
+## Ansible Deployment
+
+The repository now includes Ansible-based deployment for enhanced automation, remote deployment capabilities, and better infrastructure management. Ansible provides idempotency, declarative configuration, and support for deploying to multiple remote hosts.
+
+📖 **For detailed Ansible documentation, see [ansible/README.md](ansible/README.md)**
+
+### Using Ansible Deployment
+
+**Recommended: Use `spin-node.sh` (Unified Entry Point)**
+
+`spin-node.sh` is the primary entry point for all deployments, including Ansible. Simply set `deployment_mode: ansible` in your `validator-config.yaml`:
+
+```sh
+# Set deployment_mode: ansible in validator-config.yaml, then:
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+```
+
+This automatically calls `run-ansible.sh` internally, which reads the default deployment mode from `ansible/inventory/group_vars/all.yml`.
+
+**Advanced: Direct Ansible Control with `ansible-deploy.sh`**
+
+For advanced Ansible workflows requiring direct control (e.g., `--playbook`, `--tags`, `--check`, `--diff`), you can use `ansible-deploy.sh` directly:
+
+```sh
+./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+```
+
+However, for most use cases, `spin-node.sh` is recommended as it provides a consistent interface for both local and Ansible deployments.
+
+### Ansible Benefits
+
+- ✅ **Remote Deployment**: Deploy nodes to remote servers
+- ✅ **Idempotency**: Safe to run multiple times
+- ✅ **Infrastructure as Code**: Version-controlled deployment configuration
+- ✅ **Multi-Host Support**: Deploy to multiple hosts in parallel
+- ✅ **Better State Management**: Track and manage node lifecycle
+- ✅ **Extensible**: Easy to add new roles and playbooks
+
+### Installing Ansible
+
+**macOS:**
+```sh
+brew install ansible
+```
+
+**Ubuntu/Debian:**
+```sh
+sudo apt-get update
+sudo apt-get install ansible
+```
+
+**Using pip:**
+```sh
+pip install ansible
+```
+
+### Installing Ansible Dependencies
+
+Install required Ansible collections:
+
+```sh
+cd ansible
+ansible-galaxy install -r requirements.yml
+```
+
+### Quick Start with Ansible
+
+**Recommended: Using `spin-node.sh` (set `deployment_mode: ansible` in validator-config.yaml):**
+
+```sh
+# Deploy all nodes with genesis generation
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+
+# Deploy specific nodes
+NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0,ream_0 --generateGenesis
+
+# Deploy with clean data directories
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --cleanData
+```
+
+**Alternative: Using `ansible-deploy.sh` directly (for advanced Ansible options):**
+
+```sh
+# Deploy all nodes with genesis generation
+./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+
+# Generate genesis files only (requires direct ansible-deploy.sh)
+./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet
+
+# Dry run (check mode)
+./ansible-deploy.sh --node all --network-dir local-devnet --check
+```
+
+### Ansible Command-Line Options (Advanced)
+
+The following options are available when using `ansible-deploy.sh` directly for advanced Ansible workflows. For most use cases, use `spin-node.sh` instead (see [Quick Start with Ansible](#quick-start-with-ansible) above).
+
+The `ansible-deploy.sh` wrapper script provides the following options:
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--node NODES` | Nodes to deploy (all, single, or comma/space-separated) | `--node zeam_0,ream_0` |
+| `--network-dir DIR` | Network directory | `--network-dir local-devnet` |
+| `--generate-genesis` | Force regeneration of genesis files | `--generate-genesis` |
+| `--clean-data` | Clean data directories before deployment | `--clean-data` |
+| `--validator-config PATH` | Path to validator-config.yaml | `--validator-config custom/path.yaml` |
+| `--deployment-mode MODE` | Deployment mode: docker or binary | `--deployment-mode binary` |
+| `--playbook PLAYBOOK` | Ansible playbook to run | `--playbook genesis.yml` |
+| `--tags TAGS` | Run only tasks with specific tags | `--tags zeam,genesis` |
+| `--check` | Dry run (check mode) | `--check` |
+| `--diff` | Show file changes | `--diff` |
+| `--verbose` | Verbose output | `--verbose` |
+
+### Ansible Directory Structure
+
+```
+ansible/
+├── ansible.cfg              # Ansible configuration
+├── requirements.yml          # Ansible Galaxy dependencies
+├── inventory/
+│   ├── hosts.yml            # Host inventory (localhost or remote hosts)
+│   └── group_vars/          # Group variables
+│       └── all.yml           # Global variables
+├── playbooks/
+│   ├── site.yml             # Main playbook (genesis + deploy)
+│   ├── genesis.yml          # Genesis generation playbook
+│   ├── deploy-nodes.yml     # Node deployment playbook
+│   └── deploy-single-node.yml # Helper for single node deployment
+└── roles/
+    ├── common/              # Common setup (Docker, yq, directories)
+    ├── genesis/             # Genesis file generation
+    ├── zeam/                # Zeam node role
+    ├── ream/                # Ream node role
+    └── qlean/               # Qlean node role
+```
+
+### Remote Deployment
+
+The Ansible inventory is **automatically generated** from `validator-config.yaml`. To deploy to remote hosts, update the IP addresses in your validator configuration:
+
+```yaml
+deployment_mode: ansible
+validators:
+  - name: "zeam_0"
+    enrFields:
+      ip: "192.168.1.10"  # Remote IP address
+      quic: 9000
+  - name: "ream_0"
+    enrFields:
+      ip: "192.168.1.11"  # Remote IP address
+      quic: 9001
+```
+
+Then use the same `spin-node.sh` command:
+```sh
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+```
+
+The inventory generator will automatically:
+- Detect remote IPs (non-localhost) and configure remote connections
+- Group nodes by client type (zeam_nodes, ream_nodes, qlean_nodes)
+- Set appropriate connection parameters
+
+**Note:** For remote deployment, ensure:
+- SSH key-based authentication is configured (you may need to manually add `ansible_user` and `ansible_ssh_private_key_file` to the generated inventory if not using defaults)
+- Docker is installed on remote hosts (or use `deployment_mode: binary` in group_vars)
+- Required ports are open (QUIC ports, metrics ports)
+- Genesis files are accessible (copied or mounted)
+
+### Using Ansible Directly
+
+You can also run Ansible playbooks directly (after setting `deployment_mode: ansible` and running `spin-node.sh` once to generate the inventory):
+
+```sh
+cd ansible
+
+# Run main playbook
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
+  -e "network_dir=$(pwd)/../local-devnet" \
+  -e "node_names=all" \
+  -e "generate_genesis=true"
+
+# Run only genesis generation
+ansible-playbook -i inventory/hosts.yml playbooks/genesis.yml \
+  -e "network_dir=$(pwd)/../local-devnet"
+
+# Run with specific tags
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-nodes.yml \
+  -e "network_dir=$(pwd)/../local-devnet" \
+  -e "node_names=zeam_0" \
+  --tags zeam
+```
+
+### Ansible Variables
+
+Key variables can be set via command-line or in `ansible/inventory/group_vars/all.yml`:
+
+- `network_dir`: Network directory path (required)
+- `genesis_dir`: Genesis directory path (derived from network_dir)
+- `data_dir`: Data directory path (derived from network_dir)
+- `node_names`: Nodes to deploy (default: 'all')
+- `generate_genesis`: Generate genesis files (default: true)
+- `clean_data`: Clean data directories (default: false)
+- `deployment_mode`: docker or binary (default: docker, defined in `ansible/inventory/group_vars/all.yml`)
+- `validator_config`: Validator config path (default: 'genesis_bootnode')
+
+**Note:** The default `deployment_mode` value is read from `ansible/inventory/group_vars/all.yml`. When using `spin-node.sh` with `deployment_mode: ansible`, it internally calls `run-ansible.sh` which reads this default value. You can override it by setting `deployment_mode` in your `validator-config.yaml` or via command-line arguments.
+
+### Comparing Local vs Ansible Deployment
+
+Both deployment modes use the same `spin-node.sh` entry point, controlled by `deployment_mode` in `validator-config.yaml`:
+
+| Feature | Local (`deployment_mode: local`) | Ansible (`deployment_mode: ansible`) |
+|---------|----------------------------------|--------------------------------------|
+| **Use Case** | Local development, quick setup | Production, remote deployment |
+| **Complexity** | Simple, direct | More structured |
+| **Remote Deployment** | No | Yes |
+| **Idempotency** | No | Yes |
+| **State Management** | Manual | Declarative |
+| **Multi-Host** | No | Yes |
+| **Rollback** | Manual | Built-in capabilities |
+| **Entry Point** | `spin-node.sh` | `spin-node.sh` (same command) |
+| **Inventory** | N/A | Auto-generated from validator-config.yaml |
+
+**Recommendation:** 
+- Use `deployment_mode: local` for local development and quick testing
+- Use `deployment_mode: ansible` for production deployments and remote hosts
+- Both modes use the same `spin-node.sh` command - just change the `deployment_mode` in `validator-config.yaml`
+
+## Deployment Modes
+
+The quickstart supports two deployment modes:
+
+| Mode | Use Case | Command |
+|------|----------|---------|
+| **Local** | Local development, quick testing | `deployment_mode: local` (default) |
+| **Ansible** | Production, remote deployment, infrastructure automation | `deployment_mode: ansible` |
+
+### Local Deployment Mode
+
+Local deployment uses shell scripts to directly run Docker containers or binaries on the local machine. This is the default mode and is ideal for:
+- Quick local development
+- Testing and experimentation
+- Single-machine setups
+
+### Ansible Deployment Mode
+
+Ansible deployment provides infrastructure automation and supports two sub-modes:
+
+| Sub-Mode | Use Case | Command |
+|----------|----------|---------|
+| **Docker** | Deploy containers directly on hosts | `--deployment-mode docker` (default for Ansible) |
+| **Binary** | Deploy binaries as systemd services | `--deployment-mode binary` |
+
+Ansible mode is ideal for:
+- Production deployments
+- Remote server management
+- Multi-host deployments
+- Infrastructure as Code workflows
 
 ## Client branches
 

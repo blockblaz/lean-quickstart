@@ -1,0 +1,27 @@
+---
+# Global variables for all nodes
+
+# Paths (relative to playbook execution directory or absolute)
+network_dir: "{{ playbook_dir }}/../local-devnet"
+genesis_dir: "{{ network_dir }}/genesis"
+data_dir: "{{ network_dir }}/data"
+validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+
+# Genesis generation settings
+pk_docker_image: "ethpandaops/eth-beacon-genesis:pk910-leanchain"
+genesis_time_offset: 30  # seconds from now
+
+# Docker settings
+docker_with_sudo: false
+docker_network_mode: host
+
+# Node deployment mode: 'docker' or 'binary'
+deployment_mode: docker
+
+# Generate genesis by default
+generate_genesis: true
+clean_data: false
+
+# Node execution settings
+popup_terminal: false
+

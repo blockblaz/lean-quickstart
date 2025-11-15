@@ -39,6 +39,17 @@ if [ -f "$validator_config_file" ]; then
         echo "Error: No validators found in $validator_config_file"
         exit 1
     fi
+    
+    # Check deployment mode: command-line argument takes precedence over config file
+    if [ -n "$deploymentMode" ]; then
+        # Use command-line argument if provided
+        deployment_mode="$deploymentMode"
+        echo "Using deployment mode from command line: $deployment_mode"
+    else
+        # Otherwise read from config file (default to 'local' if not specified)
+        deployment_mode=$(yq eval '.deployment_mode // "local"' "$validator_config_file")
+        echo "Using deployment mode from config file: $deployment_mode"
+    fi
 else
     echo "Error: Validator config file not found at $validator_config_file"
     nodes=()
@@ -87,7 +98,14 @@ if [ ! -n "$node_present" ]; then
   exit;
 fi;
 
-# 3. run clients
+# Check deployment mode and route to ansible if needed
+if [ "$deployment_mode" == "ansible" ]; then
+  # Call separate Ansible execution script
+  "$scriptDir/run-ansible.sh" "$configDir" "$node" "$generateGenesis" "$cleanData" "$validatorConfig" "$validator_config_file"
+  exit $?
+fi
+
+# 3. run clients (local deployment)
 mkdir -p $dataDir
 # Detect OS and set appropriate terminal command
 if [[ "$OSTYPE" == "darwin"* ]]; then

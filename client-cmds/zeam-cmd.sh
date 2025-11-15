@@ -10,7 +10,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --node-id $item --node-key $configDir/$item.key \
       --metrics_port $metricsPort"
 
-node_docker="--security-opt seccomp=unconfined g11tech/zeam:latest node \
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:latest node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \
