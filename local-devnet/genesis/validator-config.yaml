@@ -1,6 +1,6 @@
 shuffle: roundrobin
 # Deployment mode: 'local' for local deployment, 'ansible' for remote deployment via Ansible
-deployment_mode: local
+deployment_mode: ansible
 config:
   activeEpoch: 18
   keyType: "hash-sig"
