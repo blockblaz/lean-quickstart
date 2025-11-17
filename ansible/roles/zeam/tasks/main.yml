@@ -57,8 +57,11 @@
       changed_when: docker_stop_result.rc == 0
 
     - name: Start Zeam container
+      # TODO: Remove --platform linux/amd64 when blockblaz/zeam:latest multi-platform image is available on Docker Hub
+      # Multi-platform support is being added in zeam CI (see .github/workflows/ci.yml docker-build-multiarch job)
       command: >-
         docker run -d
+        --platform linux/amd64
         --name {{ node_name }}
         --restart unless-stopped
         --network host

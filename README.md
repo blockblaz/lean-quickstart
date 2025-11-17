@@ -88,6 +88,11 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupT
    - If provided, this overrides the `deployment_mode` field in `validator-config.yaml`
    - If not provided, the value from `validator-config.yaml` is used (defaults to `local` if not specified)
    - Examples: `--deploymentMode local` or `--deploymentMode ansible`
+7. `--tag` specifies the Docker image tag to use for zeam, ream, and qlean containers.
+   - If provided, all three clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`)
+   - If not provided, defaults to `latest` for zeam and ream, and `dd67521` for qlean
+   - The script will automatically pull the specified Docker images before running containers
+   - Example: `--tag devnet0` or `--tag devnet1`
 
 ## Genesis Generator
 

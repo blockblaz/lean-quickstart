@@ -148,6 +148,28 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
+    # Extract docker image name from node_docker (format: [flags] image:tag [command] [args...])
+    # node_docker may start with flags like "--platform linux/amd64" or "--security-opt"
+    # The image name is the first token that contains ":" and "/" and doesn't start with "-"
+    docker_image=""
+    for token in $node_docker; do
+      # Check if token contains both ":" (tag) and "/" (registry/repo) and is not a flag
+      if [[ "$token" == *":"* ]] && [[ "$token" == *"/"* ]] && [[ ! "$token" == -* ]]; then
+        docker_image="$token"
+        break
+      fi
+    done
+    
+    # Pull docker image if we found one
+    if [ -n "$docker_image" ]; then
+      pullCmd="docker pull $docker_image"
+      if [ -n "$dockerWithSudo" ]; then
+        pullCmd="sudo $pullCmd"
+      fi
+      echo "Pulling docker image: $pullCmd"
+      eval "$pullCmd"
+    fi
+    
     execCmd="docker run --rm"
     if [ -n "$dockerWithSudo" ]
     then

@@ -53,6 +53,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --tag)
+      dockerTag="$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
@@ -81,3 +86,4 @@ echo "spin_nodes(s) = ${spin_nodes[@]}"
 echo "generateGenesis = $generateGenesis"
 echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
+echo "dockerTag = ${dockerTag:-latest}"
