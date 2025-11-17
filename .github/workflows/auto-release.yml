@@ -104,10 +104,10 @@ jobs:
 
     - name: Create GitHub Release
       if: ${{ steps.create_tags.outputs.create_version_tag == 'true' || steps.create_tags.outputs.create_network_tag == 'true' }}
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
-        release_name: Release ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
+        name: Release ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
         body: Release ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
         draft: false
         prerelease: false
