@@ -150,15 +150,15 @@ for item in "${spin_nodes[@]}"; do
   else
     # Extract docker image name from node_docker (format: [flags] image:tag [command] [args...])
     # node_docker may start with flags like "--platform linux/amd64" or "--security-opt"
-    # The image name is the first token that contains ":" and "/" and doesn't start with "-"
+    # Use grep to find the first image:tag pattern that contains "/"
     docker_image=""
-    for token in $node_docker; do
-      # Check if token contains both ":" (tag) and "/" (registry/repo) and is not a flag
-      if [[ "$token" == *":"* ]] && [[ "$token" == *"/"* ]] && [[ ! "$token" == -* ]]; then
-        docker_image="$token"
-        break
-      fi
-    done
+    node_docker_normalized=$(echo "$node_docker" | tr '\n' ' ' | tr -s ' ')
+    # Extract first pattern matching image:tag format that contains "/"
+    docker_image=$(echo "$node_docker_normalized" | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | grep '/' | head -1)
+    # Verify it doesn't start with "-" (not a flag)
+    if [[ -n "$docker_image" ]] && [[ "$docker_image" == -* ]]; then
+      docker_image=""
+    fi
     
     # Pull docker image if we found one
     if [ -n "$docker_image" ]; then
