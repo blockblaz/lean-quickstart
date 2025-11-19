@@ -4,21 +4,24 @@ A single command line quickstart to spin up lean node(s)
 
 ### Benefits
 
-- ✅ **Official Tool**: Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
-- ✅ **Complete Genesis State**: Generates full genesis state (JSON + SSZ) plus config files
-- ✅ **No hardcoded files** - All genesis files are generated dynamically
-- ✅ **Single source of truth** - `validator-config.yaml` defines everything
-- ✅ **Easy to modify** - Add/remove nodes by editing `validator-config.yaml`
-- ✅ **Standards compliant** - Uses ethpandaops maintained tool
+- ✅ **Single source of truth** - `validator-config.yaml`
+    - defines everything
+    - Generates full genesis state (JSON + SSZ) plus config files
+    - add/remove nodes, modify validator count, assign IPs, ports, enr keys
+    - Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
+    - Generates PQ keys based on specified configuration in `validator-config.yaml`
+        - Force regen with flag `--forceKeyGen` when supplied with `generateGenesis`
+- ✅ Integrates zeam, ream, qlean (and more incoming...)
+- ✅ Configure to run clients in docker or binary mode for easy development
+- ✅ Linux & Mac compatible & tested
+- ✅ Option to operate on single or multiple nodes or `all`
 
 ### Requirements
 
 1. Shell terminal: Preferably linux especially if you want to pop out separate new terminals for node
-2. Genesis configuration
-3. Zeam Build (other clients to be supported soon)
-4. **Docker**: Required to run PK's eth-beacon-genesis tool and hash-sig-cli for post-quantum keys
+2. **Docker**: Required to run PK's eth-beacon-genesis tool and hash-sig-cli for post-quantum keys
    - Install from: [Docker Desktop](https://docs.docker.com/get-docker/)
-5. **yq**: YAML processor for automated configuration parsing
+3. **yq**: YAML processor for automated configuration parsing
    - Install on macOS: `brew install yq`
    - Install on Linux: See [yq installation guide](https://github.com/mikefarah/yq#install)
 
@@ -29,9 +32,6 @@ A single command line quickstart to spin up lean node(s)
 # 1. Clone the repository
 git clone <repo-url>
 cd lean-quickstart
-
-# 2. **Run** genesis generation:
-./generate-genesis.sh local-devnet/genesis
 ```
 
 ## Scenarios
@@ -104,6 +104,8 @@ The genesis generator (`generate-genesis.sh`) uses PK's official `eth-beacon-gen
 
 **Docker Image**: `ethpandaops/eth-beacon-genesis:pk910-leanchain`  
 **Source**: https://github.com/ethpandaops/eth-beacon-genesis/pull/36
+
+`config.yaml` is also generated from scratch with the appropriate properties populated.
 
 ### Usage
 
