@@ -182,6 +182,17 @@ else
     SHOULD_SKIP=false
 fi
 
+# Read required active epoch exponent from validator-config.yaml
+ACTIVE_EPOCH=$(yq eval '.config.activeEpoch' "$VALIDATOR_CONFIG_FILE" 2>/dev/null)
+if [ "$ACTIVE_EPOCH" == "null" ] || [ -z "$ACTIVE_EPOCH" ]; then
+    echo "❌ Error: validator-config.yaml missing valid key config.activeEpoch (positive integer required)" >&2
+    exit 1
+fi
+if ! [[ "$ACTIVE_EPOCH" =~ ^[0-9]+$ ]] || [ "$ACTIVE_EPOCH" -le 0 ]; then
+    echo "❌ Error: validator-config.yaml missing valid key config.activeEpoch (positive integer required)" >&2
+    exit 1
+fi
+
 if [ "$SHOULD_SKIP" == "true" ]; then
     echo "   ⏭️  Skipping key generation - keys already present"
     echo "   Key directory: $HASH_SIG_KEYS_DIR"
@@ -191,17 +202,6 @@ else
     echo "   Using scheme: SIGTopLevelTargetSumLifetime32Dim64Base8"
     echo "   Key directory: $HASH_SIG_KEYS_DIR"
     echo ""
-
-    # Read required active epoch exponent from validator-config.yaml
-    ACTIVE_EPOCH=$(yq eval '.config.activeEpoch' "$VALIDATOR_CONFIG_FILE" 2>/dev/null)
-    if [ "$ACTIVE_EPOCH" == "null" ] || [ -z "$ACTIVE_EPOCH" ]; then
-        echo "❌ Error: validator-config.yaml missing valid key config.activeEpoch (positive integer required)" >&2
-        exit 1
-    fi
-    if ! [[ "$ACTIVE_EPOCH" =~ ^[0-9]+$ ]] || [ "$ACTIVE_EPOCH" -le 0 ]; then
-        echo "❌ Error: validator-config.yaml missing valid key config.activeEpoch (positive integer required)" >&2
-        exit 1
-    fi
 
     # Generate hash-sig keys for all validators using Docker
     # Scheme: SIGTopLevelTargetSumLifetime32Dim64Base8
@@ -330,12 +330,12 @@ echo "   Total validator count: $TOTAL_VALIDATORS"
 cat > "$CONFIG_FILE" << EOF
 # Genesis Settings
 GENESIS_TIME: $GENESIS_TIME
+
+# Key Settings
+ACTIVE_EPOCH: $ACTIVE_EPOCH
+
 # Validator Settings  
 VALIDATOR_COUNT: $TOTAL_VALIDATORS
-# Shuffle Settings
-shuffle: roundrobin
-config:
-  activeEpoch: $ACTIVE_EPOCH
 EOF
 
 echo "   ✅ Generated config.yaml"
@@ -439,7 +439,7 @@ done < <(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE")
 if [ -s "$GENESIS_VALIDATORS_TMP" ]; then
     # Build a temporary YAML file with just genesis_validators
     GENESIS_VALIDATORS_YAML=$(mktemp)
-    echo "genesis_validators:" > "$GENESIS_VALIDATORS_YAML"
+    echo "GENESIS_VALIDATORS:" > "$GENESIS_VALIDATORS_YAML"
     cat "$GENESIS_VALIDATORS_TMP" >> "$GENESIS_VALIDATORS_YAML"
     
     # Use yq to merge the genesis_validators into config.yaml
