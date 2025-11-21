@@ -90,35 +90,35 @@ However adding a lean client to this setup is very easy. Feel free to do the PR 
 
 ## How It Works
 
-The quickstart includes an automated genesis generator that eliminates the need for hardcoded files and uses `validator-config.yaml` as the source of truth. This is contained in a `genesis` folder of the provided `NETWORK_DIR` folder you want to run quickstart on.
+The quickstart includes an automated genesis generator that eliminates the need for hardcoded files and uses `validator-config.yaml` as the source of truth. This file is contained in the `genesis` folder of the provided `NETWORK_DIR` folder you want to run quickstart on.
 
 ### Configuration
 
-The `validator-config.yaml` file defines the shuffle algorithm, active epoch configuration, and validator specifications:
+The `validator-config.yaml` file defines the shuffle algorithm, active epoch configuration, and validator nodes specifications:
 
 ```yaml
 shuffle: roundrobin
 config:
   activeEpoch: 18              # Required: Exponent for active epochs (2^18 = 262,144 signatures)
   keyType: "hash-sig"          # Required: Network-wide signature scheme (hash-sig for post-quantum security)
-validators:
-  - name: "zeam_0"
+validators:                    # validator nodes specification 
+  - name: "zeam_0"             # a 0rth zeam node
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
       ip: "127.0.0.1"
       quic: 9000
     metricsPort: 8080
-    count: 1
+    count: 1                   # validator keys to be assigned to this node
 ```
 
 **Required Top-Level Fields:**
-- `shuffle`: Validator shuffle algorithm (e.g., `roundrobin`)
+- `shuffle`: Validator assignment (to nodes) shuffle algorithm (e.g., `roundrobin`)
 - `config.activeEpoch`: Exponent for active epochs used in hash-sig key generation (2^activeEpoch signatures per active period)
 - `config.keyType`: Network-wide signature scheme - must be `"hash-sig"` for post-quantum security
 
 ### Genesis Generation
 
-The `spin-node.sh` triggers genesis generator (`generate-genesis.sh`) using `PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"` (https://github.com/ethpandaops/eth-beacon-genesis/pull/36) and  docker tool to automatically generate:
+The `spin-node.sh` triggers genesis generator (`generate-genesis.sh`) which generates the following files based on `validator-config.yaml`:
 
 1. **post-quantum secure validator keypairs** in `genesis/hash-sig-keys` unless already generated or forced with `--forceKeyGen`
 2. **config.yaml** - With the updated genesis time in short future and pubkeys of the generated keypairs
@@ -143,7 +143,7 @@ You can also run the generator standalone:
 
 ##### Hash-Based Signature (Post-Quantum) Scheme Validator Keys
 
-**Docker Image**: `HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"`
+**Tool's Docker Image**: `HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"`
 **Source**: https://github.com/blockblaz/hash-sig-cli
 
 Using the above docker tool the following files are generated (unless already generated or forced via `--forceKeyGen` flag):
@@ -172,6 +172,9 @@ The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based sign
 Hash-sig key files are automatically indexed based on the validator index (first validator uses `validator_0_*.json`, second uses `validator_1_*.json`, etc.)
 
 #### Genesis config files
+
+**Tool's Docker Image**: `PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"`
+**Source**: https://github.com/ethpandaops/eth-beacon-genesis/pull/36
 
 `config.yaml` is generated with the appropriate genesis time (in short future) along with the list pubkeys of the validators in the correct sequence. For e.g:
 
@@ -211,7 +214,7 @@ qlean_0:
 
 ### Spinning Nodes
 
-To spin each node, the quickstarts loads and calls the appropriate client cmd from `client-cmds` folder where either `docker` or `binary` cmd is picked.
+Post genesis generation, the quickstarts loads and calls the appropriate node's client cmd from `client-cmds` folder where either `docker` or `binary` cmd is picked as per the `node_setup` mode. (Generally `binary` mode is handy for local interop debugging for a client).
 
 **Client Integration:**
 Your client implementation should read these environment variables and use the hash-sig keys for validator operations.
@@ -353,4 +356,5 @@ The system reads all configuration from YAML files, making it easy to add new no
 
 ## Client branches
 
-Clients can maintain their own branches to integrated and use binay with their repos as the static targets (check `git diff main zeam_repo`). And those branches can be rebased as per client convinience whenever the `main` code is updated.
+Clients can maintain their own branches to integrated and use binay with their repos as the static targets (check `git diff main zeam_repo`, it has two nodes, both specified to run `zeam` for sim testing in zeam using the quickstart generated genesis).
+And those branches can be rebased as per client convinience whenever the `main` code is updated.
