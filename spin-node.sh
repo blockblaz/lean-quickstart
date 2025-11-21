@@ -89,7 +89,17 @@ fi;
 
 # 3. run clients
 mkdir -p $dataDir
-popupTerminalCmd="gnome-terminal --disable-factory --"
+# Detect OS and set appropriate terminal command
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS - don't use popup terminal by default, just run in background
+  popupTerminalCmd=""
+elif command -v gnome-terminal &> /dev/null; then
+  # Linux with gnome-terminal
+  popupTerminalCmd="gnome-terminal --disable-factory --"
+else
+  # Fallback for other systems
+  popupTerminalCmd=""
+fi
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
@@ -170,5 +180,13 @@ trap "echo exit signal received;cleanup" SIGINT SIGTERM
 echo -e "\n\nwaiting for nodes to exit"
 printf '%*s' $(tput cols) | tr ' ' '-'
 echo "press Ctrl+C to exit and cleanup..."
-wait -n $process_ids
+# Wait for background processes - use a compatible approach for all shells
+if [ ${#spinned_pids[@]} -gt 0 ]; then
+  for pid in "${spinned_pids[@]}"; do
+    wait $pid 2>/dev/null || true
+  done
+else
+  # Fallback: wait for any background job
+  wait
+fi
 cleanup
