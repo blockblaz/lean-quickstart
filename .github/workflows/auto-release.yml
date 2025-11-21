@@ -1,0 +1,115 @@
+name: Auto Release on Release Branch
+
+on:
+  pull_request:
+    types: [ closed ]
+    branches: [ release ]
+
+permissions:
+  contents: write
+
+jobs:
+  auto-release:
+    # Only run if PR was merged to release branch (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Extract tags from PR labels
+      id: get_tags_labels
+      run: |
+        # Get PR labels and extract version
+        LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+        echo "PR Labels: $LABELS"
+
+        # Look for version label (e.g., "v1.0.0", "version:1.0.0", etc.)
+        VERSION=$(echo $LABELS | jq -r '.[] | select(test("^(v|version:)?[0-9]+\\.[0-9]+\\.[0-9]+")) | gsub("^(v|version:)"; "")')
+
+        # Look for zeam network tags (devnet0, devnet1, testnet, mainnet)
+        ZEAM_TAG=$(echo $LABELS | jq -r '.[] | select(test("^(devnet[0-9]+|testnet[0-9]*|mainnet)$"))')
+
+        if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+          echo "ℹ️ No version label found"
+        else
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "git_tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Version found: $VERSION"
+        fi
+
+        if [ -n "$ZEAM_TAG" ] && [ "$ZEAM_TAG" != "null" ]; then
+          echo "zeam_tag=$ZEAM_TAG" >> $GITHUB_OUTPUT
+          echo "has_network_tag=true" >> $GITHUB_OUTPUT
+          echo "✅ Found network tag: $ZEAM_TAG"
+        else
+          echo "has_network_tag=false" >> $GITHUB_OUTPUT
+          echo "ℹ️ No network tag found (optional)"
+        fi
+
+        # Require at least one label (version or network)
+        if { [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; } && { [ -z "$ZEAM_TAG" ] || [ "$ZEAM_TAG" = "null" ]; }; then
+          echo "❌ No usable label found! Please add a version (e.g. v1.0.0) or network tag (e.g. devnet0, testnet, mainnet)"
+          exit 1
+        fi
+
+    - name: Create and push git tags
+      id: create_tags
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        CREATE_VERSION_TAG=false
+        CREATE_NETWORK_TAG=false
+
+        # Check if version tag should be created
+        if [ -n "${{ steps.get_tags_labels.outputs.version }}" ] && [ "${{ steps.get_tags_labels.outputs.version }}" != "null" ]; then
+          if git rev-parse "${{ steps.get_tags_labels.outputs.git_tag }}" >/dev/null 2>&1; then
+            echo "❌ Version tag ${{ steps.get_tags_labels.outputs.git_tag }} already exists. Please create a new tag."
+            exit 1
+          else
+            CREATE_VERSION_TAG=true
+          fi
+        fi
+
+        # Check if network tag should be created
+        if [ "${{ steps.get_tags_labels.outputs.has_network_tag }}" = "true" ]; then
+          ZEAM_GIT_TAG="${{ steps.get_tags_labels.outputs.zeam_tag }}"
+          if git rev-parse "$ZEAM_GIT_TAG" >/dev/null 2>&1; then
+            echo "❌ Network tag $ZEAM_GIT_TAG already exists. Please create a new tag."
+            exit 1
+          else
+            CREATE_NETWORK_TAG=true
+          fi
+        fi
+
+        # Create version tag if needed
+        if [ "$CREATE_VERSION_TAG" = "true" ]; then
+          git tag -a "${{ steps.get_tags_labels.outputs.git_tag }}" -m "Release version ${{ steps.get_tags_labels.outputs.version }}"
+          git push origin "${{ steps.get_tags_labels.outputs.git_tag }}"
+          echo "✅ Created version tag ${{ steps.get_tags_labels.outputs.git_tag }}"
+        fi
+
+        # Create network tag if needed
+        if [ "$CREATE_NETWORK_TAG" = "true" ]; then
+          git tag -a "$ZEAM_GIT_TAG" -m "Zeam network tag for $ZEAM_GIT_TAG"
+          git push origin "$ZEAM_GIT_TAG"
+          echo "✅ Created zeam tag $ZEAM_GIT_TAG"
+        fi
+        echo "create_version_tag=$CREATE_VERSION_TAG" >> $GITHUB_OUTPUT
+        echo "create_network_tag=$CREATE_NETWORK_TAG" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      if: ${{ steps.create_tags.outputs.create_version_tag == 'true' || steps.create_tags.outputs.create_network_tag == 'true' }}
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
+        name: Release ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
+        body_path: ./README.md
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
