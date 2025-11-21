@@ -11,16 +11,17 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
-      --metrics-port $metricsPort"
+      --prometheus_port $metricsPort"
 
-node_docker="--platform linux/amd64 qdrvm/qlean-mini:dd67521 \
+QLEAN_TAG="${dockerTag:-dd67521}"
+node_docker="--platform linux/amd64 qdrvm/qlean-mini:${QLEAN_TAG} \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --bootnodes /config/nodes.yaml \
       --data-dir /data \
       --node-id $item --node-key /config/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
-      --metrics-port $metricsPort"
+      --prometheus_port $metricsPort"
 
 # choose either binary or docker
 node_setup="docker"

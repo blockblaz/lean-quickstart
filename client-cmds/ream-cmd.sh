@@ -2,7 +2,8 @@
 
 #-----------------------ream setup----------------------
 node_binary=
-node_docker="ghcr.io/reamlabs/ream:latest --data-dir /data \
+REAM_TAG="${dockerTag:-latest}"
+node_docker="ghcr.io/reamlabs/ream:${REAM_TAG} --data-dir /data \
         lean_node \
         --network /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
