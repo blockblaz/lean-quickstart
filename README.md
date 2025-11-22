@@ -163,7 +163,7 @@ local-devnet/genesis/hash-sig-keys/
 The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based signature scheme, which provides:
 
 - **Post-quantum security**: Resistant to attacks from quantum computers
-- **Active epochs**: 2^18 (262,144 signatures)
+- **Active epochs**: as per `config.activeEpoch` for e.g. 2^18 (262,144 signatures)
 - **Total lifetime**: 2^32 (4,294,967,296 signatures)
 - **Stateful signatures**: Uses hierarchical signature tree structure
 
