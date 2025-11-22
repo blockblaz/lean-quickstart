@@ -130,7 +130,7 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
-    execCmd="docker run --rm"
+    execCmd="docker run --rm --pull=always"
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"
