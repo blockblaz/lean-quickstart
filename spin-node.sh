@@ -99,7 +99,17 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
   for term in x-terminal-emulator gnome-terminal konsole xfce4-terminal kitty alacritty lxterminal lxqt-terminal mate-terminal terminator xterm; do
     if command -v "$term" &>/dev/null; then
       # Most terminals accept `--` as "end of options" before the command
-      popupTerminalCmd="$term --"
+      case "$term" in
+        gnome-terminal|xfce4-terminal|konsole|lxterminal|lxqt-terminal|terminator|alacritty|kitty)
+          popupTerminalCmd="$term --"
+          ;;
+        xterm|mate-terminal|x-terminal-emulator)
+          popupTerminalCmd="$term -e"
+          ;;
+        *)
+          popupTerminalCmd="$term"
+          ;;
+      esac
       break
     fi
   done
