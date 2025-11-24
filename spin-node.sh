@@ -90,15 +90,19 @@ fi;
 # 3. run clients
 mkdir -p $dataDir
 # Detect OS and set appropriate terminal command
+popupTerminalCmd=""
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS - don't use popup terminal by default, just run in background
   popupTerminalCmd=""
-elif command -v gnome-terminal &> /dev/null; then
-  # Linux with gnome-terminal
-  popupTerminalCmd="gnome-terminal --disable-factory --"
-else
-  # Fallback for other systems
-  popupTerminalCmd=""
+elif [[ "$OSTYPE" == "linux"* ]]; then
+  # Linux try a list of common terminals in order of preference
+  for term in x-terminal-emulator gnome-terminal konsole xfce4-terminal kitty alacritty lxterminal lxqt-terminal mate-terminal terminator xterm; do
+    if command -v "$term" &>/dev/null; then
+      # Most terminals accept `--` as "end of options" before the command
+      popupTerminalCmd="$term --"
+      break
+    fi
+  done
 fi
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
