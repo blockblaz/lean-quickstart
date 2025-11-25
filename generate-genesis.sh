@@ -148,7 +148,7 @@ HASH_SIG_KEYS_DIR="$GENESIS_DIR/hash-sig-keys"
 mkdir -p "$HASH_SIG_KEYS_DIR"
 
 # Count total validators from validator-config.yaml
-VALIDATOR_COUNT=$(yq eval '.validators | length' "$VALIDATOR_CONFIG_FILE")
+VALIDATOR_COUNT=$(yq eval '.validators[].count' "$VALIDATOR_CONFIG_FILE" | awk '{sum+=$1} END {print sum}')
 
 if [ -z "$VALIDATOR_COUNT" ] || [ "$VALIDATOR_COUNT" == "null" ] || [ "$VALIDATOR_COUNT" -eq 0 ]; then
     echo "❌ Error: Could not determine validator count from $VALIDATOR_CONFIG_FILE"
@@ -527,11 +527,13 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
             exit 1
         fi
 
+        PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
+
         PRIVKEY_FILENAME="validator_${raw_index}_sk.json"
 
         cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
   - index: $raw_index
-    pubkey_hex: $PUBKEY_HEX_VALUE
+    pubkey_hex: $PUBKEY_HEX_NO_PREFIX
     privkey_file: $PRIVKEY_FILENAME
 EOF
     done < <(yq eval "$INDEX_QUERY" "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
