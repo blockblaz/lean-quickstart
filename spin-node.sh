@@ -144,7 +144,8 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
-    execCmd="docker run --rm --pull=always"
+    # Force linux/amd64 images on all platforms (temporary until zeam publishes multi-arch images)
+    execCmd="docker run --rm --pull=always --platform=linux/amd64"
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"

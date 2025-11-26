@@ -42,6 +42,9 @@ cd lean-quickstart
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --popupTerminal
 ```
 
+All Docker-based commands in this quickstart currently **force `--platform=linux/amd64`** so they work uniformly on Apple Silicon and other non-amd64 hosts.  
+This is a temporary workaround and will be revisited once Zeam and related images publish proper multi-arch (including arm64) Docker images.
+
 ### Startup specific nodes only
 
 ```sh
@@ -132,13 +135,19 @@ The genesis generator runs automatically when:
 - `validators.yaml` or `nodes.yaml` don't exist, OR
 - You use the `--generateGenesis` flag
 ```sh
-# Regenerate genesis files with fresh genesis time
+# Regenerate genesis files with fresh genesis time (reuses existing hash-sig keys if present)
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+
+# Regenerate genesis AND force fresh hash-sig key generation via hash-sig-cli
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --forceKeyGen
 ```
 
 You can also run the generator standalone:
 ```sh
 ./generate-genesis.sh local-devnet/genesis
+
+# Force fresh hash-sig key generation (ignores any existing keys)
+./generate-genesis.sh local-devnet/genesis --forceKeyGen
 ```
 
 #### Hash-Based Signature (Post-Quantum) Scheme Validator Keys

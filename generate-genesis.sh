@@ -214,7 +214,8 @@ else
     CURRENT_UID=$(id -u)
     CURRENT_GID=$(id -g)
 
-    docker run --rm --pull=always \
+    # Force linux/amd64 image on all platforms (temporary until zeam publishes multi-arch images)
+    docker run --rm --pull=always --platform=linux/amd64 \
       --user "$CURRENT_UID:$CURRENT_GID" \
       -v "$GENESIS_DIR_ABS:/genesis" \
       "$HASH_SIG_CLI_IMAGE" \
@@ -361,7 +362,8 @@ CURRENT_GID=$(id -g)
 # Note: PK's tool expects parent directory as mount point
 echo "   Executing docker command..."
 
-docker run --rm --pull=always \
+# Force linux/amd64 image on all platforms (temporary until zeam publishes multi-arch images)
+docker run --rm --pull=always --platform=linux/amd64 \
   --user "$CURRENT_UID:$CURRENT_GID" \
   -v "$PARENT_DIR_ABS:/data" \
   "$PK_DOCKER_IMAGE" \
