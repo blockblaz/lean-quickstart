@@ -144,8 +144,22 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
-    # Force linux/amd64 images on all platforms (temporary until zeam publishes multi-arch images)
-    execCmd="docker run --rm --pull=always --platform=linux/amd64"
+    # Extract image name from node_docker to check if it's a local image
+    # Local images don't have a registry prefix (no "/")
+    # Remote images (like "blockblaz/zeam:devnet1" or "ghcr.io/reamlabs/ream:latest") have a registry prefix
+    # The image name is typically the first word that looks like an image (contains ":" or is followed by a command)
+    if echo "$node_docker" | grep -qE '(blockblaz|ghcr\.io|docker\.io|quay\.io)/'; then
+      # Remote image - use --pull=always and force linux/amd64 platform
+      pull_flag="--pull=always"
+      platform_flag="--platform=linux/amd64"
+    else
+      # Local image - explicitly don't pull, use native platform
+      pull_flag="--pull=never"
+      platform_flag=""
+    fi
+    
+    # Build docker run command
+    execCmd="docker run --rm $pull_flag $platform_flag"
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"
@@ -176,32 +190,67 @@ cleanup() {
   printf '%*s' $(tput cols) | tr ' ' '-'
   echo
 
-  # try for docker containers
-  execCmd="docker rm -f $container_names"
-  if [ -n "$dockerWithSudo" ]
-    then
+  # Stop and remove docker containers (containers are the primary thing to stop)
+  if [ -n "$container_names" ]; then
+    # First try to stop containers gracefully with a timeout
+    for container in $container_names; do
+      stopCmd="docker stop -t 5 $container"
+      if [ -n "$dockerWithSudo" ]; then
+        stopCmd="sudo $stopCmd"
+      fi
+      echo "$stopCmd"
+      eval "$stopCmd" 2>/dev/null || true
+    done
+    
+    # Then force remove containers
+    execCmd="docker rm -f $container_names"
+    if [ -n "$dockerWithSudo" ]; then
       execCmd="sudo $execCmd"
-  fi;
-  echo "$execCmd"
-  eval "$execCmd"
+    fi
+    echo "$execCmd"
+    eval "$execCmd" 2>/dev/null || true
+  fi
 
-  # try for process ids
-  execCmd="kill -9 $process_ids"
-  echo "$execCmd"
-  eval "$execCmd"
+  # Kill background processes (these are just the docker run commands, containers are already stopped)
+  if [ -n "$process_ids" ]; then
+    execCmd="kill -TERM $process_ids 2>/dev/null || true"
+    echo "$execCmd"
+    eval "$execCmd"
+    sleep 0.5
+    # Force kill if still running
+    execCmd="kill -9 $process_ids 2>/dev/null || true"
+    echo "$execCmd"
+    eval "$execCmd"
+  fi
 }
 
-trap "echo exit signal received;cleanup" SIGINT SIGTERM
+cleanup_and_exit() {
+  cleanup
+  exit 0
+}
+
+trap cleanup_and_exit SIGINT SIGTERM
 echo -e "\n\nwaiting for nodes to exit"
 printf '%*s' $(tput cols) | tr ' ' '-'
 echo "press Ctrl+C to exit and cleanup..."
-# Wait for background processes - use a compatible approach for all shells
+# Wait for background processes - use a polling approach that's interruptible
 if [ ${#spinned_pids[@]} -gt 0 ]; then
-  for pid in "${spinned_pids[@]}"; do
-    wait $pid 2>/dev/null || true
+  while true; do
+    all_done=true
+    for pid in "${spinned_pids[@]}"; do
+      if kill -0 $pid 2>/dev/null; then
+        all_done=false
+        break
+      fi
+    done
+    if [ "$all_done" = true ]; then
+      break
+    fi
+    # Sleep briefly to allow signals to be processed
+    sleep 0.5
   done
 else
-  # Fallback: wait for any background job
+  # Fallback: wait for any background job (this can block, but it's a fallback)
   wait
 fi
 cleanup
