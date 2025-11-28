@@ -4,6 +4,7 @@
 # needed for ream and qlean (or any other client), zeam picks directly from validator-config
 # 1. load quic port and export it in $quicPort
 # 2. private key and dump it into a file $client.key and export it in $privKeyPath
+# 3. devnet and export it in $devnet
 
 # $item, $configDir (genesis dir) is available here
 
@@ -42,6 +43,12 @@ if [ -z "$metricsPort" ] || [ "$metricsPort" == "null" ]; then
     echo "Available nodes:"
     yq eval '.validators[].name' "$validator_config_file"
     exit 1
+fi
+
+# Automatically extract devnet using yq (optional - only ream uses it)
+devnet=$(yq eval ".validators[] | select(.name == \"$item\") | .devnet" "$validator_config_file")
+if [ -z "$devnet" ] || [ "$devnet" == "null" ]; then
+    devnet=""
 fi
 
 # Automatically extract private key using yq
@@ -86,6 +93,7 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
     echo "Metrics Port: $metricsPort"
+    echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
     echo "Key Type: $keyType"
     echo "Hash-Sig Key Index: $hashSigKeyIndex"
@@ -95,5 +103,6 @@ else
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
     echo "Metrics Port: $metricsPort"
+    echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
 fi
