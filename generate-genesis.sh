@@ -114,7 +114,7 @@ fi
 echo "  ✅ docker found: $(which docker)"
 
 # Hash-sig-cli Docker image
-HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"
+HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet1"
 echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
 
 echo ""
@@ -214,7 +214,7 @@ else
     CURRENT_UID=$(id -u)
     CURRENT_GID=$(id -g)
 
-    docker run --rm \
+    docker run --rm --pull=always \
       --user "$CURRENT_UID:$CURRENT_GID" \
       -v "$GENESIS_DIR_ABS:/genesis" \
       "$HASH_SIG_CLI_IMAGE" \
@@ -361,7 +361,7 @@ CURRENT_GID=$(id -g)
 # Note: PK's tool expects parent directory as mount point
 echo "   Executing docker command..."
 
-docker run --rm \
+docker run --rm --pull=always \
   --user "$CURRENT_UID:$CURRENT_GID" \
   -v "$PARENT_DIR_ABS:/data" \
   "$PK_DOCKER_IMAGE" \

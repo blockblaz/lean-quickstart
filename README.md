@@ -90,7 +90,7 @@ However adding a lean client to this setup is very easy. Feel free to do the PR 
 
 ## How It Works
 
-The quickstart includes an automated genesis generator that eliminates the need for hardcoded files and uses `validator-config.yaml` as the source of truth. This file is contained in the `genesis` folder of the provided `NETWORK_DIR` folder you want to run quickstart on.
+The quickstart includes an automated genesis generator that eliminates the need for hardcoded files and uses `validator-config.yaml` as the source of truth. This file is to be contained in the `genesis` folder of the provided `NETWORK_DIR` folder you want to run quickstart on. Then post genesis generation, the quickstart spins the nodes as per their respective client cmds.
 
 ### Configuration
 
@@ -116,7 +116,7 @@ validators:                    # validator nodes specification
 - `config.activeEpoch`: Exponent for active epochs used in hash-sig key generation (2^activeEpoch signatures per active period)
 - `config.keyType`: Network-wide signature scheme - must be `"hash-sig"` for post-quantum security
 
-### Genesis Generation
+### Step 1 - Genesis Generation
 
 The `spin-node.sh` triggers genesis generator (`generate-genesis.sh`) which generates the following files based on `validator-config.yaml`:
 
@@ -141,7 +141,7 @@ You can also run the generator standalone:
 ./generate-genesis.sh local-devnet/genesis
 ```
 
-##### Hash-Based Signature (Post-Quantum) Scheme Validator Keys
+#### Hash-Based Signature (Post-Quantum) Scheme Validator Keys
 
 **Tool's Docker Image**: `HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"`
 **Source**: https://github.com/blockblaz/hash-sig-cli
@@ -163,7 +163,7 @@ local-devnet/genesis/hash-sig-keys/
 The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based signature scheme, which provides:
 
 - **Post-quantum security**: Resistant to attacks from quantum computers
-- **Active epochs**: 2^18 (262,144 signatures)
+- **Active epochs**: as per `config.activeEpoch` for e.g. 2^18 (262,144 signatures)
 - **Total lifetime**: 2^32 (4,294,967,296 signatures)
 - **Stateful signatures**: Uses hierarchical signature tree structure
 
@@ -212,7 +212,7 @@ qlean_0:
 - enr:-IW4QDc1Hkslu0Bw11YH4APkXvSWukp5_3VdIrtwhWomvTVVAS-EQNB-rYesXDxhHA613gG9OGR_AiIyE0VeMltTd2cBgmlkgnY0gmlwhH8AAAGEcXVpY4IjKYlzZWNwMjU2azGhA5_HplOwUZ8wpF4O3g4CBsjRMI6kQYT7ph5LkeKzLgTS
 ```
 
-### Spinning Nodes
+### Step 2 - Spinning Nodes
 
 Post genesis generation, the quickstarts loads and calls the appropriate node's client cmd from `client-cmds` folder where either `docker` or `binary` cmd is picked as per the `node_setup` mode. (Generally `binary` mode is handy for local interop debugging for a client).
 
@@ -221,7 +221,6 @@ Your client implementation should read these environment variables and use the h
 
  - `$item` - the node name for which this cmd is being executed, index into `validator-config.yaml` for its configuration
  - `$configDir` - the abs folder housing `genesis` configuration (same as `NETWORK_DIR` env variable provided while executing shell command), already mapped to `/config` in the docker mode
- -  are p2p key for the node inside the config folder (`$configDir` or `/config` depending on mode) which the client should load, read and dumped into file from `validator-config.yaml`
  - A generic data folder is created inside config folder accessible as `$dataDir` with `$dataDir/$item` to be used as the data dir for a particular node to be used for binary format, already mapped to `/data` in the docker mode
  - Variables read and available from `validator-config.yaml` (use them or directly read configuration from the `validator-config.yaml` using `$item` as the index into `validators` section)
    - `$metricsPort`
