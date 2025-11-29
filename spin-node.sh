@@ -108,15 +108,29 @@ fi
 # 3. run clients (local deployment)
 mkdir -p $dataDir
 # Detect OS and set appropriate terminal command
+popupTerminalCmd=""
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS - don't use popup terminal by default, just run in background
   popupTerminalCmd=""
-elif command -v gnome-terminal &> /dev/null; then
-  # Linux with gnome-terminal
-  popupTerminalCmd="gnome-terminal --disable-factory --"
-else
-  # Fallback for other systems
-  popupTerminalCmd=""
+elif [[ "$OSTYPE" == "linux"* ]]; then
+  # Linux try a list of common terminals in order of preference
+  for term in x-terminal-emulator gnome-terminal konsole xfce4-terminal kitty alacritty lxterminal lxqt-terminal mate-terminal terminator xterm; do
+    if command -v "$term" &>/dev/null; then
+      # Most terminals accept `--` as "end of options" before the command
+      case "$term" in
+        gnome-terminal|xfce4-terminal|konsole|lxterminal|lxqt-terminal|terminator|alacritty|kitty)
+          popupTerminalCmd="$term --"
+          ;;
+        xterm|mate-terminal|x-terminal-emulator)
+          popupTerminalCmd="$term -e"
+          ;;
+        *)
+          popupTerminalCmd="$term"
+          ;;
+      esac
+      break
+    fi
+  done
 fi
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
@@ -148,29 +162,7 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
-    # Extract docker image name from node_docker (format: [flags] image:tag [command] [args...])
-    # node_docker may start with flags like "--platform linux/amd64" or "--security-opt"
-    # Use grep to find the first image:tag pattern that contains "/"
-    docker_image=""
-    node_docker_normalized=$(echo "$node_docker" | tr '\n' ' ' | tr -s ' ')
-    # Extract first pattern matching image:tag format that contains "/"
-    docker_image=$(echo "$node_docker_normalized" | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | grep '/' | head -1)
-    # Verify it doesn't start with "-" (not a flag)
-    if [[ -n "$docker_image" ]] && [[ "$docker_image" == -* ]]; then
-      docker_image=""
-    fi
-    
-    # Pull docker image if we found one
-    if [ -n "$docker_image" ]; then
-      pullCmd="docker pull $docker_image"
-      if [ -n "$dockerWithSudo" ]; then
-        pullCmd="sudo $pullCmd"
-      fi
-      echo "Pulling docker image: $pullCmd"
-      eval "$pullCmd"
-    fi
-    
-    execCmd="docker run --rm"
+    execCmd="docker run --rm --pull=always"
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"

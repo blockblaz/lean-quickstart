@@ -31,6 +31,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --forceKeyGen)
+      # to be passed to genesis generator
+      FORCE_KEYGEN_FLAG="--forceKeyGen"
+      shift
+      ;;
     --cleanData)
       cleanData=true
       shift # past argument

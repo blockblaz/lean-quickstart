@@ -22,7 +22,7 @@ if [ -n "$generateGenesis" ] || [ ! -f "$configDir/validators.yaml" ] || [ ! -f 
   fi
   
   # Run the generator
-  if ! $genesis_generator "$configDir"; then
+  if ! $genesis_generator "$configDir" "$FORCE_KEYGEN_FLAG"; then
     echo "❌ Genesis generation failed!"
     exit 1
   fi
