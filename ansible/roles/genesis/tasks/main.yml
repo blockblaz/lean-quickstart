@@ -1,0 +1,130 @@
+---
+# Genesis role: Generate genesis files using PK's eth-beacon-genesis tool
+# Converts generate-genesis.sh logic to Ansible tasks
+
+- name: Check if validator-config.yaml exists
+  stat:
+    path: "{{ validator_config_file }}"
+  register: validator_config_stat
+
+- name: Fail if validator-config.yaml is missing
+  fail:
+    msg: "validator-config.yaml not found at {{ validator_config_file }}"
+  when: not validator_config_stat.stat.exists
+
+- name: Read validator counts from validator-config.yaml
+  shell: |
+    yq eval '.validators[].count' {{ validator_config_file }} | awk '{sum+=$1} END {print sum}'
+  register: total_validators_raw
+  changed_when: false
+  args:
+    executable: /bin/bash
+  when: not ansible_check_mode
+
+- name: Set total validator count
+  set_fact:
+    total_validators: "{{ (total_validators_raw.stdout | default(3) | int) if not ansible_check_mode else 3 }}"
+
+- name: Validate total validator count
+  fail:
+    msg: "Total validator count is 0 or invalid. Check validator-config.yaml"
+  when: total_validators | int < 1
+
+- name: Calculate genesis time
+  set_fact:
+    genesis_time: "{{ (ansible_date_time.epoch | int) + genesis_time_offset }}"
+
+- name: Display validator counts
+  debug:
+    msg: "Total validator count: {{ total_validators }}"
+
+- name: Generate config.yaml
+  copy:
+    content: |
+      # Genesis Settings
+      GENESIS_TIME: {{ genesis_time }}
+      # Validator Settings
+      VALIDATOR_COUNT: {{ total_validators }}
+    dest: "{{ genesis_dir }}/config.yaml"
+    mode: '0644'
+
+- name: Get absolute path for genesis directory
+  shell: |
+    cd {{ genesis_dir }} && pwd
+  register: genesis_dir_abs_result
+  changed_when: false
+
+- name: Set absolute paths
+  set_fact:
+    genesis_dir_abs: "{{ genesis_dir_abs_result.stdout }}"
+    parent_dir_abs: "{{ genesis_dir | dirname }}"
+
+- name: Ensure parent directory exists
+  file:
+    path: "{{ parent_dir_abs }}"
+    state: directory
+
+- name: Pull PK's genesis docker image
+  command: docker pull {{ pk_docker_image }}
+  register: docker_pull_result
+  changed_when: '"Downloaded newer image" in docker_pull_result.stdout'
+
+- name: Run PK's genesis generator
+  command: >-
+    docker run --rm
+    -v {{ parent_dir_abs }}:/data
+    {{ pk_docker_image }}
+    leanchain
+    --config /data/genesis/config.yaml
+    --mass-validators /data/genesis/validator-config.yaml
+    --state-output /data/genesis/genesis.ssz
+    --json-output /data/genesis/genesis.json
+    --nodes-output /data/genesis/nodes.yaml
+    --validators-output /data/genesis/validators.yaml
+    --config-output /data/genesis/config.yaml
+  register: genesis_run
+
+- name: Extract node names from validator-config.yaml
+  shell: |
+    yq eval '.validators[].name' {{ validator_config_file }}
+  register: node_names_raw
+  changed_when: false
+
+- name: Set node names list
+  set_fact:
+    node_names_list: "{{ node_names_raw.stdout_lines | default([]) }}"
+
+- name: Generate private key files for each node
+  include_tasks: generate-key.yml
+  loop: "{{ node_names_list }}"
+  loop_control:
+    loop_var: current_node
+  when: node_names_list | length > 0
+
+- name: Validate generated genesis files
+  stat:
+    path: "{{ genesis_dir }}/{{ item }}"
+  register: genesis_file_stat
+  loop:
+    - config.yaml
+    - validators.yaml
+    - nodes.yaml
+    - genesis.json
+    - genesis.ssz
+
+- name: Fail if required genesis files are missing
+  fail:
+    msg: "Required genesis file {{ item.item }} is missing"
+  loop: "{{ genesis_file_stat.results }}"
+  when: not item.stat.exists
+
+- name: Display generated files
+  debug:
+    msg: "✅ Generated {{ item }}"
+  loop:
+    - config.yaml
+    - validators.yaml
+    - nodes.yaml
+    - genesis.json
+    - genesis.ssz
+

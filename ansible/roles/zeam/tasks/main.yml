@@ -1,0 +1,110 @@
+---
+# Zeam role: Deploy and manage Zeam nodes
+# Converts client-cmds/zeam-cmd.sh logic to Ansible tasks
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+  register: node_config
+  changed_when: false
+  loop:
+    - metricsPort
+    - privkey
+  when: node_name is defined
+
+- name: Set node metrics port
+  set_fact:
+    zeam_metrics_port: "{{ node_config.results[0].stdout }}"
+  when: node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not node_key_stat.stat.exists
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false)
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: '0755'
+
+- name: Set validator config value
+  set_fact:
+    actual_validator_config: "{{ validator_config if validator_config is defined and validator_config != '' else 'genesis_bootnode' }}"
+
+- name: Deploy Zeam node using Docker
+  block:
+    - name: Pull Zeam docker image
+      command: docker pull {{ zeam_docker_image }}
+      register: docker_pull_result
+      changed_when: '"Downloaded newer image" in docker_pull_result.stdout'
+
+    - name: Stop existing Zeam container (if any)
+      command: docker rm -f {{ node_name }}
+      register: docker_stop_result
+      failed_when: false
+      changed_when: docker_stop_result.rc == 0
+
+    - name: Start Zeam container
+      # TODO: Remove --platform linux/amd64 when blockblaz/zeam:latest multi-platform image is available on Docker Hub
+      # Multi-platform support is being added in zeam CI (see .github/workflows/ci.yml docker-build-multiarch job)
+      command: >-
+        docker run -d
+        --platform linux/amd64
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        --security-opt seccomp=unconfined
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ zeam_docker_image }}
+        node
+        --custom_genesis /config
+        --validator_config {{ actual_validator_config }}
+        --data-dir /data
+        --node-id {{ node_name }}
+        --node-key /config/{{ node_name }}.key
+        --metrics_port {{ zeam_metrics_port }}
+      register: zeam_container_result
+      changed_when: zeam_container_result.rc == 0
+
+- name: Deploy Zeam node using binary
+  block:
+    - name: Check if binary exists
+      stat:
+        path: "{{ zeam_binary_path }}"
+      register: binary_stat
+
+    - name: Fail if binary not found
+      fail:
+        msg: "Zeam binary not found at {{ zeam_binary_path }}"
+      when: not binary_stat.stat.exists
+
+    - name: Create systemd service for Zeam
+      template:
+        src: zeam.service.j2
+        dest: "/etc/systemd/system/zeam-{{ node_name }}.service"
+        mode: '0644'
+      become: yes
+      when: ansible_connection != 'local'
+
+    - name: Start and enable Zeam service
+      systemd:
+        name: "zeam-{{ node_name }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      become: yes
+      when: ansible_connection != 'local'
+  when: deployment_mode == 'binary'
