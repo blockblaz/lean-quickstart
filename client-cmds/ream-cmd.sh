@@ -7,7 +7,7 @@ if [ -n "$devnet" ]; then
 fi
 
 # modify the path to the ream binary as per your system
-node_binary="$scriptDir/ream/target/release/ream --data-dir $dataDir/$item \
+node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         lean_node \
         --network $configDir/config.yaml \
         --validator-registry-path $configDir/validators.yaml \
@@ -17,7 +17,7 @@ node_binary="$scriptDir/ream/target/release/ream --data-dir $dataDir/$item \
         --socket-port $quicPort \
         --metrics-port $metricsPort"
 
-node_docker="ream:local --data-dir /data \
+node_docker="ghcr.io/reamlabs/ream:latest --data-dir /data \
         lean_node \
         --network /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
