@@ -460,11 +460,12 @@ rm -f "$GENESIS_VALIDATORS_TMP"
 echo ""
 
 # ========================================
-# Update validator assignments with key metadata
+# Generate annotated_validators.yaml with key metadata
 # ========================================
-echo "🔧 Enriching validator assignments in validators.yaml..."
+echo "🔧 Generating annotated_validators.yaml..."
 
 VALIDATORS_OUTPUT_FILE="$GENESIS_DIR/validators.yaml"
+ANNOTATED_VALIDATORS_FILE="$GENESIS_DIR/annotated_validators.yaml"
 
 if [ ! -f "$VALIDATORS_OUTPUT_FILE" ]; then
     echo "   ❌ Error: validators.yaml not found at $VALIDATORS_OUTPUT_FILE"
@@ -528,7 +529,6 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
         fi
 
         PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
-
         PRIVKEY_FILENAME="validator_${raw_index}_sk.json"
 
         cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
@@ -547,19 +547,10 @@ EOF
     fi
 done
 
-if [ "$ASSIGNMENT_HAS_WRAPPER" = "true" ]; then
-    WRAPPED_ASSIGNMENTS=$(mktemp)
-    {
-        echo "validators:";
-        sed 's/^/  /' "$NODE_ASSIGNMENTS_TMP"
-    } > "$WRAPPED_ASSIGNMENTS"
-    mv "$WRAPPED_ASSIGNMENTS" "$NODE_ASSIGNMENTS_TMP"
-fi
-
-cat "$NODE_ASSIGNMENTS_TMP" > "$VALIDATORS_OUTPUT_FILE"
+cat "$NODE_ASSIGNMENTS_TMP" > "$ANNOTATED_VALIDATORS_FILE"
 rm -f "$NODE_ASSIGNMENTS_TMP"
 
-echo "   ✅ validators.yaml updated with pubkey and privkey metadata"
+echo "   ✅ Generated annotated_validators.yaml with pubkey and privkey metadata"
 
 echo ""
 
