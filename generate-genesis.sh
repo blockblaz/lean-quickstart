@@ -214,7 +214,7 @@ else
     CURRENT_UID=$(id -u)
     CURRENT_GID=$(id -g)
 
-    docker run --rm --pull=always \
+    docker run --rm \
       --user "$CURRENT_UID:$CURRENT_GID" \
       -v "$GENESIS_DIR_ABS:/genesis" \
       "$HASH_SIG_CLI_IMAGE" \
