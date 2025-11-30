@@ -214,7 +214,10 @@ else
     CURRENT_UID=$(id -u)
     CURRENT_GID=$(id -g)
 
-    docker run --rm \
+    # Pull latest image first
+    docker pull "$HASH_SIG_CLI_IMAGE" || true
+
+    docker run --rm --pull=never \
       --user "$CURRENT_UID:$CURRENT_GID" \
       -v "$GENESIS_DIR_ABS:/genesis" \
       "$HASH_SIG_CLI_IMAGE" \
@@ -361,7 +364,11 @@ CURRENT_GID=$(id -g)
 # Note: PK's tool expects parent directory as mount point
 echo "   Executing docker command..."
 
-docker run --rm --pull=always \
+# Pull latest image first 
+echo "   Pulling latest image: $PK_DOCKER_IMAGE"
+docker pull "$PK_DOCKER_IMAGE" || true
+
+docker run --rm --pull=never \
   --user "$CURRENT_UID:$CURRENT_GID" \
   -v "$PARENT_DIR_ABS:/data" \
   "$PK_DOCKER_IMAGE" \

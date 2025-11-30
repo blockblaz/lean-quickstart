@@ -146,12 +146,13 @@ for item in "${spin_nodes[@]}"; do
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
-    # Use --pull=never for local images (tagged with :local), --pull=always for remote
-    if [[ "$docker_image" == *":local" ]]; then
-      execCmd="docker run --rm --pull=never"
+    # Pull image first 
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker pull "$docker_image" || true
     else
-      execCmd="docker run --rm --pull=always"
+      docker pull "$docker_image" || true
     fi
+    execCmd="docker run --rm --pull=never"
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"
