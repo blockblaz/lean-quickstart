@@ -48,6 +48,10 @@ while [[ $# -gt 0 ]]; do
       dockerWithSudo=true
       shift # past argument
       ;;
+    --metrics)
+      enableMetrics=true
+      shift # past argument
+      ;;
     --generateGenesis)
       generateGenesis=true
       cleanData=true  # generateGenesis implies clean data
@@ -81,3 +85,4 @@ echo "spin_nodes(s) = ${spin_nodes[@]}"
 echo "generateGenesis = $generateGenesis"
 echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
+echo "enableMetrics = $enableMetrics"
