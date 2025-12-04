@@ -321,11 +321,11 @@ fi
 
 # Display individual validator counts for transparency
 echo "   Individual validator counts:"
-while IFS= read -r line; do
-    validator_name=$(echo "$line" | cut -d: -f1)
-    validator_count=$(echo "$line" | cut -d: -f2 | xargs)
+while IFS= read -r validator_name; do
+    # Use simple yq expression per validator to avoid cross-version quirks
+    validator_count=$(yq eval ".validators[] | select(.name == \"$validator_name\") | .count" "$VALIDATOR_CONFIG_FILE")
     echo "     - $validator_name: $validator_count"
-done < <(yq eval '.validators[] | .name + ":" + (.count | tostring)' "$VALIDATOR_CONFIG_FILE")
+done < <(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE")
 
 echo "   Total validator count: $TOTAL_VALIDATORS"
 
