@@ -1,0 +1,6 @@
+---
+# Default variables for ream role
+
+ream_docker_image: "ghcr.io/reamlabs/ream:latest"
+deployment_mode: docker  # docker or binary
+

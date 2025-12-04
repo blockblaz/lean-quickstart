@@ -1,0 +1,6 @@
+---
+# Default variables for common role
+
+docker_version: latest
+yq_install_method: "auto"  # auto, brew, binary
+

@@ -53,6 +53,16 @@ while [[ $# -gt 0 ]]; do
       cleanData=true  # generateGenesis implies clean data
       shift # past argument
       ;;
+    --deploymentMode)
+      deploymentMode="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --tag)
+      dockerTag="$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
@@ -81,3 +91,4 @@ echo "spin_nodes(s) = ${spin_nodes[@]}"
 echo "generateGenesis = $generateGenesis"
 echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
+echo "dockerTag = ${dockerTag:-latest}"
