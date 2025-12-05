@@ -225,7 +225,7 @@ else
       --num-validators "$VALIDATOR_COUNT" \
       --log-num-active-epochs "$ACTIVE_EPOCH" \
       --output-dir "/genesis/hash-sig-keys" \
-      --export-format ssz
+      --export-format both
 
     if [ $? -ne 0 ]; then
         echo "   ❌ Failed to generate hash-sig keys"
