@@ -148,7 +148,7 @@ HASH_SIG_KEYS_DIR="$GENESIS_DIR/hash-sig-keys"
 mkdir -p "$HASH_SIG_KEYS_DIR"
 
 # Count total validators from validator-config.yaml
-VALIDATOR_COUNT=$(yq eval '.validators | length' "$VALIDATOR_CONFIG_FILE")
+VALIDATOR_COUNT=$(yq eval '.validators[].count' "$VALIDATOR_CONFIG_FILE" | awk '{sum+=$1} END {print sum}')
 
 if [ -z "$VALIDATOR_COUNT" ] || [ "$VALIDATOR_COUNT" == "null" ] || [ "$VALIDATOR_COUNT" -eq 0 ]; then
     echo "❌ Error: Could not determine validator count from $VALIDATOR_CONFIG_FILE"
@@ -463,6 +463,101 @@ fi
 
 # Clean up temp file
 rm -f "$GENESIS_VALIDATORS_TMP"
+
+echo ""
+
+# ========================================
+# Generate annotated_validators.yaml with key metadata
+# ========================================
+echo "🔧 Generating annotated_validators.yaml..."
+
+VALIDATORS_OUTPUT_FILE="$GENESIS_DIR/validators.yaml"
+ANNOTATED_VALIDATORS_FILE="$GENESIS_DIR/annotated_validators.yaml"
+
+if [ ! -f "$VALIDATORS_OUTPUT_FILE" ]; then
+    echo "   ❌ Error: validators.yaml not found at $VALIDATORS_OUTPUT_FILE"
+    exit 1
+fi
+
+ASSIGNMENT_HAS_WRAPPER=$(yq eval 'has("validators")' "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
+if [ "$ASSIGNMENT_HAS_WRAPPER" != "true" ]; then
+    ASSIGNMENT_HAS_WRAPPER="false"
+fi
+
+ASSIGNMENT_NODE_NAMES=()
+if [ "$ASSIGNMENT_HAS_WRAPPER" = "true" ]; then
+    while IFS= read -r node_name; do
+        if [ -n "$node_name" ]; then
+            ASSIGNMENT_NODE_NAMES+=("$node_name")
+        fi
+    done < <(yq eval '.validators | keys | .[]' "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
+else
+    while IFS= read -r node_name; do
+        if [ -n "$node_name" ]; then
+            ASSIGNMENT_NODE_NAMES+=("$node_name")
+        fi
+    done < <(yq eval 'keys | .[]' "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
+fi
+
+if [ ${#ASSIGNMENT_NODE_NAMES[@]} -eq 0 ]; then
+    echo "   ❌ Error: No validator assignments found in validators.yaml"
+    exit 1
+fi
+
+NODE_ASSIGNMENTS_TMP=$(mktemp)
+
+for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
+    node=${ASSIGNMENT_NODE_NAMES[$idx]}
+
+    if [ "$ASSIGNMENT_HAS_WRAPPER" = "true" ]; then
+        INDEX_QUERY=".validators.\"$node\"[]"
+    else
+        INDEX_QUERY=".\"$node\"[]"
+    fi
+
+    echo "$node:" >> "$NODE_ASSIGNMENTS_TMP"
+
+    ENTRY_FOUND=false
+
+    while IFS= read -r raw_index; do
+        raw_index=$(echo "$raw_index" | xargs)
+        if [ -z "$raw_index" ] || [ "$raw_index" == "null" ]; then
+            continue
+        fi
+
+        ENTRY_FOUND=true
+
+        PUBKEY_HEX_VALUE=$(yq eval ".validators[$raw_index].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
+
+        if [ -z "$PUBKEY_HEX_VALUE" ] || [ "$PUBKEY_HEX_VALUE" == "null" ]; then
+            echo "   ❌ Error: Missing pubkey for validator index $raw_index in manifest"
+            rm -f "$NODE_ASSIGNMENTS_TMP"
+            exit 1
+        fi
+
+        PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
+        PRIVKEY_FILENAME="validator_${raw_index}_sk.json"
+
+        cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
+  - index: $raw_index
+    pubkey_hex: $PUBKEY_HEX_NO_PREFIX
+    privkey_file: $PRIVKEY_FILENAME
+EOF
+    done < <(yq eval "$INDEX_QUERY" "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
+
+    if [ "$ENTRY_FOUND" = false ]; then
+        echo "  []" >> "$NODE_ASSIGNMENTS_TMP"
+    fi
+
+    if [ "$idx" -lt $(( ${#ASSIGNMENT_NODE_NAMES[@]} - 1 )) ]; then
+        echo "" >> "$NODE_ASSIGNMENTS_TMP"
+    fi
+done
+
+cat "$NODE_ASSIGNMENTS_TMP" > "$ANNOTATED_VALIDATORS_FILE"
+rm -f "$NODE_ASSIGNMENTS_TMP"
+
+echo "   ✅ Generated annotated_validators.yaml with pubkey and privkey metadata"
 
 echo ""
 
