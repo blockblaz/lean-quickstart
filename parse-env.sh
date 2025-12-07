@@ -48,6 +48,10 @@ while [[ $# -gt 0 ]]; do
       dockerWithSudo=true
       shift # past argument
       ;;
+    --metrics)
+      enableMetrics=true
+      shift # past argument
+      ;;
     --generateGenesis)
       generateGenesis=true
       cleanData=true  # generateGenesis implies clean data
@@ -92,3 +96,4 @@ echo "generateGenesis = $generateGenesis"
 echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
 echo "dockerTag = ${dockerTag:-latest}"
+echo "enableMetrics = $enableMetrics"

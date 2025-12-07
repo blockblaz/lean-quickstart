@@ -162,7 +162,15 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
-    execCmd="docker run --rm --pull=always"
+    # Extract image name from node_docker (find word containing ':' which is the image:tag)
+    docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
+    # Pull image first 
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker pull "$docker_image" || true
+    else
+      docker pull "$docker_image" || true
+    fi
+    execCmd="docker run --rm --pull=never"
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"

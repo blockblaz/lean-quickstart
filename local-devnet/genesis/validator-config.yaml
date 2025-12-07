@@ -12,8 +12,8 @@ validators:
     enrFields:
       # verify /ip4/127.0.0.1/udp/9000/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
       ip: "127.0.0.1"
-      quic: 9000
-    metricsPort: 8080
+      quic: 9001
+    metricsPort: 8081
     count: 1 # number of indices for this node
 
   - name: "ream_0"
@@ -23,8 +23,8 @@ validators:
     enrFields:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "127.0.0.1"
-      quic: 9001
-    metricsPort: 8081
+      quic: 9002
+    metricsPort: 8082
     devnet: 1
     count: 1
 
@@ -34,6 +34,16 @@ validators:
     enrFields:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "127.0.0.1"
-      quic: 9002
-    metricsPort: 8082
+      quic: 9003
+    metricsPort: 8083
+    count: 1
+
+  - name: "lantern_0"
+    # node id a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+    # peer id 16Uiu2HAm...
+    privkey: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9004
+    metricsPort: 8084
     count: 1
