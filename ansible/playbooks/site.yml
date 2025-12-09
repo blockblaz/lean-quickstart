@@ -1,13 +1,17 @@
 ---
 # Main site playbook: Complete deployment workflow
-# Combines genesis generation and node deployment
+# Copies locally generated genesis files and deploys nodes
+# Note: For local Docker deployments, genesis files are mounted as volumes
+# For remote deployments, files are copied to remote hosts
 
-- name: Generate Genesis Files
-  import_playbook: genesis.yml
-  when: generate_genesis | default(true) | bool
+- name: Copy Genesis Files to Remote Hosts
+  import_playbook: copy-genesis.yml
+  when: 
+    - ansible_connection is defined
+    - ansible_connection != 'local'
 
 - name: Deploy Nodes
   import_playbook: deploy-nodes.yml
   vars:
-    node_names: "{{ node_names | default('all') }}"
+    node_names: "{{ node_names }}"
 

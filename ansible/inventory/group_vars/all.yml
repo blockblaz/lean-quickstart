@@ -18,8 +18,7 @@ docker_network_mode: host
 # Node deployment mode: 'docker' or 'binary'
 deployment_mode: docker
 
-# Generate genesis by default
-generate_genesis: true
+# Clean data before deployment
 clean_data: false
 
 # Node execution settings

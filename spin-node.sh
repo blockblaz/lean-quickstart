@@ -100,6 +100,27 @@ fi;
 
 # Check deployment mode and route to ansible if needed
 if [ "$deployment_mode" == "ansible" ]; then
+  # Validate Ansible prerequisites before routing to Ansible deployment
+  echo "Validating Ansible prerequisites..."
+  
+  # Check if Ansible is installed
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed."
+    echo "Install Ansible:"
+    echo "  macOS:   brew install ansible"
+    echo "  Ubuntu:  sudo apt-get install ansible"
+    echo "  pip:     pip install ansible"
+    exit 1
+  fi
+  
+  # Check if docker collection is available
+  if ! ansible-galaxy collection list | grep -q "community.docker" 2>/dev/null; then
+    echo "Warning: community.docker collection not found. Installing..."
+    ansible-galaxy collection install community.docker
+  fi
+  
+  echo "✅ Ansible prerequisites validated"
+  
   # Call separate Ansible execution script
   "$scriptDir/run-ansible.sh" "$configDir" "$node" "$generateGenesis" "$cleanData" "$validatorConfig" "$validator_config_file"
   exit $?

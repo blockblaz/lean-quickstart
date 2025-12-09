@@ -30,16 +30,22 @@ This Ansible setup supports two deployment modes:
    ansible-galaxy install -r requirements.yml
    ```
 
-3. **Test locally (dry run):**
+3. **Generate genesis files locally:**
    ```sh
-   # From repository root - test without making changes
-   ./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis --check
+   # From repository root - generate genesis files first
+   ./generate-genesis.sh local-devnet/genesis
    ```
 
-4. **Deploy nodes locally:**
+4. **Test locally (dry run):**
    ```sh
-   # From repository root
-   ./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+   # From repository root - test without making changes
+   ./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --check
+   ```
+
+5. **Deploy nodes locally:**
+   ```sh
+   # From repository root - genesis files are copied to remote hosts automatically
+   ./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet
    ```
 
 ## Quick Local Testing
@@ -138,8 +144,9 @@ docker ps  # Should work without errors
 Start with a dry run to see what Ansible would do without making changes:
 
 ```sh
-# Test from repository root
-./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis --check
+# Test from repository root (genesis files must be generated first)
+./generate-genesis.sh local-devnet/genesis
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --check
 ```
 
 This shows what would be changed without actually making changes.
@@ -211,8 +218,9 @@ docker ps | grep -E "zeam_0|ream_0"
 Test the clean data functionality:
 
 ```sh
-# Clean and regenerate
-./ansible-deploy.sh --node all --network-dir local-devnet --clean-data --generate-genesis
+# Clean data and redeploy (genesis files must be generated first)
+./generate-genesis.sh local-devnet/genesis
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --clean-data
 ```
 
 **Verify data directories were cleaned:**
@@ -239,14 +247,14 @@ The second run should show minimal or no changes.
 Test running specific parts of the deployment:
 
 ```sh
-# Only run genesis-related tasks
-./ansible-deploy.sh --node all --network-dir local-devnet --tags genesis
+# Only run genesis-related tasks (copy-genesis playbook doesn't require --node)
+./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet --tags genesis
 
 # Only deploy zeam nodes
 ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --tags zeam
 
 # Only setup (install dependencies)
-./ansible-deploy.sh --node all --network-dir local-devnet --tags setup
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --tags setup
 ```
 
 ### Phase 9: Test Using Ansible Directly
@@ -293,15 +301,14 @@ Use this checklist to verify everything works:
 ### Node Deployment
 - [ ] Single node deploys successfully
 - [ ] Multiple nodes deploy successfully
-- [ ] All nodes deploy successfully (--node all)
 - [ ] Docker containers are running (`docker ps`)
 - [ ] Containers have correct volumes mounted
 - [ ] Containers have correct network mode (host)
 - [ ] Containers have correct command arguments
 
-### Cleanup and Regeneration
+### Cleanup and Redeployment
 - [ ] `--clean-data` cleans data directories
-- [ ] `--generate-genesis` regenerates genesis files
+- [ ] Genesis files are copied from local to remote hosts
 - [ ] Combined flags work correctly
 
 ### Verification
@@ -404,7 +411,7 @@ ssh -i ~/.ssh/id_rsa user@remote-host "echo 'Connection successful'"
 ```
 3. Test with check mode first:
 ```sh
-./ansible-deploy.sh --node all --network-dir local-devnet --check
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --check
 ```
 
 ### Test Binary Deployment Mode

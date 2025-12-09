@@ -9,7 +9,6 @@ ANSIBLE_DIR="$SCRIPT_DIR/ansible"
 
 # Default values
 NODE_NAMES=""
-GENERATE_GENESIS=""
 CLEAN_DATA=""
 NETWORK_DIR=""
 VALIDATOR_CONFIG=""
@@ -31,16 +30,14 @@ Ansible-based deployment for Lean Quickstart nodes.
 
 Options:
   --node NODES              Node(s) to deploy:
-                              - 'all' for all nodes
                               - Single node: 'zeam_0'
                               - Multiple nodes: 'zeam_0,ream_0' or 'zeam_0 ream_0'
   --network-dir DIR         Network directory (default: local-devnet)
-  --generate-genesis        Force regeneration of genesis files
   --clean-data              Clean data directories before deployment
   --validator-config PATH   Path to validator-config.yaml (default: genesis_bootnode)
   --deployment-mode MODE    Deployment mode: 'docker' or 'binary' (default: docker)
   --playbook PLAYBOOK       Ansible playbook to run (default: site.yml)
-                              Options: site.yml, genesis.yml, deploy-nodes.yml
+                              Options: site.yml, genesis.yml, deploy-nodes.yml, copy-genesis.yml
   --tags TAGS               Run only tasks with specific tags (comma-separated)
   --check                   Dry run (check mode)
   --diff                    Show file changes
@@ -48,17 +45,17 @@ Options:
   -h, --help                Show this help message
 
 Examples:
-  # Deploy all nodes with genesis generation
-  $0 --node all --network-dir local-devnet --generate-genesis
-
-  # Deploy specific nodes only
+  # Deploy specific nodes (genesis files copied from local)
   $0 --node zeam_0,ream_0 --network-dir local-devnet
 
-  # Generate genesis files only
-  $0 --playbook genesis.yml --network-dir local-devnet
+  # Deploy a single node
+  $0 --node zeam_0 --network-dir local-devnet
+
+  # Copy genesis files to remote hosts only
+  $0 --playbook copy-genesis.yml --network-dir local-devnet
 
   # Deploy with dry run
-  $0 --node all --check
+  $0 --node zeam_0,ream_0 --check
 
 Environment Variables:
   NETWORK_DIR               Network directory (overrides --network-dir)
@@ -76,10 +73,6 @@ while [[ $# -gt 0 ]]; do
         --network-dir)
             NETWORK_DIR="$2"
             shift 2
-            ;;
-        --generate-genesis)
-            GENERATE_GENESIS="true"
-            shift
             ;;
         --clean-data)
             CLEAN_DATA="true"
@@ -125,7 +118,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Check if Ansible is installed
+# Validate Ansible prerequisites
+# Note: These checks are also performed in spin-node.sh when routing to Ansible
+# This ensures prerequisites are available when ansible-deploy.sh is executed directly
 if ! command -v ansible-playbook &> /dev/null; then
     echo -e "${RED}Error: ansible-playbook is not installed.${NC}"
     echo "Install Ansible:"
@@ -135,7 +130,6 @@ if ! command -v ansible-playbook &> /dev/null; then
     exit 1
 fi
 
-# Check if docker collection is available
 if ! ansible-galaxy collection list | grep -q "community.docker" 2>/dev/null; then
     echo -e "${YELLOW}Warning: community.docker collection not found. Installing...${NC}"
     ansible-galaxy collection install community.docker
@@ -161,10 +155,6 @@ EXTRA_VARS="network_dir=$NETWORK_DIR_ABS"
 
 if [ -n "$NODE_NAMES" ]; then
     EXTRA_VARS="$EXTRA_VARS node_names=$NODE_NAMES"
-fi
-
-if [ -n "$GENERATE_GENESIS" ]; then
-    EXTRA_VARS="$EXTRA_VARS generate_genesis=true"
 fi
 
 if [ -n "$CLEAN_DATA" ]; then
@@ -203,8 +193,7 @@ fi
 echo -e "${GREEN}Ansible Deployment Configuration:${NC}"
 echo "  Playbook:        $PLAYBOOK"
 echo "  Network Directory: $NETWORK_DIR_ABS"
-echo "  Nodes:           ${NODE_NAMES:-all}"
-echo "  Generate Genesis: ${GENERATE_GENESIS:-false}"
+echo "  Nodes:           ${NODE_NAMES:-<not specified>}"
 echo "  Clean Data:      ${CLEAN_DATA:-false}"
 echo "  Deployment Mode: $DEPLOYMENT_MODE"
 echo "  Check Mode:      ${CHECK_MODE:-false}"

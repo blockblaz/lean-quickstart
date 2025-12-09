@@ -467,7 +467,11 @@ This automatically calls `run-ansible.sh` internally, which reads the default de
 For advanced Ansible workflows requiring direct control (e.g., `--playbook`, `--tags`, `--check`, `--diff`), you can use `ansible-deploy.sh` directly:
 
 ```sh
-./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+# First generate genesis files locally
+./generate-genesis.sh local-devnet/genesis
+
+# Then deploy nodes (genesis files are copied to remote hosts automatically)
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet
 ```
 
 However, for most use cases, `spin-node.sh` is recommended as it provides a consistent interface for both local and Ansible deployments.
@@ -526,14 +530,17 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --cleanData
 **Alternative: Using `ansible-deploy.sh` directly (for advanced Ansible options):**
 
 ```sh
-# Deploy all nodes with genesis generation
-./ansible-deploy.sh --node all --network-dir local-devnet --generate-genesis
+# First generate genesis files locally
+./generate-genesis.sh local-devnet/genesis
 
-# Generate genesis files only (requires direct ansible-deploy.sh)
-./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet
+# Deploy specific nodes (genesis files are copied to remote hosts automatically)
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet
+
+# Copy genesis files to remote hosts only
+./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet
 
 # Dry run (check mode)
-./ansible-deploy.sh --node all --network-dir local-devnet --check
+./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --check
 ```
 
 ### Ansible Command-Line Options (Advanced)
@@ -544,9 +551,8 @@ The `ansible-deploy.sh` wrapper script provides the following options:
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `--node NODES` | Nodes to deploy (all, single, or comma/space-separated) | `--node zeam_0,ream_0` |
+| `--node NODES` | Nodes to deploy (single or comma/space-separated) | `--node zeam_0,ream_0` |
 | `--network-dir DIR` | Network directory | `--network-dir local-devnet` |
-| `--generate-genesis` | Force regeneration of genesis files | `--generate-genesis` |
 | `--clean-data` | Clean data directories before deployment | `--clean-data` |
 | `--validator-config PATH` | Path to validator-config.yaml | `--validator-config custom/path.yaml` |
 | `--deployment-mode MODE` | Deployment mode: docker or binary | `--deployment-mode binary` |
@@ -622,8 +628,7 @@ cd ansible
 # Run main playbook
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
   -e "network_dir=$(pwd)/../local-devnet" \
-  -e "node_names=all" \
-  -e "generate_genesis=true"
+  -e "node_names=zeam_0,ream_0"
 
 # Run only genesis generation
 ansible-playbook -i inventory/hosts.yml playbooks/genesis.yml \
@@ -643,8 +648,7 @@ Key variables can be set via command-line or in `ansible/inventory/group_vars/al
 - `network_dir`: Network directory path (required)
 - `genesis_dir`: Genesis directory path (derived from network_dir)
 - `data_dir`: Data directory path (derived from network_dir)
-- `node_names`: Nodes to deploy (default: 'all')
-- `generate_genesis`: Generate genesis files (default: true)
+- `node_names`: Nodes to deploy (required, comma or space separated)
 - `clean_data`: Clean data directories (default: false)
 - `deployment_mode`: docker or binary (default: docker, defined in `ansible/inventory/group_vars/all.yml`)
 - `validator_config`: Validator config path (default: 'genesis_bootnode')

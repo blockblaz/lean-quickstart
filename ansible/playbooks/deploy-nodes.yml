@@ -1,6 +1,6 @@
 ---
 # Deploy nodes playbook: Deploy and manage Lean nodes
-# Supports deploying specific nodes or all nodes
+# Requires node_names to be specified (comma or space separated)
 
 - name: Deploy Lean Nodes
   hosts: localhost
@@ -30,15 +30,10 @@
       set_fact:
         all_node_names: "{{ all_node_names_raw.stdout_lines }}"
 
-    - name: Initialize deploy_nodes based on node_names
-      set_fact:
-        deploy_nodes: "{{ all_node_names_raw.stdout_lines }}"
-      when: node_names is not defined
-
-    - name: Handle 'all' node specification
-      set_fact:
-        deploy_nodes: "{{ all_node_names }}"
-      when: node_names is defined and node_names == 'all'
+    - name: Fail if node_names is not specified
+      fail:
+        msg: "node_names must be specified. Provide one or more node names (comma or space separated)."
+      when: node_names is not defined or node_names == ""
 
     - name: Parse node names if provided as comma-separated string
       set_fact:
@@ -46,7 +41,6 @@
       when: 
         - node_names is defined
         - node_names is string
-        - node_names != 'all'
         - '("," in node_names)'
 
     - name: Parse node names if provided as space-separated string
@@ -55,17 +49,15 @@
       when: 
         - node_names is defined
         - node_names is string
-        - node_names != 'all'
         - '("," not in node_names)'
         - '(" " in node_names)'
 
-    - name: Handle single node name (string that's not all)
+    - name: Handle single node name
       set_fact:
         deploy_nodes: "{{ [node_names] }}"
       when:
         - node_names is defined
         - node_names is string
-        - node_names != 'all'
         - '"," not in node_names'
         - '" " not in node_names'
 
