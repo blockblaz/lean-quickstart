@@ -202,7 +202,24 @@ ls -la local-devnet/genesis/
 # Should see: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, *.key files
 ```
 
-### Phase 4: Test Single Node Deployment
+### Phase 4: Test Docker Image Extraction (Latest Changes)
+
+Test that docker images and deployment modes are correctly extracted from `client-cmd.sh` files:
+
+```sh
+# Test extraction in check mode (see extracted values)
+./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --check -v | grep -A 3 "Extract docker"
+
+# Verify extracted values match client-cmd.sh
+grep -E '^node_docker=' client-cmds/zeam-cmd.sh | grep -oE '[^/ ]+/[^: ]+:[^ "]+' | head -1
+grep -E '^node_setup=' client-cmds/zeam-cmd.sh | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+```
+
+**Expected output:** You should see tasks extracting docker images and deployment modes, and the values should match what's in the `client-cmds/*-cmd.sh` files.
+
+For detailed testing instructions, see the "Testing Docker Image Extraction" section below.
+
+### Phase 5: Test Single Node Deployment
 
 Test deploying a single node:
 
@@ -214,14 +231,16 @@ Test deploying a single node:
 ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet
 ```
 
-**Verify node is running:**
+**Verify node is running and using correct image:**
 ```sh
 docker ps | grep zeam_0
+docker inspect zeam_0 | grep Image
+# The image should match what's in client-cmds/zeam-cmd.sh
 # Or check metrics
 curl http://localhost:8080/metrics  # Adjust port based on node
 ```
 
-### Phase 5: Test Multiple Nodes
+### Phase 6: Test Multiple Nodes
 
 Test deploying multiple nodes:
 
@@ -233,7 +252,7 @@ Test deploying multiple nodes:
 docker ps | grep -E "zeam_0|ream_0"
 ```
 
-### Phase 6: Test Clean Data and Regeneration
+### Phase 7: Test Clean Data and Regeneration
 
 Test the clean data functionality:
 
@@ -248,7 +267,7 @@ Test the clean data functionality:
 ls -la local-devnet/data/zeam_0/  # Should be empty or recreated
 ```
 
-### Phase 7: Test Idempotency
+### Phase 8: Test Idempotency
 
 One of Ansible's key features is idempotency. Run the same command twice:
 
@@ -262,7 +281,7 @@ One of Ansible's key features is idempotency. Run the same command twice:
 
 The second run should show minimal or no changes.
 
-### Phase 8: Test with Tags
+### Phase 9: Test with Tags
 
 Test running specific parts of the deployment:
 
@@ -277,7 +296,7 @@ Test running specific parts of the deployment:
 ./ansible-deploy.sh --node zeam_0,ream_0 --network-dir local-devnet --tags setup
 ```
 
-### Phase 9: Test Using Ansible Directly
+### Phase 10: Test Using Ansible Directly
 
 Test running Ansible playbooks directly without the wrapper:
 
@@ -319,9 +338,13 @@ Use this checklist to verify everything works:
   - [ ] `*.key` files for each node
 
 ### Node Deployment
+- [ ] Docker images are correctly extracted from `client-cmd.sh` files
+- [ ] Deployment modes are correctly extracted from `client-cmd.sh` files
+- [ ] Extracted docker images match values in `client-cmd.sh` files
 - [ ] Single node deploys successfully
 - [ ] Multiple nodes deploy successfully
 - [ ] Docker containers are running (`docker ps`)
+- [ ] Containers use the correct docker images (verify with `docker inspect`)
 - [ ] Containers have correct volumes mounted
 - [ ] Containers have correct network mode (host)
 - [ ] Containers have correct command arguments
@@ -412,6 +435,42 @@ lsof -i :8080
 
 Stop conflicting containers or change ports in `validator-config.yaml`.
 
+#### 8. Docker image extraction returns empty or wrong value
+
+If the extracted docker image is empty or incorrect:
+
+1. **Verify client-cmd.sh file exists:**
+   ```sh
+   ls -la client-cmds/zeam-cmd.sh
+   ```
+
+2. **Check the file format:**
+   ```sh
+   grep -E '^node_docker=' client-cmds/zeam-cmd.sh
+   grep -E '^node_setup=' client-cmds/zeam-cmd.sh
+   ```
+
+3. **Test extraction manually:**
+   ```sh
+   # For zeam (handles --security-opt prefix)
+   grep -E '^node_docker=' client-cmds/zeam-cmd.sh | grep -oE '[^/ ]+/[^: ]+:[^ "]+' | head -1
+   
+   # For ream/qlean (first word)
+   grep -E '^node_docker=' client-cmds/ream-cmd.sh | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+   ```
+
+4. **Check file permissions:**
+   ```sh
+   ls -l client-cmds/*-cmd.sh
+   ```
+
+5. **Run with verbose output to see extraction:**
+   ```sh
+   ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --check -v | grep -A 5 "Extract docker"
+   ```
+
+If extraction fails, the role will fall back to defaults in `roles/*/defaults/main.yml`.
+
 ## Advanced Testing
 
 ### Test with Verbose Output
@@ -444,6 +503,209 @@ If you have binaries available:
 
 Note: Binary deployment requires systemd service templates (not yet fully implemented in roles).
 
+## Testing Docker Image Extraction
+
+This section covers how to test the latest changes that extract docker images and deployment modes from `client-cmd.sh` files.
+
+### What Changed
+
+- Docker images and deployment modes are now automatically extracted from `client-cmds/*-cmd.sh` files
+- This ensures consistency between `spin-node.sh` (local) and Ansible (remote) deployments
+- All client roles (zeam, ream, qlean) now use this extraction mechanism
+
+### Quick Test
+
+Run the automated test script:
+
+```sh
+cd ansible
+./test-local.sh
+```
+
+### Manual Testing Steps
+
+#### 1. Test Docker Image Extraction
+
+Verify that docker images are correctly extracted from client-cmd.sh files:
+
+```sh
+# Test Zeam extraction
+cd ansible
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-nodes.yml \
+  -e "network_dir=$(pwd)/../local-devnet" \
+  -e "node_names=zeam_0" \
+  --check \
+  -v | grep -A 5 "Extract docker image"
+
+# Test Ream extraction
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-nodes.yml \
+  -e "network_dir=$(pwd)/../local-devnet" \
+  -e "node_names=ream_0" \
+  --check \
+  -v | grep -A 5 "Extract docker image"
+
+# Test Qlean extraction
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-nodes.yml \
+  -e "network_dir=$(pwd)/../local-devnet" \
+  -e "node_names=qlean_0" \
+  --check \
+  -v | grep -A 5 "Extract docker image"
+```
+
+#### 2. Verify Extracted Values Match client-cmd.sh
+
+Manually check that extracted values match what's in the client-cmd.sh files:
+
+```sh
+# Check Zeam
+echo "Zeam docker image from client-cmd.sh:"
+grep -E '^node_docker=' client-cmds/zeam-cmd.sh | grep -oE '[^/ ]+/[^: ]+:[^ "]+' | head -1
+
+echo "Zeam deployment mode from client-cmd.sh:"
+grep -E '^node_setup=' client-cmds/zeam-cmd.sh | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+
+# Check Ream
+echo "Ream docker image from client-cmd.sh:"
+grep -E '^node_docker=' client-cmds/ream-cmd.sh | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+
+echo "Ream deployment mode from client-cmd.sh:"
+grep -E '^node_setup=' client-cmds/ream-cmd.sh | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+
+# Check Qlean
+echo "Qlean docker image from client-cmd.sh:"
+grep -E '^node_docker=' client-cmds/qlean-cmd.sh | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+
+echo "Qlean deployment mode from client-cmd.sh:"
+grep -E '^node_setup=' client-cmds/qlean-cmd.sh | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+```
+
+#### 3. Test Actual Deployment with Extracted Values
+
+Deploy a node and verify it uses the correct docker image:
+
+```sh
+# Ensure genesis files exist
+./generate-genesis.sh local-devnet/genesis
+
+# Deploy Zeam node
+./ansible-deploy.sh --node zeam_0 --network-dir local-devnet
+
+# Verify the container is using the correct image
+docker ps | grep zeam_0
+docker inspect zeam_0 | grep Image
+
+# The image should match what's in client-cmds/zeam-cmd.sh
+```
+
+#### 4. Test Changing client-cmd.sh and Re-deploying
+
+Test that changes to client-cmd.sh are automatically picked up:
+
+```sh
+# Backup original
+cp client-cmds/zeam-cmd.sh client-cmds/zeam-cmd.sh.bak
+
+# Temporarily change the docker image (for testing)
+sed -i.bak 's/blockblaz\/zeam:devnet1/blockblaz\/zeam:test-tag/' client-cmds/zeam-cmd.sh
+
+# Deploy and verify it uses the new image
+./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --check -v | grep "zeam_docker_image"
+
+# Restore original
+mv client-cmds/zeam-cmd.sh.bak client-cmds/zeam-cmd.sh
+```
+
+#### 5. Test All Clients Together
+
+Test that all three clients extract values correctly:
+
+```sh
+# Generate genesis if needed
+./generate-genesis.sh local-devnet/genesis
+
+# Deploy all clients in check mode
+./ansible-deploy.sh --node zeam_0,ream_0,qlean_0 --network-dir local-devnet --check -v
+
+# Look for extraction tasks in output
+# Should see:
+# - "Extract docker image from client-cmd.sh" for each client
+# - "Extract deployment mode from client-cmd.sh" for each client
+# - "Set docker image and deployment mode from client-cmd.sh" for each client
+```
+
+#### 6. Test Fallback Behavior
+
+Test that fallback defaults work if extraction fails:
+
+```sh
+# Temporarily rename a client-cmd.sh file
+mv client-cmds/zeam-cmd.sh client-cmds/zeam-cmd.sh.tmp
+
+# Try to deploy - should use fallback from defaults/main.yml
+./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --check -v
+
+# Restore
+mv client-cmds/zeam-cmd.sh.tmp client-cmds/zeam-cmd.sh
+```
+
+### Expected Results
+
+#### Successful Extraction
+
+When extraction works correctly, you should see in the Ansible output:
+
+```
+TASK [zeam : Extract docker image from client-cmd.sh] ***
+ok: [localhost]
+
+TASK [zeam : Extract deployment mode from client-cmd.sh] ***
+ok: [localhost]
+
+TASK [zeam : Set docker image and deployment mode from client-cmd.sh] ***
+ok: [localhost] => {
+    "ansible_facts": {
+        "deployment_mode": "docker",
+        "zeam_docker_image": "blockblaz/zeam:devnet1"
+    }
+}
+```
+
+#### Docker Container Verification
+
+After deployment, verify the container uses the correct image:
+
+```sh
+docker ps --format "table {{.Names}}\t{{.Image}}" | grep -E "zeam_0|ream_0|qlean_0"
+```
+
+The images should match what's in the respective `client-cmds/*-cmd.sh` files.
+
+### Troubleshooting Extraction Issues
+
+#### Extraction Returns Empty
+
+If extraction returns empty values:
+1. Check that `client-cmds/*-cmd.sh` files exist
+2. Verify the grep patterns match the file format
+3. Check file permissions
+
+#### Wrong Image Extracted
+
+If the wrong image is extracted:
+1. Verify the `node_docker` line format in client-cmd.sh
+2. Check the sed/grep patterns in the extraction tasks
+3. For zeam, ensure it handles `--security-opt` prefix correctly
+
+#### Fallback Not Working
+
+If fallback defaults aren't used:
+1. Check `roles/*/defaults/main.yml` files
+2. Verify the `default()` filter in set_fact tasks
+
+### Integration with Existing Tests
+
+The existing test script (`ansible/test-local.sh`) will automatically test these changes as part of its normal flow. The extraction happens during role execution, so no special test flags are needed.
+
 ## Continuous Testing
 
 For automated testing, you could create a test script:
@@ -471,13 +733,29 @@ echo "3. Testing genesis file copying..."
 ./generate-genesis.sh local-devnet/genesis
 ./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet
 
+# Test docker image extraction
+echo "4. Testing docker image extraction..."
+./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --check -v | grep -A 3 "Extract docker" || echo "⚠️  Extraction check skipped"
+
 # Test deployment
-echo "4. Testing node deployment..."
+echo "5. Testing node deployment..."
 ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet
 
 # Verify
-echo "5. Verifying deployment..."
+echo "6. Verifying deployment..."
 docker ps | grep zeam_0 || exit 1
+
+# Verify docker image matches client-cmd.sh
+echo "7. Verifying docker image matches client-cmd.sh..."
+EXPECTED_IMAGE=$(grep -E '^node_docker=' client-cmds/zeam-cmd.sh | grep -oE '[^/ ]+/[^: ]+:[^ "]+' | head -1)
+ACTUAL_IMAGE=$(docker inspect zeam_0 --format '{{.Config.Image}}' 2>/dev/null || echo "")
+if [ -n "$EXPECTED_IMAGE" ] && [ -n "$ACTUAL_IMAGE" ]; then
+    if [ "$EXPECTED_IMAGE" = "$ACTUAL_IMAGE" ]; then
+        echo "✅ Docker image matches: $ACTUAL_IMAGE"
+    else
+        echo "⚠️  Docker image mismatch. Expected: $EXPECTED_IMAGE, Got: $ACTUAL_IMAGE"
+    fi
+fi
 
 echo "✅ All tests passed!"
 ```
