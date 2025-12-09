@@ -1,5 +1,7 @@
 ---
 # Default variables for zeam role
+# Note: These are fallback defaults. Actual values are extracted from client-cmds/zeam-cmd.sh
+# in the tasks/main.yml file. These defaults are used if extraction fails.
 
 zeam_docker_image: "blockblaz/zeam:latest"
 zeam_binary_path: "{{ playbook_dir }}/../zig-out/bin/zeam"

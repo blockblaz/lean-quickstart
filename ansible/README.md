@@ -86,6 +86,23 @@ docker ps | grep zeam_0
 - `roles/` - Reusable role modules (zeam, ream, qlean, genesis, common)
 - `requirements.yml` - Ansible Galaxy dependencies
 
+## Configuration Source
+
+Ansible roles automatically extract Docker images and deployment modes from `client-cmds/*-cmd.sh` files:
+
+- **Docker images** are extracted from the `node_docker` variable in each client's `client-cmd.sh` file
+- **Deployment mode** (docker/binary) is extracted from the `node_setup` variable
+
+This ensures consistency between `spin-node.sh` (local deployment) and Ansible (remote deployment). To change a client's Docker image or deployment mode, edit the corresponding `client-cmds/*-cmd.sh` file - the change will automatically apply to both local and Ansible deployments.
+
+**Example:** To change Zeam's Docker image, edit `client-cmds/zeam-cmd.sh`:
+```bash
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:newtag node \
+  ...
+```
+
+The Ansible role will automatically use the new image on the next deployment.
+
 ## Usage
 
 See the main README for complete usage instructions, or run:

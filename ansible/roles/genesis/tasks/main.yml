@@ -34,10 +34,6 @@
   set_fact:
     genesis_time: "{{ (ansible_date_time.epoch | int) + genesis_time_offset }}"
 
-- name: Display validator counts
-  debug:
-    msg: "Total validator count: {{ total_validators }}"
-
 - name: Generate config.yaml
   copy:
     content: |

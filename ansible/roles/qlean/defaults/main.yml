@@ -1,5 +1,7 @@
 ---
 # Default variables for qlean role
+# Note: These are fallback defaults. Actual values are extracted from client-cmds/qlean-cmd.sh
+# in the tasks/main.yml file. These defaults are used if extraction fails.
 
 qlean_docker_image: "qdrvm/qlean-mini:dd67521"
 qlean_docker_platform: "linux/amd64"

@@ -2,6 +2,29 @@
 # Qlean role: Deploy and manage Qlean nodes
 # Converts client-cmds/qlean-cmd.sh logic to Ansible tasks
 
+- name: Extract docker image from client-cmd.sh
+  shell: |
+    # Extract the first word (docker image) from node_docker line
+    grep -E '^node_docker=' {{ playbook_dir }}/../client-cmds/qlean-cmd.sh | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+  register: qlean_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    # Extract the value from node_setup line
+    grep -E '^node_setup=' {{ playbook_dir }}/../client-cmds/qlean-cmd.sh | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: qlean_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:dd67521') }}"
+    deployment_mode: "{{ qlean_deployment_mode_raw.stdout | trim | default('docker') }}"
+
 - name: Extract node configuration from validator-config.yaml
   shell: |
     yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
