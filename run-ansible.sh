@@ -20,15 +20,14 @@ scriptDir=$(cd "$(dirname "$scriptPath")" && pwd)
 # Parse arguments
 configDir="$1"
 node="$2"
-generateGenesis="$3"
-cleanData="$4"
-validatorConfig="$5"
-validator_config_file="$6"
+cleanData="$3"
+validatorConfig="$4"
+validator_config_file="$5"
 
 # Validate required arguments
 if [ -z "$configDir" ] || [ -z "$validator_config_file" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 <configDir> <node> <generateGenesis> <cleanData> <validatorConfig> <validator_config_file>"
+  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file>"
   exit 1
 fi
 
@@ -50,10 +49,6 @@ EXTRA_VARS="network_dir=$configDir"
 
 if [ -n "$node" ]; then
   EXTRA_VARS="$EXTRA_VARS node_names=$node"
-fi
-
-if [ -n "$generateGenesis" ]; then
-  EXTRA_VARS="$EXTRA_VARS generate_genesis=true"
 fi
 
 if [ -n "$cleanData" ]; then
