@@ -62,6 +62,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --sshKey|--private-key)
+      sshKeyFile="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --tag)
       dockerTag="$2"
       shift # past argument

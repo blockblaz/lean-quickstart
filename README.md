@@ -101,12 +101,17 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
    - If provided, this overrides the `deployment_mode` field in `validator-config.yaml`
    - If not provided, the value from `validator-config.yaml` is used (defaults to `local` if not specified)
    - Examples: `--deploymentMode local` or `--deploymentMode ansible`
-8. `--tag` specifies the Docker image tag to use for zeam, ream, and qlean containers.
+8. `--sshKey` or `--private-key` specifies the SSH private key file to use for remote Ansible deployments.
+   - Only used when `deployment_mode: ansible` is set
+   - Path to SSH private key file (e.g., `~/.ssh/id_rsa` or `/path/to/custom_key`)
+   - If not provided, Ansible will use the default SSH key (`~/.ssh/id_rsa`) or keys configured in `ansible.cfg`
+   - Example: `--sshKey ~/.ssh/custom_key` or `--private-key /path/to/key.pem`
+9. `--tag` specifies the Docker image tag to use for zeam, ream, and qlean containers.
    - If provided, all three clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`)
    - If not provided, defaults to `latest` for zeam and ream, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
-9. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
+10. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
 
 ### Clients supported
 
@@ -604,16 +609,24 @@ validators:
 
 Then use the same `spin-node.sh` command:
 ```sh
+# If using default SSH key (~/.ssh/id_rsa)
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+
+# If using a custom SSH key
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --sshKey ~/.ssh/custom_key
 ```
 
 The inventory generator will automatically:
 - Detect remote IPs (non-localhost) and configure remote connections
 - Group nodes by client type (zeam_nodes, ream_nodes, qlean_nodes)
 - Set appropriate connection parameters
+- Apply SSH key file if provided via `--sshKey` parameter
 
 **Note:** For remote deployment, ensure:
-- SSH key-based authentication is configured (you may need to manually add `ansible_user` and `ansible_ssh_private_key_file` to the generated inventory if not using defaults)
+- SSH key-based authentication is configured
+  - Use `--sshKey` parameter to specify custom SSH key: `--sshKey ~/.ssh/custom_key`
+  - Or manually add `ansible_user` and `ansible_ssh_private_key_file` to the generated inventory
+  - Or configure in `ansible/ansible.cfg` (see `private_key_file` option)
 - Docker is installed on remote hosts (or use `deployment_mode: binary` in group_vars)
 - Required ports are open (QUIC ports, metrics ports)
 - Genesis files are accessible (copied or mounted)

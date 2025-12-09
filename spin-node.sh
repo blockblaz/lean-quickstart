@@ -122,7 +122,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   echo "✅ Ansible prerequisites validated"
   
   # Call separate Ansible execution script
-  "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file"
+  "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile"
   # Note: run-ansible.sh handles its own exit code
 fi
 
