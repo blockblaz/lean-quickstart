@@ -1,0 +1,128 @@
+---
+# Copy Genesis Files: Copy locally generated genesis files to remote hosts
+# Assumes genesis files have been generated locally using generate-genesis.sh
+
+- name: Copy Genesis Files to Remote Hosts
+  hosts: all
+  gather_facts: yes
+  vars:
+    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+
+  pre_tasks:
+    - name: Validate local genesis directory exists
+      stat:
+        path: "{{ genesis_dir }}"
+      register: genesis_dir_stat
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fail if local genesis directory is missing
+      fail:
+        msg: "Local genesis directory not found at {{ genesis_dir }}. Please run generate-genesis.sh first."
+      when: not genesis_dir_stat.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Check required genesis files exist locally
+      stat:
+        path: "{{ genesis_dir }}/{{ item }}"
+      register: genesis_file_stat
+      delegate_to: localhost
+      run_once: true
+      loop:
+        - config.yaml
+        - validators.yaml
+        - nodes.yaml
+        - genesis.json
+        - genesis.ssz
+        - validator-config.yaml
+
+    - name: Fail if required genesis files are missing
+      fail:
+        msg: "Required genesis file {{ item.item }} not found in {{ genesis_dir }}. Please run generate-genesis.sh first."
+      loop: "{{ genesis_file_stat.results }}"
+      when: not item.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Check if hash-sig-keys directory exists locally
+      stat:
+        path: "{{ genesis_dir }}/hash-sig-keys"
+      register: hash_sig_keys_stat
+      delegate_to: localhost
+      run_once: true
+
+  tasks:
+    - name: Create remote genesis directory
+      file:
+        path: "{{ genesis_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy genesis files to remote host
+      copy:
+        src: "{{ genesis_dir }}/{{ item }}"
+        dest: "{{ genesis_dir }}/{{ item }}"
+        mode: '0644'
+      loop:
+        - config.yaml
+        - validators.yaml
+        - nodes.yaml
+        - genesis.json
+        - genesis.ssz
+        - validator-config.yaml
+
+    - name: Extract node names from validator-config.yaml
+      shell: |
+        yq eval '.validators[].name' {{ validator_config_file }}
+      register: node_names_raw
+      changed_when: false
+      delegate_to: localhost
+      run_once: true
+
+    - name: Set node names list
+      set_fact:
+        node_names_list: "{{ node_names_raw.stdout_lines | default([]) }}"
+      when: node_names_raw is defined
+
+    - name: Copy node private key files to remote host
+      copy:
+        src: "{{ genesis_dir }}/{{ item }}.key"
+        dest: "{{ genesis_dir }}/{{ item }}.key"
+        mode: '0600'
+      loop: "{{ node_names_list | default([]) }}"
+      when: 
+        - node_names_list is defined
+        - node_names_list | length > 0
+      failed_when: false
+      changed_when: false
+
+    - name: Copy hash-sig-keys directory to remote host
+      synchronize:
+        src: "{{ genesis_dir }}/hash-sig-keys/"
+        dest: "{{ genesis_dir }}/hash-sig-keys/"
+        mode: push
+        delete: no
+        recursive: yes
+      when: hash_sig_keys_stat.stat.exists
+      delegate_to: localhost
+
+    - name: Display copied files summary
+      debug:
+        msg: |
+          ✅ Genesis files copied successfully!
+          
+          Copied files:
+            - {{ genesis_dir }}/config.yaml
+            - {{ genesis_dir }}/validators.yaml
+            - {{ genesis_dir }}/nodes.yaml
+            - {{ genesis_dir }}/genesis.json
+            - {{ genesis_dir }}/genesis.ssz
+            - {{ genesis_dir }}/validator-config.yaml
+            - {{ genesis_dir }}/*.key (private key files)
+            {% if hash_sig_keys_stat.stat.exists %}
+            - {{ genesis_dir }}/hash-sig-keys/ (hash-sig key files)
+            {% endif %}
+          
+          Remote host: {{ inventory_hostname }}
+

@@ -68,8 +68,8 @@ ansible-playbook --syntax-check playbooks/site.yml
 cd ..
 ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --check
 
-# 3. Generate genesis files only
-./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet
+# 3. Copy genesis files to remote hosts only
+./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet
 
 # 4. Deploy a single node
 ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet
@@ -160,23 +160,26 @@ cd ansible
 
 # Check all playbooks
 ansible-playbook --syntax-check playbooks/site.yml
-ansible-playbook --syntax-check playbooks/genesis.yml
+ansible-playbook --syntax-check playbooks/copy-genesis.yml
 ansible-playbook --syntax-check playbooks/deploy-nodes.yml
 ```
 
-### Phase 3: Test Genesis Generation Only
+### Phase 3: Test Genesis File Copying
 
-Test genesis file generation in isolation:
+Test copying genesis files to remote hosts (genesis files must be generated locally first):
 
 ```sh
-# From repository root
-./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet --check
+# Generate genesis files locally first
+./generate-genesis.sh local-devnet/genesis
 
-# Actually generate (removes --check)
-./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet
+# From repository root - test copy operation
+./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet --check
+
+# Actually copy (removes --check)
+./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet
 ```
 
-**Verify generated files:**
+**Verify copied files on remote host:**
 ```sh
 ls -la local-devnet/genesis/
 # Should see: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, *.key files
@@ -272,7 +275,7 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
   -v
 
 # Run with diff to see file changes
-ansible-playbook -i inventory/hosts.yml playbooks/genesis.yml \
+ansible-playbook -i inventory/hosts.yml playbooks/copy-genesis.yml \
   -e "network_dir=$(pwd)/../local-devnet" \
   --diff
 ```
@@ -446,9 +449,10 @@ echo "2. Running dry run..."
 cd ..
 ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --check
 
-# Test genesis generation
-echo "3. Testing genesis generation..."
-./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet
+# Test genesis file copying (genesis files must be generated locally first)
+echo "3. Testing genesis file copying..."
+./generate-genesis.sh local-devnet/genesis
+./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet
 
 # Test deployment
 echo "4. Testing node deployment..."

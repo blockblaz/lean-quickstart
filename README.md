@@ -556,7 +556,7 @@ The `ansible-deploy.sh` wrapper script provides the following options:
 | `--clean-data` | Clean data directories before deployment | `--clean-data` |
 | `--validator-config PATH` | Path to validator-config.yaml | `--validator-config custom/path.yaml` |
 | `--deployment-mode MODE` | Deployment mode: docker or binary | `--deployment-mode binary` |
-| `--playbook PLAYBOOK` | Ansible playbook to run | `--playbook genesis.yml` |
+| `--playbook PLAYBOOK` | Ansible playbook to run | `--playbook copy-genesis.yml` |
 | `--tags TAGS` | Run only tasks with specific tags | `--tags zeam,genesis` |
 | `--check` | Dry run (check mode) | `--check` |
 | `--diff` | Show file changes | `--diff` |
@@ -573,8 +573,8 @@ ansible/
 │   └── group_vars/          # Group variables
 │       └── all.yml           # Global variables
 ├── playbooks/
-│   ├── site.yml             # Main playbook (genesis + deploy)
-│   ├── genesis.yml          # Genesis generation playbook
+│   ├── site.yml             # Main playbook (copy genesis + deploy)
+│   ├── copy-genesis.yml     # Copy genesis files to remote hosts
 │   ├── deploy-nodes.yml     # Node deployment playbook
 │   └── deploy-single-node.yml # Helper for single node deployment
 └── roles/
@@ -630,8 +630,8 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
   -e "network_dir=$(pwd)/../local-devnet" \
   -e "node_names=zeam_0,ream_0"
 
-# Run only genesis generation
-ansible-playbook -i inventory/hosts.yml playbooks/genesis.yml \
+# Copy genesis files to remote hosts only
+ansible-playbook -i inventory/hosts.yml playbooks/copy-genesis.yml \
   -e "network_dir=$(pwd)/../local-devnet"
 
 # Run with specific tags

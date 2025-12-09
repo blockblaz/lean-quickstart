@@ -37,7 +37,7 @@ Options:
   --validator-config PATH   Path to validator-config.yaml (default: genesis_bootnode)
   --deployment-mode MODE    Deployment mode: 'docker' or 'binary' (default: docker)
   --playbook PLAYBOOK       Ansible playbook to run (default: site.yml)
-                              Options: site.yml, genesis.yml, deploy-nodes.yml, copy-genesis.yml
+                              Options: site.yml, deploy-nodes.yml, copy-genesis.yml
   --tags TAGS               Run only tasks with specific tags (comma-separated)
   --check                   Dry run (check mode)
   --diff                    Show file changes

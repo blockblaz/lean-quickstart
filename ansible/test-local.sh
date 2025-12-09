@@ -69,16 +69,16 @@ echo ""
 echo "4️⃣  Testing dry run (check mode)..."
 cd "$REPO_ROOT"
 if [ -d "local-devnet/genesis" ] && [ -f "local-devnet/genesis/validator-config.yaml" ]; then
-    echo "   Running check mode for genesis generation..."
-    ./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet --check > /dev/null 2>&1 || echo "   ⚠️  Check mode showed some changes (this is normal)"
+    echo "   Running check mode for genesis file copying..."
+    ./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet --check > /dev/null 2>&1 || echo "   ⚠️  Check mode showed some changes (this is normal)"
     echo "   ✅ Dry run completed"
 else
     echo "   ⚠️  local-devnet/genesis not found, skipping check mode test"
 fi
 echo ""
 
-# Test actual genesis generation
-echo "5️⃣  Testing genesis generation..."
+# Test actual genesis file copying (genesis files must be generated locally first)
+echo "5️⃣  Testing genesis file copying..."
 cd "$REPO_ROOT"
 if [ ! -d "local-devnet/genesis" ]; then
     echo "   Creating local-devnet/genesis directory..."
@@ -94,9 +94,18 @@ if [ ! -f "local-devnet/genesis/validator-config.yaml" ]; then
     exit 0
 fi
 
-echo "   Generating genesis files (this may take a moment)..."
-if ./ansible-deploy.sh --playbook genesis.yml --network-dir local-devnet 2>&1 | tail -5; then
-    echo "   ✅ Genesis generation successful"
+# Generate genesis files locally first if they don't exist
+if [ ! -f "local-devnet/genesis/genesis.ssz" ]; then
+    echo "   Generating genesis files locally first (this may take a moment)..."
+    ./generate-genesis.sh local-devnet/genesis || {
+        echo "   ❌ Failed to generate genesis files locally"
+        exit 1
+    }
+fi
+
+echo "   Testing genesis file copying..."
+if ./ansible-deploy.sh --playbook copy-genesis.yml --network-dir local-devnet 2>&1 | tail -5; then
+    echo "   ✅ Genesis file copying successful"
     
     # Verify files
     echo ""
