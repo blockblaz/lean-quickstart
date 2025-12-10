@@ -21,6 +21,7 @@ ansible-devnet/genesis/config.yaml
 ansible-devnet/genesis/validators.yaml
 ansible-devnet/genesis/nodes.yaml
 ansible-devnet/genesis/genesis.json
+ansible-devnet/genesis/annotated_validators.yaml
 ansible-devnet/genesis/genesis.ssz
 
 # Hash-sig validator keys (contains sensitive secret keys)
