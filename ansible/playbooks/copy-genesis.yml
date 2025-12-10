@@ -11,6 +11,13 @@
     actual_remote_genesis_dir: "{{ remote_genesis_dir | default('/opt/lean-quickstart/genesis') }}"
 
   pre_tasks:
+    - name: Add localhost to inventory for fact sharing
+      add_host:
+        name: localhost
+        groups: localhost_group
+      when: "'localhost' not in groups['all']"
+      run_once: true
+
     - name: Validate local genesis directory exists
       stat:
         path: "{{ genesis_dir }}"
@@ -63,12 +70,6 @@
       run_once: true
       changed_when: false
 
-    - name: Set key files list for all hosts
-      set_fact:
-        key_files_list: "{{ key_files_result.files | default([]) }}"
-      when: key_files_result is defined
-      run_once: true
-
   tasks:
     - name: Create remote genesis directory
       file:
@@ -89,24 +90,20 @@
         - genesis.ssz
         - validator-config.yaml
 
-    - name: Debug key files found
-      debug:
-        msg: "Found {{ key_files_list | length | default(0) }} key files: {{ key_files_list | map(attribute='path') | list | default([]) }}"
-      when: key_files_list is defined
-      run_once: true
-      tags: always
-
     - name: Copy node private key files to remote host
-      copy:
+      synchronize:
         src: "{{ item.path }}"
         dest: "{{ actual_remote_genesis_dir }}/{{ item.path | basename }}"
-        mode: '0600'
-      loop: "{{ key_files_list | default([]) }}"
+        mode: push
+        perms: yes
+      loop: "{{ key_files_result.files | default([]) }}"
       when: 
-        - key_files_list is defined
-        - key_files_list | length > 0
+        - key_files_result is defined
+        - key_files_result.files is defined
+        - key_files_result.files | length > 0
       loop_control:
         label: "{{ item.path | basename }}"
+      delegate_to: localhost
       tags: always
 
     - name: Copy hash-sig-keys directory to remote host
