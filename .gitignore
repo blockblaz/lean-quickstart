@@ -26,3 +26,6 @@ ansible-devnet/genesis/genesis.ssz
 
 # Hash-sig validator keys (contains sensitive secret keys)
 ansible-devnet/genesis/hash-sig-keys/
+
+# Temporary cache files
+tmp/
