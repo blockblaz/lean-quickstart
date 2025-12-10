@@ -46,6 +46,18 @@
     qlean_privkey: "{{ qlean_node_config.results[2].stdout }}"
   when: qlean_node_config is defined
 
+- name: Extract validator index from validators.yaml
+  shell: |
+    yq eval '."{{ node_name }}" | .[0]' "{{ genesis_dir }}/validators.yaml"
+  register: qlean_validator_index
+  changed_when: false
+  failed_when: false
+
+- name: Set validator index
+  set_fact:
+    qlean_validator_index: "{{ qlean_validator_index.stdout | trim | default('0') }}"
+  when: qlean_validator_index is defined
+
 - name: Ensure node key file exists
   stat:
     path: "{{ genesis_dir }}/{{ node_name }}.key"
@@ -97,6 +109,9 @@
         {{ qlean_docker_image }}
         --genesis /config/config.yaml
         --validator-registry-path /config/validators.yaml
+        --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml
+        --xmss-pk /config/hash-sig-keys/validator_{{ qlean_validator_index }}_pk.json
+        --xmss-sk /config/hash-sig-keys/validator_{{ qlean_validator_index }}_sk.json
         --bootnodes /config/nodes.yaml
         --data-dir /data
         --node-id {{ node_name }}
