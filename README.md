@@ -43,10 +43,10 @@ cd lean-quickstart
 # Local deployment (default)
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --popupTerminal
 
-# Ansible deployment (set deployment_mode: ansible in validator-config.yaml)
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+# Ansible deployment (set deployment_mode: ansible in validator-config.yaml or use --deploymentMode ansible)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --deploymentMode ansible
 ```
-> 📖 The deployment mode is controlled by the `deployment_mode` field in `validator-config.yaml`. See [Ansible Deployment](#ansible-deployment) section or [ansible/README.md](ansible/README.md) for details
+> 📖 **Note**: When deployment mode is `ansible`, the script automatically uses `ansible-devnet/genesis/validator-config.yaml` and generates genesis files in `ansible-devnet/genesis/`. This keeps local and remote deployment configurations separate. See [Ansible Deployment](#ansible-deployment) section or [ansible/README.md](ansible/README.md) for details
 
 ### Startup specific nodes only
 
@@ -60,7 +60,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node "zeam_0 qlean_0" --generateGenesi
 # Run only a single node
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupTerminal
 ```
-> 💡 **Note**: The same `spin-node.sh` command works for both local and Ansible deployments. The deployment mode is determined by the `deployment_mode` field in `validator-config.yaml`.
+> 💡 **Note**: The same `spin-node.sh` command works for both local and Ansible deployments. The deployment mode is determined by the `deployment_mode` field in `validator-config.yaml` or the `--deploymentMode` parameter. When using Ansible deployment mode, the script automatically uses `ansible-devnet/genesis/validator-config.yaml` to keep configurations separate.
   
 
 ### Enabling metrics
@@ -73,6 +73,8 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
 ## Args
 
 1. `NETWORK_DIR` is an env to specify the network directory. Should have a `genesis` directory with genesis config. A `data` folder will be created inside this `NETWORK_DIR` if not already there.
+   - **For local deployments**: Use `local-devnet` (or any custom directory)
+   - **For Ansible deployments**: When `deployment_mode: ansible` is set, the script automatically uses `ansible-devnet/` directory instead, keeping configurations separate
   `genesis` directory should have the following files
 
     a. `validator-config.yaml` which has node setup information for all the bootnodes
@@ -100,6 +102,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
 7. `--deploymentMode` specifies the deployment mode: `local` or `ansible`. 
    - If provided, this overrides the `deployment_mode` field in `validator-config.yaml`
    - If not provided, the value from `validator-config.yaml` is used (defaults to `local` if not specified)
+   - **When set to `ansible`**: The script automatically uses `ansible-devnet/genesis/validator-config.yaml` and generates genesis files in `ansible-devnet/genesis/` (unless `--validatorConfig` is explicitly provided)
    - Examples: `--deploymentMode local` or `--deploymentMode ansible`
 8. `--sshKey` or `--private-key` specifies the SSH private key file to use for remote Ansible deployments.
    - Only used when `deployment_mode: ansible` is set
@@ -126,7 +129,35 @@ However adding a lean client to this setup is very easy. Feel free to do the PR 
 
 ## How It Works
 
-The quickstart includes an automated genesis generator that eliminates the need for hardcoded files and uses `validator-config.yaml` as the source of truth. This file is to be contained in the `genesis` folder of the provided `NETWORK_DIR` folder you want to run quickstart on. Then post genesis generation, the quickstart spins the nodes as per their respective client cmds.
+The quickstart includes an automated genesis generator that eliminates the need for hardcoded files and uses `validator-config.yaml` as the source of truth. 
+
+**Configuration File Location:**
+- **Local deployments**: The `validator-config.yaml` file is contained in the `genesis` folder of the provided `NETWORK_DIR` folder (e.g., `local-devnet/genesis/validator-config.yaml`)
+- **Ansible deployments**: When `deployment_mode: ansible` is set (either in the config file or via `--deploymentMode ansible`), the script automatically uses `ansible-devnet/genesis/validator-config.yaml` instead. This keeps local and remote deployment configurations separate.
+
+Then post genesis generation, the quickstart spins the nodes as per their respective client cmds.
+
+### Directory Structure
+
+The quickstart uses separate directories for local and Ansible deployments:
+
+```
+lean-quickstart/
+├── local-devnet/              # Local development
+│   ├── genesis/
+│   │   └── validator-config.yaml  # Local IPs (127.0.0.1)
+│   └── data/                      # Node data directories
+│
+└── ansible-devnet/            # Ansible/remote deployment
+    ├── genesis/
+    │   └── validator-config.yaml  # Remote IPs (your server IPs)
+    └── data/                      # Node data directories
+```
+
+**Automatic Directory Selection:**
+- When `deployment_mode: ansible` is set (in config or via `--deploymentMode ansible`), the script automatically uses `ansible-devnet/genesis/validator-config.yaml`
+- This keeps local and remote configurations completely separate
+- Genesis files are generated in the appropriate directory based on deployment mode
 
 ### Configuration
 
@@ -593,29 +624,47 @@ ansible/
 
 ### Remote Deployment
 
-The Ansible inventory is **automatically generated** from `validator-config.yaml`. To deploy to remote hosts, update the IP addresses in your validator configuration:
+The Ansible inventory is **automatically generated** from `validator-config.yaml`. 
+
+**Configuration Setup:**
+
+For Ansible deployments, create or update `ansible-devnet/genesis/validator-config.yaml` with your remote server IP addresses:
 
 ```yaml
 deployment_mode: ansible
+config:
+  activeEpoch: 18
+  keyType: "hash-sig"
 validators:
   - name: "zeam_0"
+    privkey: "..."
     enrFields:
       ip: "192.168.1.10"  # Remote IP address
       quic: 9000
+    metricsPort: 8081
+    count: 1
   - name: "ream_0"
+    privkey: "..."
     enrFields:
       ip: "192.168.1.11"  # Remote IP address
       quic: 9001
+    metricsPort: 8082
+    count: 1
 ```
 
-Then use the same `spin-node.sh` command:
+**Deployment:**
+
+Then use `spin-node.sh` with `--deploymentMode ansible` (or set `deployment_mode: ansible` in the config file):
+
 ```sh
 # If using default SSH key (~/.ssh/id_rsa)
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --deploymentMode ansible
 
 # If using a custom SSH key
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --sshKey ~/.ssh/custom_key
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --deploymentMode ansible --sshKey ~/.ssh/custom_key
 ```
+
+> 💡 **Note**: When `deployment_mode: ansible` is set, the script automatically uses `ansible-devnet/genesis/validator-config.yaml` and generates all genesis files in `ansible-devnet/genesis/`. This keeps your local development (`local-devnet/`) and remote deployment (`ansible-devnet/`) configurations completely separate.
 
 The inventory generator will automatically:
 - Detect remote IPs (non-localhost) and configure remote connections

@@ -10,19 +10,7 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
-#1. setup genesis params and run genesis generator
-source "$(dirname $0)/set-up.sh"
-# ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
-# Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
-
-# 2. collect the nodes that the user has asked us to spin and perform setup
-if [ "$validatorConfig" == "genesis_bootnode" ] || [ -z "$validatorConfig" ]; then
-    validator_config_file="$configDir/validator-config.yaml"
-else
-    validator_config_file="$validatorConfig"
-fi
-
-# Check if yq is installed
+# Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."
     echo "On macOS: brew install yq"
@@ -30,6 +18,47 @@ if ! command -v yq &> /dev/null; then
     exit 1
 fi
 
+# Determine initial validator config file location
+if [ "$validatorConfig" == "genesis_bootnode" ] || [ -z "$validatorConfig" ]; then
+    validator_config_file="$configDir/validator-config.yaml"
+else
+    validator_config_file="$validatorConfig"
+fi
+
+# Read deployment mode: command-line argument takes precedence over config file
+if [ -n "$deploymentMode" ]; then
+    # Use command-line argument if provided
+    deployment_mode="$deploymentMode"
+    echo "Using deployment mode from command line: $deployment_mode"
+else
+    # Otherwise read from config file (default to 'local' if not specified)
+    if [ -f "$validator_config_file" ]; then
+        deployment_mode=$(yq eval '.deployment_mode // "local"' "$validator_config_file")
+        echo "Using deployment mode from config file: $deployment_mode"
+    else
+        deployment_mode="local"
+        echo "Using default deployment mode: $deployment_mode"
+    fi
+fi
+
+# If deployment mode is ansible and no explicit validatorConfig was provided,
+# switch to ansible-devnet/genesis/validator-config.yaml and update configDir/dataDir
+# This must happen BEFORE set-up.sh so genesis generation uses the correct directory
+if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_bootnode" ] || [ -z "$validatorConfig" ]); then
+    configDir="$scriptDir/ansible-devnet/genesis"
+    dataDir="$scriptDir/ansible-devnet/data"
+    validator_config_file="$configDir/validator-config.yaml"
+    echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
+fi
+
+#1. setup genesis params and run genesis generator
+source "$(dirname $0)/set-up.sh"
+# ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
+# Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
+
+# 2. collect the nodes that the user has asked us to spin and perform setup
+
+# Load nodes from validator config file
 if [ -f "$validator_config_file" ]; then
     # Use yq to extract node names from validator config
     nodes=($(yq eval '.validators[].name' "$validator_config_file"))
@@ -39,19 +68,11 @@ if [ -f "$validator_config_file" ]; then
         echo "Error: No validators found in $validator_config_file"
         exit 1
     fi
-    
-    # Check deployment mode: command-line argument takes precedence over config file
-    if [ -n "$deploymentMode" ]; then
-        # Use command-line argument if provided
-        deployment_mode="$deploymentMode"
-        echo "Using deployment mode from command line: $deployment_mode"
-    else
-        # Otherwise read from config file (default to 'local' if not specified)
-        deployment_mode=$(yq eval '.deployment_mode // "local"' "$validator_config_file")
-        echo "Using deployment mode from config file: $deployment_mode"
-    fi
 else
     echo "Error: Validator config file not found at $validator_config_file"
+    if [ "$deployment_mode" == "ansible" ]; then
+        echo "Please create ansible-devnet/genesis/validator-config.yaml for Ansible deployments"
+    fi
     nodes=()
     exit 1
 fi
