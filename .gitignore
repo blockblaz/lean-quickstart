@@ -15,3 +15,13 @@ local-devnet/genesis/hash-sig-keys/
 
 # Auto-generated Ansible inventory (generated from validator-config.yaml)
 ansible/inventory/hosts.yml
+
+# Generated genesis files (created by generate-genesis.sh)
+ansible-devnet/genesis/config.yaml
+ansible-devnet/genesis/validators.yaml
+ansible-devnet/genesis/nodes.yaml
+ansible-devnet/genesis/genesis.json
+ansible-devnet/genesis/genesis.ssz
+
+# Hash-sig validator keys (contains sensitive secret keys)
+ansible-devnet/genesis/hash-sig-keys/

@@ -66,19 +66,38 @@
 
 - name: Install yq (non-localhost)
   block:
-    - name: Download yq binary
-      get_url:
-        url: "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_{{ ansible_architecture }}"
-        dest: /usr/local/bin/yq
-        mode: '0755'
-        become: yes
-      when: ansible_os_family == "Linux" and ansible_architecture in ["amd64", "arm64"]
+    - name: Detect architecture for yq
+      set_fact:
+        yq_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ('arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64') }}"
+      when: ansible_os_family in ["Linux", "Debian", "RedHat"]
+
+    - name: Download yq binary (Linux/Debian/RedHat)
+      block:
+        - name: Download yq
+          get_url:
+            url: "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_{{ yq_arch | default('amd64') }}"
+            dest: /tmp/yq
+            mode: '0755'
+          register: yq_download_result
+
+        - name: Move yq to /usr/local/bin
+          copy:
+            src: /tmp/yq
+            dest: /usr/local/bin/yq
+            mode: '0755'
+            remote_src: yes
+          when: yq_download_result is succeeded
+      become: yes
+      when: 
+        - ansible_os_family in ["Linux", "Debian", "RedHat"]
+        - yq_check.rc != 0
+      ignore_errors: true
 
     - name: Install yq via Homebrew (macOS)
       homebrew:
         name: yq
         state: present
-      when: ansible_os_family == "Darwin"
+      when: ansible_os_family == "Darwin" and yq_check.rc != 0
   when: not is_localhost | default(false) and yq_check.rc != 0
 
 - name: Verify Docker is available

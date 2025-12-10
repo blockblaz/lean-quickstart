@@ -5,7 +5,9 @@
 - name: Extract docker image from client-cmd.sh
   shell: |
     # Extract the first word (docker image) from node_docker line
-    grep -E '^node_docker=' {{ playbook_dir }}/../client-cmds/ream-cmd.sh | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_docker=' "$project_root/client-cmds/ream-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
   register: ream_docker_image_raw
   changed_when: false
   delegate_to: localhost
@@ -14,7 +16,8 @@
 - name: Extract deployment mode from client-cmd.sh
   shell: |
     # Extract the value from node_setup line
-    grep -E '^node_setup=' {{ playbook_dir }}/../client-cmds/ream-cmd.sh | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/ream-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
   register: ream_deployment_mode_raw
   changed_when: false
   delegate_to: localhost
@@ -57,7 +60,7 @@
   file:
     path: "{{ data_dir }}/{{ node_name }}"
     state: absent
-  when: clean_data | default(false)
+  when: clean_data | default(false) | bool
 
 - name: Create node data directory
   file:

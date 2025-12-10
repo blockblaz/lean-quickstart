@@ -1,15 +1,16 @@
 ---
 # Deploy nodes playbook: Deploy and manage Lean nodes
 # Requires node_names to be specified (comma or space separated)
+# This playbook runs on localhost to parse node names, then deploys to remote hosts
 
-- name: Deploy Lean Nodes
+- name: Parse and validate node names
   hosts: localhost
   connection: local
   gather_facts: yes
   vars:
     validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
 
-  pre_tasks:
+  tasks:
     - name: Validate validator-config.yaml exists
       stat:
         path: "{{ validator_config_file }}"
@@ -35,12 +36,20 @@
         msg: "node_names must be specified. Provide one or more node names (comma or space separated)."
       when: node_names is not defined or node_names == ""
 
+    - name: Handle "all" node names - expand to all nodes
+      set_fact:
+        deploy_nodes: "{{ all_node_names }}"
+      when:
+        - node_names is defined
+        - node_names == "all"
+
     - name: Parse node names if provided as comma-separated string
       set_fact:
         deploy_nodes: "{{ node_names.split(',') | map('trim') | list }}"
       when: 
         - node_names is defined
         - node_names is string
+        - node_names != "all"
         - '("," in node_names)'
 
     - name: Parse node names if provided as space-separated string
@@ -49,6 +58,7 @@
       when: 
         - node_names is defined
         - node_names is string
+        - node_names != "all"
         - '("," not in node_names)'
         - '(" " in node_names)'
 
@@ -58,6 +68,7 @@
       when:
         - node_names is defined
         - node_names is string
+        - node_names != "all"
         - '"," not in node_names'
         - '" " not in node_names'
 
@@ -65,23 +76,37 @@
       debug:
         msg: "Deploying nodes: {{ deploy_nodes | join(', ') }}"
 
+    - name: Add deployment hosts to inventory
+      add_host:
+        name: "{{ item }}"
+        groups: deployment_targets
+      loop: "{{ deploy_nodes }}"
+
+- name: Deploy nodes on remote hosts
+  hosts: deployment_targets
+  gather_facts: yes
+  vars:
+    # Use remote paths on remote hosts
+    genesis_dir: "{{ remote_genesis_dir | default('/opt/lean-quickstart/genesis') }}"
+    data_dir: "{{ remote_data_dir | default('/opt/lean-quickstart/data') }}"
+    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+    # node_name is set to inventory_hostname (which matches the node name)
+    node_name: "{{ inventory_hostname }}"
+
   tasks:
     - name: Include common role
       include_role:
         name: common
       vars:
-        node_names: "{{ deploy_nodes }}"
+        node_names: "{{ [inventory_hostname] }}"
       tags:
         - setup
         - deploy
 
-    - name: Deploy each node
+    - name: Deploy this node
       include_tasks: deploy-single-node.yml
-      loop: "{{ deploy_nodes }}"
-      loop_control:
-        loop_var: node_name
       vars:
-        node_name: "{{ item }}"
+        node_name: "{{ inventory_hostname }}"
       tags:
         - deploy
 

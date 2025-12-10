@@ -5,7 +5,14 @@
 - name: Extract docker image from client-cmd.sh
   shell: |
     # Extract the docker image from node_docker line (find word containing / and :)
-    grep -E '^node_docker=' {{ playbook_dir }}/../client-cmds/zeam-cmd.sh | head -1 | grep -oE '[^/ ]+/[^: ]+:[^ "]+' | head -1
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    script_path="$project_root/client-cmds/zeam-cmd.sh"
+    if [ ! -f "$script_path" ]; then
+      echo "ERROR: Script not found at $script_path (project_root=$project_root, playbook_dir={{ playbook_dir }})" >&2
+      exit 1
+    fi
+    grep -E '^node_docker=' "$script_path" | head -1 | grep -oE '[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+' | head -1
   register: zeam_docker_image_raw
   changed_when: false
   delegate_to: localhost
@@ -14,7 +21,9 @@
 - name: Extract deployment mode from client-cmd.sh
   shell: |
     # Extract the value from node_setup line
-    grep -E '^node_setup=' {{ playbook_dir }}/../client-cmds/zeam-cmd.sh | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/zeam-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
   register: zeam_deployment_mode_raw
   changed_when: false
   delegate_to: localhost
@@ -24,6 +33,8 @@
   set_fact:
     zeam_docker_image: "{{ zeam_docker_image_raw.stdout | trim | default('blockblaz/zeam:latest') }}"
     deployment_mode: "{{ zeam_deployment_mode_raw.stdout | trim | default('docker') }}"
+  delegate_to: localhost
+  run_once: true
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
@@ -54,7 +65,7 @@
   file:
     path: "{{ data_dir }}/{{ node_name }}"
     state: absent
-  when: clean_data | default(false)
+  when: clean_data | default(false) | bool
 
 - name: Create node data directory
   file:

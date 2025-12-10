@@ -67,6 +67,10 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --useRoot)
+      useRoot=true
+      shift
+      ;;
     --tag)
       dockerTag="$2"
       shift # past argument

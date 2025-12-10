@@ -143,8 +143,14 @@ if [ "$deployment_mode" == "ansible" ]; then
   echo "✅ Ansible prerequisites validated"
   
   # Call separate Ansible execution script
-  "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile"
-  # Note: run-ansible.sh handles its own exit code
+  # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot"; then
+    echo "❌ Ansible deployment failed. Exiting."
+    exit 1
+  fi
+  
+  # Ansible deployment succeeded, exit normally
+  exit 0
 fi
 
 # 3. run clients (local deployment)

@@ -24,15 +24,24 @@ cleanData="$3"
 validatorConfig="$4"
 validator_config_file="$5"
 sshKeyFile="$6"
+useRoot="$7"  # Flag to use root user (defaults to current user)
+
+# Determine SSH user: use root if --useRoot flag is set, otherwise use current user
+if [ "$useRoot" == "true" ]; then
+  sshUser="root"
+else
+  sshUser=$(whoami)  # Use current user
+fi
 
 # Validate required arguments
 if [ -z "$configDir" ] || [ -z "$validator_config_file" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile]"
+  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot]"
   exit 1
 fi
 
 echo "Deployment mode: ansible - routing to Ansible deployment"
+echo "SSH user for remote connections: $sshUser"
 # Note: Ansible prerequisites are validated in spin-node.sh before calling this script
 
 # Generate ansible inventory from validator-config.yaml
@@ -45,35 +54,45 @@ if [ ! -f "$INVENTORY_FILE" ] || [ "$validator_config_file" -nt "$INVENTORY_FILE
   "$scriptDir/generate-ansible-inventory.sh" "$validator_config_file" "$INVENTORY_FILE"
 fi
 
-# Update inventory with SSH key file if provided
-if [ -n "$sshKeyFile" ]; then
-  echo "Setting SSH private key file in inventory: $sshKeyFile"
-  # Expand ~ to home directory if needed
-  if [[ "$sshKeyFile" == ~* ]]; then
-    sshKeyFile="${sshKeyFile/#\~/$HOME}"
-  fi
-  
-  # Add ansible_ssh_private_key_file to all remote hosts
-  if command -v yq &> /dev/null; then
-    # Get all remote host groups (zeam_nodes, ream_nodes, qlean_nodes)
-    for group in zeam_nodes ream_nodes qlean_nodes; do
-      # Get all hosts in this group
-      hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$INVENTORY_FILE" 2>/dev/null || echo "")
-      for host in $hosts; do
-        # Only update if it's a remote host (has ansible_host but not ansible_connection: local)
-        connection=$(yq eval ".all.children.$group.hosts.$host.ansible_connection // \"\"" "$INVENTORY_FILE" 2>/dev/null)
-        if [ -z "$connection" ] || [ "$connection" != "local" ]; then
+# Update inventory with SSH key file and user if provided
+if command -v yq &> /dev/null; then
+  # Get all remote host groups (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes)
+  for group in zeam_nodes ream_nodes qlean_nodes lantern_nodes; do
+    # Get all hosts in this group
+    hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$INVENTORY_FILE" 2>/dev/null || echo "")
+    for host in $hosts; do
+      # Only update if it's a remote host (has ansible_host but not ansible_connection: local)
+      connection=$(yq eval ".all.children.$group.hosts.$host.ansible_connection // \"\"" "$INVENTORY_FILE" 2>/dev/null)
+      if [ -z "$connection" ] || [ "$connection" != "local" ]; then
+        # Set SSH user (defaults to current user, or root if --useRoot flag is set)
+        yq eval -i ".all.children.$group.hosts.$host.ansible_user = \"$sshUser\"" "$INVENTORY_FILE"
+        
+        # Set SSH key file if provided
+        if [ -n "$sshKeyFile" ]; then
+          # Expand ~ to home directory if needed
+          if [[ "$sshKeyFile" == ~* ]]; then
+            sshKeyFile="${sshKeyFile/#\~/$HOME}"
+          fi
           yq eval -i ".all.children.$group.hosts.$host.ansible_ssh_private_key_file = \"$sshKeyFile\"" "$INVENTORY_FILE"
+          echo "Setting SSH private key file for $host: $sshKeyFile"
         fi
-      done
+      fi
     done
-  else
-    echo "Warning: yq not found, cannot update inventory with SSH key file"
-  fi
+  done
+else
+  echo "Warning: yq not found, cannot update inventory with SSH user/key file"
 fi
 
 # Build ansible extra-vars from spin-node.sh arguments
-EXTRA_VARS="network_dir=$configDir"
+# configDir is already the genesis directory, so we need to get the parent for network_dir
+# or pass genesis_dir directly. Since group_vars expects network_dir, we'll derive it.
+# If configDir ends with /genesis, use parent; otherwise assume configDir is network_dir
+if [[ "$configDir" == */genesis ]]; then
+  network_dir=$(dirname "$configDir")
+else
+  network_dir="$configDir"
+fi
+EXTRA_VARS="network_dir=$network_dir"
 
 if [ -n "$node" ]; then
   EXTRA_VARS="$EXTRA_VARS node_names=$node"
