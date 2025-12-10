@@ -51,10 +51,14 @@
     path: "{{ genesis_dir }}/{{ node_name }}.key"
   register: node_key_stat
 
+- name: Debug node key file check
+  debug:
+    msg: "Checking for key file at {{ genesis_dir }}/{{ node_name }}.key - exists: {{ node_key_stat.stat.exists | default('undefined') }}"
+
 - name: Fail if node key file is missing
   fail:
     msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
-  when: not node_key_stat.stat.exists
+  when: not (node_key_stat.stat.exists | default(false))
 
 - name: Clean node data directory
   file:

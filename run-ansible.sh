@@ -25,6 +25,7 @@ validatorConfig="$4"
 validator_config_file="$5"
 sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
+action="$8"   # Action: "stop" to stop nodes, otherwise deploy
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -118,13 +119,22 @@ fi
 # Use default deployment mode (can be overridden by adding a 'deployment_mode' field per node in validator-config.yaml)
 EXTRA_VARS="$EXTRA_VARS deployment_mode=$DEFAULT_DEPLOYMENT_MODE"
 
+# Determine which playbook to run
+if [ "$action" == "stop" ]; then
+  PLAYBOOK="$ANSIBLE_DIR/playbooks/stop-nodes.yml"
+  ACTION_MSG="stopping nodes"
+else
+  PLAYBOOK="$ANSIBLE_DIR/playbooks/site.yml"
+  ACTION_MSG="deploying nodes"
+fi
+
 # Build ansible-playbook command
 ANSIBLE_CMD="ansible-playbook"
 ANSIBLE_CMD="$ANSIBLE_CMD -i $INVENTORY_FILE"
-ANSIBLE_CMD="$ANSIBLE_CMD $ANSIBLE_DIR/playbooks/site.yml"
+ANSIBLE_CMD="$ANSIBLE_CMD $PLAYBOOK"
 ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
 
-echo "Running Ansible playbook..."
+echo "Running Ansible playbook for $ACTION_MSG..."
 echo "Command: $ANSIBLE_CMD"
 echo ""
 
@@ -135,10 +145,18 @@ eval $ANSIBLE_CMD
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
   echo ""
-  echo "✅ Ansible deployment completed successfully!"
+  if [ "$action" == "stop" ]; then
+    echo "✅ Ansible stop operation completed successfully!"
+  else
+    echo "✅ Ansible deployment completed successfully!"
+  fi
 else
   echo ""
-  echo "❌ Ansible deployment failed with exit code $EXIT_CODE"
+  if [ "$action" == "stop" ]; then
+    echo "❌ Ansible stop operation failed with exit code $EXIT_CODE"
+  else
+    echo "❌ Ansible deployment failed with exit code $EXIT_CODE"
+  fi
 fi
 
 exit $EXIT_CODE

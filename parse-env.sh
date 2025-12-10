@@ -76,6 +76,10 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --stop)
+      stopNodes=true
+      shift
+      ;;
     *)    # unknown option
       shift # past argument
       ;;

@@ -142,6 +142,16 @@ if [ "$deployment_mode" == "ansible" ]; then
   
   echo "✅ Ansible prerequisites validated"
   
+  # Handle stop action
+  if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
+    echo "Stopping nodes via Ansible..."
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop"; then
+      echo "❌ Ansible stop operation failed. Exiting."
+      exit 1
+    fi
+    exit 0
+  fi
+  
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
   if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot"; then
@@ -150,6 +160,44 @@ if [ "$deployment_mode" == "ansible" ]; then
   fi
   
   # Ansible deployment succeeded, exit normally
+  exit 0
+fi
+
+# Handle stop action for local deployment
+if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
+  echo "Stopping local nodes..."
+  
+  # Load nodes from validator config file
+  if [ -f "$validator_config_file" ]; then
+    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+  else
+    echo "Error: Validator config file not found at $validator_config_file"
+    exit 1
+  fi
+  
+  # Determine which nodes to stop
+  if [[ "$node" == "all" ]]; then
+    stop_nodes=("${nodes[@]}")
+  else
+    if [[ "$node" == *","* ]]; then
+      IFS=',' read -r -a requested_nodes <<< "$node"
+    else
+      IFS=' ' read -r -a requested_nodes <<< "$node"
+    fi
+    stop_nodes=("${requested_nodes[@]}")
+  fi
+  
+  # Stop Docker containers
+  for node_name in "${stop_nodes[@]}"; do
+    echo "Stopping $node_name..."
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker rm -f "$node_name" 2>/dev/null || echo "  Container $node_name not found or already stopped"
+    else
+      docker rm -f "$node_name" 2>/dev/null || echo "  Container $node_name not found or already stopped"
+    fi
+  done
+  
+  echo "✅ Local nodes stopped successfully!"
   exit 0
 fi
 
