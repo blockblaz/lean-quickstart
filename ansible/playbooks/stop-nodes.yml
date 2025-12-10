@@ -1,0 +1,112 @@
+---
+# Stop Nodes Playbook: Stop and remove all deployed nodes
+# This playbook stops Docker containers for all specified nodes
+
+- name: Parse and validate node names
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  vars:
+    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+
+  tasks:
+    - name: Validate validator-config.yaml exists
+      stat:
+        path: "{{ validator_config_file }}"
+      register: validator_config_stat
+
+    - name: Fail if validator-config.yaml missing
+      fail:
+        msg: "validator-config.yaml not found at {{ validator_config_file }}"
+      when: not validator_config_stat.stat.exists
+
+    - name: Extract all node names
+      shell: |
+        yq eval '.validators[].name' {{ validator_config_file }}
+      register: all_node_names_raw
+      changed_when: false
+
+    - name: Set all node names
+      set_fact:
+        all_node_names: "{{ all_node_names_raw.stdout_lines }}"
+
+    - name: Handle "all" node names - expand to all nodes
+      set_fact:
+        stop_nodes: "{{ all_node_names }}"
+      when:
+        - node_names is defined
+        - node_names == "all"
+
+    - name: Parse node names if provided as comma-separated string
+      set_fact:
+        stop_nodes: "{{ node_names.split(',') | map('trim') | list }}"
+      when:
+        - node_names is defined
+        - node_names is string
+        - node_names != "all"
+        - '("," in node_names)'
+
+    - name: Parse node names if provided as space-separated string
+      set_fact:
+        stop_nodes: "{{ node_names.split(' ') | map('trim') | select('length') | list }}"
+      when:
+        - node_names is defined
+        - node_names is string
+        - node_names != "all"
+        - '("," not in node_names)'
+        - '(" " in node_names)'
+
+    - name: Handle single node name
+      set_fact:
+        stop_nodes: "{{ [node_names] }}"
+      when:
+        - node_names is defined
+        - node_names is string
+        - node_names != "all"
+        - '"," not in node_names'
+        - '" " not in node_names'
+
+    - name: Display nodes to stop
+      debug:
+        msg: "Stopping nodes: {{ stop_nodes | join(', ') }}"
+
+    - name: Add stop hosts to inventory
+      add_host:
+        name: "{{ item }}"
+        groups: stop_targets
+      loop: "{{ stop_nodes }}"
+
+- name: Stop nodes on remote hosts
+  hosts: stop_targets
+  gather_facts: yes
+  vars:
+    node_name: "{{ inventory_hostname }}"
+
+  tasks:
+    - name: Extract client type from node name
+      set_fact:
+        client_type: "{{ node_name.split('_')[0] }}"
+
+    - name: Check if Docker container exists
+      command: docker ps -a --filter "name={{ node_name }}" --format "{{ '{{' }}.Names{{ '}}' }}"
+      register: container_check
+      changed_when: false
+      failed_when: false
+
+    - name: Stop and remove Docker container
+      command: docker rm -f {{ node_name }}
+      register: stop_result
+      failed_when: false
+      changed_when: stop_result.rc == 0
+      when: container_check.stdout == node_name
+
+    - name: Display stop result
+      debug:
+        msg: "{{ 'Stopped' if stop_result.rc == 0 else 'Container not found or already stopped' }}: {{ node_name }}"
+      when: container_check.stdout == node_name
+
+    - name: Report if container not found
+      debug:
+        msg: "Container {{ node_name }} not found (may already be stopped)"
+      when: container_check.stdout != node_name
+
