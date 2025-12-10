@@ -1,0 +1,8 @@
+---
+# Default variables for lantern role
+# Note: These are fallback defaults. Actual values are extracted from client-cmds/lantern-cmd.sh
+# in the tasks/main.yml file. These defaults are used if extraction fails.
+
+lantern_docker_image: "piertwo/lantern:v0.0.1"
+deployment_mode: docker  # docker or binary
+

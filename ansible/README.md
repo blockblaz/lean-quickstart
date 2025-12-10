@@ -83,7 +83,7 @@ docker ps | grep zeam_0
 - `ansible.cfg` - Ansible configuration
 - `inventory/` - Host inventory and variables
 - `playbooks/` - Main playbooks
-- `roles/` - Reusable role modules (zeam, ream, qlean, genesis, common)
+- `roles/` - Reusable role modules (zeam, ream, qlean, lantern, genesis, common)
 - `requirements.yml` - Ansible Galaxy dependencies
 
 ## Configuration Source
@@ -511,7 +511,7 @@ This section covers how to test the latest changes that extract docker images an
 
 - Docker images and deployment modes are now automatically extracted from `client-cmds/*-cmd.sh` files
 - This ensures consistency between `spin-node.sh` (local) and Ansible (remote) deployments
-- All client roles (zeam, ream, qlean) now use this extraction mechanism
+- All client roles (zeam, ream, qlean, lantern) now use this extraction mechanism
 
 ### Quick Test
 

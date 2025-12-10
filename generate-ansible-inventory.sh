@@ -52,6 +52,8 @@ all:
       hosts: {}
     qlean_nodes:
       hosts: {}
+    lantern_nodes:
+      hosts: {}
 EOF
 
 # Extract node information from validator-config.yaml
@@ -59,7 +61,7 @@ nodes=($(yq eval '.validators[].name' "$VALIDATOR_CONFIG"))
 
 # Process each node and generate inventory entries
 for node_name in "${nodes[@]}"; do
-    # Extract client type (zeam, ream, qlean)
+    # Extract client type (zeam, ream, qlean, lantern)
     IFS='_' read -r -a elements <<< "$node_name"
     client_type="${elements[0]}"
     group_name="${client_type}_nodes"

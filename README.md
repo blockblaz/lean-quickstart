@@ -11,7 +11,7 @@ A single command line quickstart to spin up lean node(s)
     - Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
     - Generates PQ keys based on specified configuration in `validator-config.yaml`
         - Force regen with flag `--forceKeyGen` when supplied with `generateGenesis`
-- ✅ Integrates zeam, ream, qlean (and more incoming...)
+- ✅ Integrates zeam, ream, qlean, lantern (and more incoming...)
 - ✅ Configure to run clients in docker or binary mode for easy development
 - ✅ Linux & Mac compatible & tested
 - ✅ Option to operate on single or multiple nodes or `all`
@@ -106,9 +106,9 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
    - Path to SSH private key file (e.g., `~/.ssh/id_rsa` or `/path/to/custom_key`)
    - If not provided, Ansible will use the default SSH key (`~/.ssh/id_rsa`) or keys configured in `ansible.cfg`
    - Example: `--sshKey ~/.ssh/custom_key` or `--private-key /path/to/key.pem`
-9. `--tag` specifies the Docker image tag to use for zeam, ream, and qlean containers.
-   - If provided, all three clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`)
-   - If not provided, defaults to `latest` for zeam and ream, and `dd67521` for qlean
+9. `--tag` specifies the Docker image tag to use for zeam, ream, qlean, and lantern containers.
+   - If provided, all clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`, `piertwo/lantern:${tag}`)
+   - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
 10. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
@@ -120,6 +120,7 @@ Current following clients are supported:
 1. Zeam
 2. Ream
 3. Qlean
+4. Lantern
 
 However adding a lean client to this setup is very easy. Feel free to do the PR or reach out to the maintainers.
 
@@ -618,7 +619,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --sshKey ~/
 
 The inventory generator will automatically:
 - Detect remote IPs (non-localhost) and configure remote connections
-- Group nodes by client type (zeam_nodes, ream_nodes, qlean_nodes)
+- Group nodes by client type (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes)
 - Set appropriate connection parameters
 - Apply SSH key file if provided via `--sshKey` parameter
 

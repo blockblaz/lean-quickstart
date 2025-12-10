@@ -1,0 +1,105 @@
+---
+# Lantern role: Deploy and manage Lantern nodes
+# Converts client-cmds/lantern-cmd.sh logic to Ansible tasks
+
+- name: Extract docker image from client-cmd.sh
+  shell: |
+    # Extract the docker image from LANTERN_IMAGE line
+    grep -E '^LANTERN_IMAGE=' {{ playbook_dir }}/../client-cmds/lantern-cmd.sh | head -1 | sed -E 's/.*LANTERN_IMAGE="([^"]+)".*/\1/'
+  register: lantern_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    # Extract the value from node_setup line
+    grep -E '^node_setup=' {{ playbook_dir }}/../client-cmds/lantern-cmd.sh | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: lantern_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    lantern_docker_image: "{{ lantern_docker_image_raw.stdout | trim | default('piertwo/lantern:v0.0.1') }}"
+    deployment_mode: "{{ lantern_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+  register: lantern_node_config
+  changed_when: false
+  loop:
+    - enrFields.quic
+    - metricsPort
+    - privkey
+  when: node_name is defined
+
+- name: Set node ports
+  set_fact:
+    lantern_quic_port: "{{ lantern_node_config.results[0].stdout }}"
+    lantern_metrics_port: "{{ lantern_node_config.results[1].stdout }}"
+    lantern_privkey: "{{ lantern_node_config.results[2].stdout }}"
+  when: lantern_node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not node_key_stat.stat.exists
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false)
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Lantern node using Docker
+  block:
+    - name: Pull Lantern docker image
+      command: docker pull {{ lantern_docker_image }}
+      register: lantern_docker_pull
+      changed_when: '"Downloaded newer image" in lantern_docker_pull.stdout'
+
+    - name: Stop existing Lantern container (if any)
+      command: docker rm -f {{ node_name }}
+      register: lantern_stop
+      failed_when: false
+      changed_when: lantern_stop.rc == 0
+
+    - name: Start Lantern container
+      command: >-
+        docker run -d
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ lantern_docker_image }}
+        --data-dir /data
+        --genesis-config /config/config.yaml
+        --validator-registry-path /config/validators.yaml
+        --genesis-state /config/genesis.ssz
+        --validator-config /config/validator-config.yaml
+        --nodes-path /config/nodes.yaml
+        --node-id {{ node_name }}
+        --node-key-path /config/{{ node_name }}.key
+        --listen-address /ip4/0.0.0.0/udp/{{ lantern_quic_port }}/quic-v1
+        --metrics-port {{ lantern_metrics_port }}
+        --http-port 5055
+        --hash-sig-key-dir /config/hash-sig-keys
+      register: lantern_container
+      changed_when: lantern_container.rc == 0
+  when: deployment_mode == 'docker'
+

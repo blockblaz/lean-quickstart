@@ -52,7 +52,15 @@
     - qlean
     - deploy
 
+- name: Deploy Lantern node
+  include_role:
+    name: lantern
+  when: client_type == "lantern"
+  tags:
+    - lantern
+    - deploy
+
 - name: Fail if unknown client type
   fail:
-    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, or qlean"
-  when: client_type not in ["zeam", "ream", "qlean"]
+    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, or lantern"
+  when: client_type not in ["zeam", "ream", "qlean", "lantern"]
