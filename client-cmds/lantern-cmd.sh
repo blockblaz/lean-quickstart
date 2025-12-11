@@ -21,6 +21,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
         --http-port 5055 \
+        --log-level debug \
         --hash-sig-key-dir $configDir/hash-sig-keys"
 
 node_docker="$LANTERN_IMAGE --data-dir /data \
@@ -34,6 +35,7 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
         --http-port 5055 \
+        --log-level debug \
         --hash-sig-key-dir /config/hash-sig-keys"
 
 # choose either binary or docker

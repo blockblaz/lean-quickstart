@@ -301,7 +301,7 @@ echo "🔧 Step 2: Generating config.yaml..."
 
 # Calculate genesis time (30 seconds from now)
 TIME_NOW="$(date +%s)"
-GENESIS_TIME=$((TIME_NOW + 30))
+GENESIS_TIME=$((TIME_NOW + 180))
 echo "   Genesis time: $GENESIS_TIME"
 
 # Sum all individual validator counts from validator-config.yaml
