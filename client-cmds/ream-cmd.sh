@@ -6,10 +6,8 @@ if [ -n "$devnet" ]; then
         devnet_flag="--devnet $devnet"
 fi
 
-metrics_flag=""
-if [ -n "$enableMetrics" ]; then
-        metrics_flag="--metrics"
-fi
+# Metrics enabled by default
+metrics_flag="--metrics"
 
 # modify the path to the ream binary as per your system
 node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
@@ -21,7 +19,9 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         --node-id $item --node-key $configDir/$privKeyPath \
         --socket-port $quicPort \
         $metrics_flag \
-        --metrics-port $metricsPort"
+        --metrics-address 0.0.0.0 \
+        --metrics-port $metricsPort \
+        --http-address 0.0.0.0"
 
 node_docker="ghcr.io/reamlabs/ream:latest --data-dir /data \
         lean_node \
@@ -32,7 +32,9 @@ node_docker="ghcr.io/reamlabs/ream:latest --data-dir /data \
         --node-id $item --node-key /config/$privKeyPath \
         --socket-port $quicPort \
         $metrics_flag \
-        --metrics-port $metricsPort"
+        --metrics-address 0.0.0.0 \
+        --metrics-port $metricsPort \
+        --http-address 0.0.0.0"
 
 # choose either binary or docker
 node_setup="docker"

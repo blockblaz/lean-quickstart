@@ -102,7 +102,10 @@
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
         --socket-port {{ ream_quic_port }}
+        --metrics
+        --metrics-address 0.0.0.0
         --metrics-port {{ ream_metrics_port }}
+        --http-address 0.0.0.0
       register: ream_container
       changed_when: ream_container.rc == 0
   when: deployment_mode == 'docker'

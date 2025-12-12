@@ -113,6 +113,7 @@
         --data-dir /data
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
+        --metrics_enable
         --metrics_port {{ zeam_metrics_port }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0

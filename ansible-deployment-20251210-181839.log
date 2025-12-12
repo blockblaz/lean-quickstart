@@ -1,0 +1,425 @@
+setting up network from /Users/partha/Documents/zig/lean-quickstart/local-devnet
+no external validator config provided, assuming genesis bootnode
+configDir = /Users/partha/Documents/zig/lean-quickstart/local-devnet/genesis
+dataDir = /Users/partha/Documents/zig/lean-quickstart/local-devnet/data
+spin_nodes(s) = 
+generateGenesis = 
+cleanData = 
+popupTerminal = 
+dockerTag = latest
+enableMetrics = 
+Using deployment mode from command line: ansible
+Using Ansible deployment: configDir=/Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis, validator config=/Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validator-config.yaml
+Detected nodes: zeam_0 ream_0 qlean_0 lantern_0
+Validating Ansible prerequisites...
+✅ Ansible prerequisites validated
+Deployment mode: ansible - routing to Ansible deployment
+SSH user for remote connections: root
+Setting SSH private key file for zeam_0: /Users/partha/.ssh/id_ed25519_github
+Setting SSH private key file for ream_0: /Users/partha/.ssh/id_ed25519_github
+Setting SSH private key file for qlean_0: /Users/partha/.ssh/id_ed25519_github
+Setting SSH private key file for lantern_0: /Users/partha/.ssh/id_ed25519_github
+Running Ansible playbook for deploying nodes...
+Command: ansible-playbook -i /Users/partha/Documents/zig/lean-quickstart/ansible/inventory/hosts.yml /Users/partha/Documents/zig/lean-quickstart/ansible/playbooks/site.yml -e "network_dir=/Users/partha/Documents/zig/lean-quickstart/ansible-devnet node_names=all deployment_mode=docker"
+
+
+PLAY [Copy Genesis Files to Remote Hosts] **************************************
+[WARNING]: Host 'ream_0' is using the discovered Python interpreter at '/usr/bin/python3.13', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.19/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'qlean_0' is using the discovered Python interpreter at '/usr/bin/python3.13', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.19/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'zeam_0' is using the discovered Python interpreter at '/usr/bin/python3.13', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.19/reference_appendices/interpreter_discovery.html for more information.
+[WARNING]: Host 'lantern_0' is using the discovered Python interpreter at '/usr/bin/python3.13', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.19/reference_appendices/interpreter_discovery.html for more information.
+
+TASK [Gathering Facts] *********************************************************
+ok: [ream_0]
+ok: [qlean_0]
+ok: [zeam_0]
+ok: [lantern_0]
+
+TASK [Create remote genesis directory] *****************************************
+ok: [lantern_0]
+ok: [ream_0]
+ok: [zeam_0]
+ok: [qlean_0]
+
+TASK [Copy genesis files to remote host] ***************************************
+ok: [lantern_0] => (item=config.yaml)
+ok: [ream_0] => (item=config.yaml)
+ok: [zeam_0] => (item=config.yaml)
+ok: [qlean_0] => (item=config.yaml)
+ok: [lantern_0] => (item=validators.yaml)
+ok: [ream_0] => (item=validators.yaml)
+ok: [qlean_0] => (item=validators.yaml)
+ok: [zeam_0] => (item=validators.yaml)
+ok: [lantern_0] => (item=nodes.yaml)
+ok: [ream_0] => (item=nodes.yaml)
+ok: [zeam_0] => (item=nodes.yaml)
+ok: [qlean_0] => (item=nodes.yaml)
+ok: [lantern_0] => (item=genesis.json)
+ok: [ream_0] => (item=genesis.json)
+ok: [lantern_0] => (item=genesis.ssz)
+ok: [qlean_0] => (item=genesis.json)
+ok: [zeam_0] => (item=genesis.json)
+ok: [lantern_0] => (item=validator-config.yaml)
+ok: [ream_0] => (item=genesis.ssz)
+ok: [qlean_0] => (item=genesis.ssz)
+ok: [zeam_0] => (item=genesis.ssz)
+ok: [ream_0] => (item=validator-config.yaml)
+ok: [qlean_0] => (item=validator-config.yaml)
+ok: [zeam_0] => (item=validator-config.yaml)
+
+TASK [Display copied files summary] ********************************************
+ok: [zeam_0] => 
+  msg: |-
+    ✅ Genesis files copied successfully!
+  
+    Copied files:
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validators.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/nodes.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.json
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.ssz
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validator-config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/*.key (private key files)
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/hash-sig-keys/ (hash-sig key files, if present)
+  
+    Remote host: zeam_0
+ok: [ream_0] => 
+  msg: |-
+    ✅ Genesis files copied successfully!
+  
+    Copied files:
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validators.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/nodes.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.json
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.ssz
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validator-config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/*.key (private key files)
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/hash-sig-keys/ (hash-sig key files, if present)
+  
+    Remote host: ream_0
+ok: [qlean_0] => 
+  msg: |-
+    ✅ Genesis files copied successfully!
+  
+    Copied files:
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validators.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/nodes.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.json
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.ssz
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validator-config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/*.key (private key files)
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/hash-sig-keys/ (hash-sig key files, if present)
+  
+    Remote host: qlean_0
+ok: [lantern_0] => 
+  msg: |-
+    ✅ Genesis files copied successfully!
+  
+    Copied files:
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validators.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/nodes.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.json
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/genesis.ssz
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/validator-config.yaml
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/*.key (private key files)
+      - /Users/partha/Documents/zig/lean-quickstart/ansible-devnet/genesis/hash-sig-keys/ (hash-sig key files, if present)
+  
+    Remote host: lantern_0
+
+PLAY [Parse and validate node names] *******************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [localhost]
+
+TASK [Validate validator-config.yaml exists] ***********************************
+ok: [localhost]
+
+TASK [Extract all node names] **************************************************
+ok: [localhost]
+
+TASK [Set all node names] ******************************************************
+ok: [localhost]
+
+TASK [Handle "all" node names - expand to all nodes] ***************************
+ok: [localhost]
+
+TASK [Display deployment targets] **********************************************
+ok: [localhost] => 
+  msg: 'Deploying nodes: zeam_0, ream_0, qlean_0, lantern_0'
+
+TASK [Add deployment hosts to inventory] ***************************************
+changed: [localhost] => (item=zeam_0)
+changed: [localhost] => (item=ream_0)
+changed: [localhost] => (item=qlean_0)
+changed: [localhost] => (item=lantern_0)
+
+PLAY [Deploy nodes on remote hosts] ********************************************
+
+TASK [Include common role] *****************************************************
+included: common for zeam_0, ream_0, qlean_0, lantern_0
+
+TASK [common : Check if running on localhost] **********************************
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+ok: [lantern_0]
+
+TASK [common : Install system dependencies (non-localhost)] ********************
+ok: [lantern_0]
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+
+TASK [common : Check if Docker is installed] ***********************************
+ok: [lantern_0]
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+
+TASK [common : Check if yq is installed] ***************************************
+ok: [lantern_0]
+ok: [zeam_0]
+ok: [qlean_0]
+ok: [ream_0]
+
+TASK [common : Verify Docker is available] *************************************
+ok: [lantern_0]
+ok: [ream_0]
+ok: [zeam_0]
+ok: [qlean_0]
+
+TASK [common : Verify yq is available] *****************************************
+ok: [lantern_0]
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+
+TASK [common : Create network directory structure] *****************************
+ok: [lantern_0] => (item=/Users/partha/Documents/zig/lean-quickstart/ansible-devnet)
+ok: [zeam_0] => (item=/Users/partha/Documents/zig/lean-quickstart/ansible-devnet)
+ok: [ream_0] => (item=/Users/partha/Documents/zig/lean-quickstart/ansible-devnet)
+ok: [qlean_0] => (item=/Users/partha/Documents/zig/lean-quickstart/ansible-devnet)
+ok: [lantern_0] => (item=/opt/lean-quickstart/genesis)
+ok: [zeam_0] => (item=/opt/lean-quickstart/genesis)
+ok: [ream_0] => (item=/opt/lean-quickstart/genesis)
+ok: [qlean_0] => (item=/opt/lean-quickstart/genesis)
+ok: [lantern_0] => (item=/opt/lean-quickstart/data)
+ok: [zeam_0] => (item=/opt/lean-quickstart/data)
+ok: [ream_0] => (item=/opt/lean-quickstart/data)
+ok: [qlean_0] => (item=/opt/lean-quickstart/data)
+
+TASK [common : Ensure node_names is a list] ************************************
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+ok: [lantern_0]
+
+TASK [common : Create data directories for each node] **************************
+ok: [lantern_0] => (item=all)
+ok: [zeam_0] => (item=all)
+ok: [qlean_0] => (item=all)
+ok: [ream_0] => (item=all)
+
+TASK [Deploy this node] ********************************************************
+included: /Users/partha/Documents/zig/lean-quickstart/ansible/playbooks/deploy-single-node.yml for zeam_0, ream_0, qlean_0, lantern_0
+
+TASK [Extract client type from node name] **************************************
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+ok: [lantern_0]
+
+TASK [Set validator config file path] ******************************************
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+ok: [lantern_0]
+
+TASK [Extract node configuration] **********************************************
+ok: [lantern_0]
+ok: [ream_0]
+ok: [zeam_0]
+ok: [qlean_0]
+
+TASK [Set zeam validator config] ***********************************************
+ok: [zeam_0]
+ok: [ream_0]
+ok: [qlean_0]
+ok: [lantern_0]
+
+TASK [Deploy Zeam node] ********************************************************
+included: zeam for zeam_0
+
+TASK [zeam : Extract docker image from client-cmd.sh] **************************
+ok: [zeam_0 -> localhost]
+
+TASK [zeam : Extract deployment mode from client-cmd.sh] ***********************
+ok: [zeam_0 -> localhost]
+
+TASK [zeam : Set docker image and deployment mode from client-cmd.sh] **********
+ok: [zeam_0 -> localhost]
+
+TASK [zeam : Extract node configuration from validator-config.yaml] ************
+ok: [zeam_0] => (item=metricsPort)
+ok: [zeam_0] => (item=privkey)
+
+TASK [zeam : Set node metrics port] ********************************************
+ok: [zeam_0]
+
+TASK [zeam : Ensure node key file exists] **************************************
+ok: [zeam_0]
+
+TASK [zeam : Debug node key file check] ****************************************
+ok: [zeam_0] => 
+  msg: 'Checking for key file at /opt/lean-quickstart/genesis/zeam_0.key - exists: True'
+
+TASK [zeam : Create node data directory] ***************************************
+ok: [zeam_0]
+
+TASK [zeam : Set validator config value] ***************************************
+ok: [zeam_0]
+
+TASK [zeam : Pull Zeam docker image] *******************************************
+ok: [zeam_0]
+
+TASK [zeam : Stop existing Zeam container (if any)] ****************************
+changed: [zeam_0]
+
+TASK [zeam : Start Zeam container] *********************************************
+changed: [zeam_0]
+
+TASK [Deploy Ream node] ********************************************************
+included: ream for ream_0
+
+TASK [ream : Extract docker image from client-cmd.sh] **************************
+ok: [ream_0 -> localhost]
+
+TASK [ream : Extract deployment mode from client-cmd.sh] ***********************
+ok: [ream_0 -> localhost]
+
+TASK [ream : Set docker image and deployment mode from client-cmd.sh] **********
+ok: [ream_0]
+
+TASK [ream : Extract node configuration from validator-config.yaml] ************
+ok: [ream_0] => (item=enrFields.quic)
+ok: [ream_0] => (item=metricsPort)
+ok: [ream_0] => (item=privkey)
+
+TASK [ream : Set node ports] ***************************************************
+ok: [ream_0]
+
+TASK [ream : Ensure node key file exists] **************************************
+ok: [ream_0]
+
+TASK [ream : Debug node key file check] ****************************************
+ok: [ream_0] => 
+  msg: 'Checking for key file at /opt/lean-quickstart/genesis/ream_0.key - exists: True'
+
+TASK [ream : Create node data directory] ***************************************
+ok: [ream_0]
+
+TASK [ream : Pull Ream docker image] *******************************************
+ok: [ream_0]
+
+TASK [ream : Stop existing Ream container (if any)] ****************************
+changed: [ream_0]
+
+TASK [ream : Start Ream container] *********************************************
+changed: [ream_0]
+
+TASK [Deploy Qlean node] *******************************************************
+included: qlean for qlean_0
+
+TASK [qlean : Extract docker image from client-cmd.sh] *************************
+ok: [qlean_0 -> localhost]
+
+TASK [qlean : Extract deployment mode from client-cmd.sh] **********************
+ok: [qlean_0 -> localhost]
+
+TASK [qlean : Set docker image and deployment mode from client-cmd.sh] *********
+ok: [qlean_0]
+
+TASK [qlean : Extract node configuration from validator-config.yaml] ***********
+ok: [qlean_0] => (item=enrFields.quic)
+ok: [qlean_0] => (item=metricsPort)
+ok: [qlean_0] => (item=privkey)
+
+TASK [qlean : Set node ports] **************************************************
+ok: [qlean_0]
+
+TASK [qlean : Extract validator index from validators.yaml] ********************
+ok: [qlean_0]
+
+TASK [qlean : Set validator index] *********************************************
+ok: [qlean_0]
+
+TASK [qlean : Ensure node key file exists] *************************************
+ok: [qlean_0]
+
+TASK [qlean : Debug node key file check] ***************************************
+ok: [qlean_0] => 
+  msg: 'Checking for key file at /opt/lean-quickstart/genesis/qlean_0.key - exists: True'
+
+TASK [qlean : Create node data directory] **************************************
+ok: [qlean_0]
+
+TASK [qlean : Pull Qlean docker image] *****************************************
+ok: [qlean_0]
+
+TASK [qlean : Stop existing Qlean container (if any)] **************************
+changed: [qlean_0]
+
+TASK [qlean : Start Qlean container] *******************************************
+changed: [qlean_0]
+
+TASK [Deploy Lantern node] *****************************************************
+included: lantern for lantern_0
+
+TASK [lantern : Extract docker image from client-cmd.sh] ***********************
+ok: [lantern_0 -> localhost]
+
+TASK [lantern : Extract deployment mode from client-cmd.sh] ********************
+ok: [lantern_0 -> localhost]
+
+TASK [lantern : Set docker image and deployment mode from client-cmd.sh] *******
+ok: [lantern_0]
+
+TASK [lantern : Extract node configuration from validator-config.yaml] *********
+ok: [lantern_0] => (item=enrFields.quic)
+ok: [lantern_0] => (item=metricsPort)
+ok: [lantern_0] => (item=privkey)
+
+TASK [lantern : Set node ports] ************************************************
+ok: [lantern_0]
+
+TASK [lantern : Ensure node key file exists] ***********************************
+ok: [lantern_0]
+
+TASK [lantern : Debug node key file check] *************************************
+ok: [lantern_0] => 
+  msg: 'Checking for key file at /opt/lean-quickstart/genesis/lantern_0.key - exists: True'
+
+TASK [lantern : Create node data directory] ************************************
+ok: [lantern_0]
+
+TASK [lantern : Pull Lantern docker image] *************************************
+ok: [lantern_0]
+
+TASK [lantern : Stop existing Lantern container (if any)] **********************
+changed: [lantern_0]
+
+TASK [lantern : Start Lantern container] ***************************************
+changed: [lantern_0]
+
+PLAY RECAP *********************************************************************
+lantern_0                  : ok=31   changed=2    unreachable=0    failed=0    skipped=19   rescued=0    ignored=0   
+localhost                  : ok=7    changed=1    unreachable=0    failed=0    skipped=18   rescued=0    ignored=0   
+qlean_0                    : ok=33   changed=2    unreachable=0    failed=0    skipped=19   rescued=0    ignored=0   
+ream_0                     : ok=31   changed=2    unreachable=0    failed=0    skipped=19   rescued=0    ignored=0   
+zeam_0                     : ok=32   changed=2    unreachable=0    failed=0    skipped=23   rescued=0    ignored=0   
+
+
+✅ Ansible deployment completed successfully!
