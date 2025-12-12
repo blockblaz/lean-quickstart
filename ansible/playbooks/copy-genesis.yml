@@ -41,6 +41,7 @@
       loop:
         - config.yaml
         - validators.yaml
+        - annotated_validators.yaml
         - nodes.yaml
         - genesis.json
         - genesis.ssz
@@ -85,6 +86,7 @@
       loop:
         - config.yaml
         - validators.yaml
+        - annotated_validators.yaml
         - nodes.yaml
         - genesis.json
         - genesis.ssz
@@ -124,6 +126,7 @@
           Copied files:
             - {{ genesis_dir }}/config.yaml
             - {{ genesis_dir }}/validators.yaml
+            - {{ genesis_dir }}/annotated_validators.yaml
             - {{ genesis_dir }}/nodes.yaml
             - {{ genesis_dir }}/genesis.json
             - {{ genesis_dir }}/genesis.ssz

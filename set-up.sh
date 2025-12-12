@@ -1,6 +1,9 @@
 #!/bin/bash
 # set -e
 
+# Default deployment_mode to local if not set by parent script
+deployment_mode="${deployment_mode:-local}"
+
 # ========================================
 # Step 1: Generate genesis files if needed
 # ========================================
@@ -21,8 +24,8 @@ if [ -n "$generateGenesis" ] || [ ! -f "$configDir/validators.yaml" ] || [ ! -f 
     exit 1
   fi
   
-  # Run the generator
-  if ! $genesis_generator "$configDir" "$FORCE_KEYGEN_FLAG"; then
+  # Run the generator with deployment mode
+  if ! $genesis_generator "$configDir" --mode "$deployment_mode" $FORCE_KEYGEN_FLAG; then
     echo "❌ Genesis generation failed!"
     exit 1
   fi

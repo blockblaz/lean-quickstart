@@ -15,7 +15,7 @@ PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"
 # ========================================
 show_usage() {
     cat << EOF
-Usage: $0 <genesis-directory>
+Usage: $0 <genesis-directory> [--mode local|ansible] [--forceKeyGen]
 
 Generate genesis configuration files using PK's eth-beacon-genesis tool.
 Generates: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
@@ -25,8 +25,15 @@ Arguments:
                        - validator-config.yaml (with node configurations and individual counts)
                        - validator-config.yaml must include key: config.activeEpoch (positive integer)
 
-Example:
-  $0 local-devnet/genesis
+Options:
+  --mode <mode>        Deployment mode: 'local' or 'ansible' (default: local)
+                       - local: GENESIS_TIME = now + 30 seconds
+                       - ansible: GENESIS_TIME = now + 180 seconds
+  --forceKeyGen        Force regeneration of hash-sig validator keys
+
+Examples:
+  $0 local-devnet/genesis                      # Local mode (30s offset)
+  $0 ansible-devnet/genesis --mode ansible     # Ansible mode (180s offset)
 
 Generated Files:
   - config.yaml        Auto-generated with GENESIS_TIME, VALIDATOR_COUNT, shuffle, and config.activeEpoch
@@ -37,7 +44,7 @@ Generated Files:
   - <node>.key         Private key files for each node
 
 How It Works:
-  1. Calculates GENESIS_TIME (current time + 30 seconds)
+  1. Calculates GENESIS_TIME based on --mode (local: +30s, ansible: +180s)
   2. Reads individual validator 'count' fields from validator-config.yaml
   3. Reads config.activeEpoch from validator-config.yaml (required)
   4. Automatically sums them to calculate total VALIDATOR_COUNT
@@ -76,8 +83,9 @@ GENESIS_DIR="$1"
 CONFIG_FILE="$GENESIS_DIR/config.yaml"
 VALIDATOR_CONFIG_FILE="$GENESIS_DIR/validator-config.yaml"
 
-# Parse optional --skipKeyGen flag, default true
+# Parse optional flags
 SKIP_KEY_GEN="true"
+DEPLOYMENT_MODE="local"  # Default to local mode
 shift
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -85,11 +93,26 @@ while [[ $# -gt 0 ]]; do
             SKIP_KEY_GEN="false"
             shift
             ;;
+        --mode)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                DEPLOYMENT_MODE="$2"
+                shift 2
+            else
+                echo "❌ Error: --mode requires a value (local or ansible)"
+                exit 1
+            fi
+            ;;
         *)
             shift
             ;;
     esac
 done
+
+# Validate deployment mode
+if [ "$DEPLOYMENT_MODE" != "local" ] && [ "$DEPLOYMENT_MODE" != "ansible" ]; then
+    echo "❌ Error: Invalid deployment mode '$DEPLOYMENT_MODE'. Must be 'local' or 'ansible'"
+    exit 1
+fi
 
 # ========================================
 # Check Dependencies
@@ -299,9 +322,17 @@ echo ""
 # ========================================
 echo "🔧 Step 2: Generating config.yaml..."
 
-# Calculate genesis time (120 seconds from now)
+# Calculate genesis time based on deployment mode
+# Local mode: 30 seconds, Ansible mode: 180 seconds
 TIME_NOW="$(date +%s)"
-GENESIS_TIME=$((TIME_NOW + 120))
+if [ "$DEPLOYMENT_MODE" == "local" ]; then
+    GENESIS_TIME_OFFSET=30
+else
+    GENESIS_TIME_OFFSET=180
+fi
+GENESIS_TIME=$((TIME_NOW + GENESIS_TIME_OFFSET))
+echo "   Deployment mode: $DEPLOYMENT_MODE"
+echo "   Genesis time offset: ${GENESIS_TIME_OFFSET}s"
 echo "   Genesis time: $GENESIS_TIME"
 
 # Sum all individual validator counts from validator-config.yaml
