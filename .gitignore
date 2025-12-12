@@ -2,6 +2,7 @@ data
 *.key
 *.backup
 *.old
+.DS_store
 
 # Generated genesis files (created by generate-genesis.sh)
 local-devnet/genesis/config.yaml
