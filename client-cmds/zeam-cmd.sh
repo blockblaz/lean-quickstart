@@ -3,10 +3,8 @@
 #-----------------------zeam setup----------------------
 # setup where lean-quickstart is a submodule folder in zeam repo
 # update the path to your binary here if you want to use binary
-metrics_flag=""
-if [ -n "$enableMetrics" ]; then
-    metrics_flag="--metrics_enable"
-fi
+# Metrics enabled by default
+metrics_flag="--metrics_enable"
 
 node_binary="$scriptDir/../zig-out/bin/zeam node \
       --custom_genesis $configDir \
