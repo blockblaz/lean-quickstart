@@ -29,3 +29,5 @@ ansible-devnet/genesis/hash-sig-keys/
 
 # Temporary cache files
 tmp/
+
+ansible-deployment*.log
