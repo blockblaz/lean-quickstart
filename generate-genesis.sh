@@ -568,7 +568,7 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
         fi
 
         PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
-        PRIVKEY_FILENAME="validator_${raw_index}_sk.json"
+        PRIVKEY_FILENAME="validator_${raw_index}_sk.ssz"
 
         cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
   - index: $raw_index
