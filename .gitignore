@@ -5,28 +5,18 @@ data
 .DS_store
 
 # Generated genesis files (created by generate-genesis.sh)
-local-devnet/genesis/config.yaml
-local-devnet/genesis/validators.yaml
-local-devnet/genesis/nodes.yaml
-local-devnet/genesis/genesis.json
-local-devnet/genesis/genesis.ssz
+config.yaml
+validators.yaml
+nodes.yaml
+genesis.json
+genesis.ssz
+annotated_validators.yaml
 
 # Hash-sig validator keys (contains sensitive secret keys)
-local-devnet/genesis/hash-sig-keys/
+hash-sig-keys/
 
 # Auto-generated Ansible inventory (generated from validator-config.yaml)
-ansible/inventory/hosts.yml
-
-# Generated genesis files (created by generate-genesis.sh)
-ansible-devnet/genesis/config.yaml
-ansible-devnet/genesis/validators.yaml
-ansible-devnet/genesis/nodes.yaml
-ansible-devnet/genesis/genesis.json
-ansible-devnet/genesis/annotated_validators.yaml
-ansible-devnet/genesis/genesis.ssz
-
-# Hash-sig validator keys (contains sensitive secret keys)
-ansible-devnet/genesis/hash-sig-keys/
+hosts.yml
 
 # Temporary cache files
 tmp/
