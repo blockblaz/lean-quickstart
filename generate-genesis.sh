@@ -328,7 +328,7 @@ TIME_NOW="$(date +%s)"
 if [ "$DEPLOYMENT_MODE" == "local" ]; then
     GENESIS_TIME_OFFSET=30
 else
-    GENESIS_TIME_OFFSET=180
+    GENESIS_TIME_OFFSET=360
 fi
 GENESIS_TIME=$((TIME_NOW + GENESIS_TIME_OFFSET))
 echo "   Deployment mode: $DEPLOYMENT_MODE"
