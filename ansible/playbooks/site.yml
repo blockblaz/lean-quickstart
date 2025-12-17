@@ -1,17 +1,34 @@
 ---
 # Main site playbook: Complete deployment workflow
-# Copies locally generated genesis files and deploys nodes
-# Note: For local Docker deployments, genesis files are mounted as volumes
-# For remote deployments, files are copied to remote hosts
+# 1. Generate genesis files locally (including .key files)
+# 2. Copy genesis files to remote hosts
+# 3. Deploy nodes
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
+#     -e "genesis_dir=ansible-devnet/genesis" \
+#     -e "node_names=all"
+#
+# Options:
+#   network_dir      - Path to network directory (genesis_dir derived from this)
+#   genesis_dir      - Path to genesis directory (required)
+#   node_names       - Nodes to deploy: "all" or comma-separated names
+#   skip_genesis     - Set to true to skip genesis generation (default: false)
+#   genesis_offset   - Seconds to add to current time for genesis (default: 180)
 
+- name: Generate Genesis Files
+  import_playbook: generate-genesis.yml
+  vars:
+    genesis_dir: "{{ network_dir }}/genesis"
+  when: not (skip_genesis | default(false) | bool)
+
+# Always run copy-genesis - it targets all:!local (remote hosts only)
 - name: Copy Genesis Files to Remote Hosts
   import_playbook: copy-genesis.yml
-  when: 
-    - ansible_connection is defined
-    - ansible_connection != 'local'
+  vars:
+    genesis_dir: "{{ network_dir }}/genesis"
 
 - name: Deploy Nodes
   import_playbook: deploy-nodes.yml
   vars:
     node_names: "{{ node_names }}"
-

@@ -99,6 +99,7 @@
       # Multi-platform support is being added in zeam CI (see .github/workflows/ci.yml docker-build-multiarch job)
       command: >-
         docker run -d
+        --pull=always
         --platform linux/amd64
         --name {{ node_name }}
         --restart unless-stopped

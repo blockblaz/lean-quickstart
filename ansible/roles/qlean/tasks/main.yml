@@ -100,6 +100,7 @@
     - name: Start Qlean container
       command: >-
         docker run -d
+        --pull=always
         --name {{ node_name }}
         --restart unless-stopped
         --network host
