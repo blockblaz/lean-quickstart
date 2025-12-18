@@ -48,3 +48,14 @@ validators:
       quic: 9001
     metricsPort: 8081
     count: 1
+
+  - name: "lighthouse_0"
+    # node id a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+    # peer id 16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
+    privkey: "4fd22cf461fbeae4947a3fdaef8d533fc7fd1ef1ce4cd98e993210c18234df3f"
+    # verify /ip4/127.0.0.1/udp/9004/quic-v1/p2p/16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
+    enrFields:
+      ip: "46.224.135.169"
+      quic: 9001
+    metricsPort: 8081
+    count: 1
