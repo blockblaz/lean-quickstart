@@ -57,8 +57,8 @@ fi
 
 # Update inventory with SSH key file and user if provided
 if command -v yq &> /dev/null; then
-  # Get all remote host groups (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes)
-  for group in zeam_nodes ream_nodes qlean_nodes lantern_nodes; do
+  # Get all remote host groups (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes, lighthouse_nodes)
+  for group in zeam_nodes ream_nodes qlean_nodes lantern_nodes lighthouse_nodes; do
     # Get all hosts in this group
     hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$INVENTORY_FILE" 2>/dev/null || echo "")
     for host in $hosts; do

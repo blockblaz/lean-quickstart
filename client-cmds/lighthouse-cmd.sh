@@ -9,7 +9,7 @@ node_binary="$lighthouse_bin lean_node \
       --genesis-json \"$configDir/genesis.json\" \
       --socket-port $quicPort"
 
-node_docker="sigmaprime/lighthouse:sigp-pr-8600-fa2fa57 lighthouse lean_node \
+node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       --datadir /data \
       --config /config/config.yaml \
       --validators /config/validator-config.yaml \

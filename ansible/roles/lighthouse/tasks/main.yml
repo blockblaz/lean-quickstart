@@ -1,0 +1,106 @@
+---
+# Lighthouse role: Deploy and manage Lighthouse nodes
+# Converts client-cmds/lighthouse-cmd.sh logic to Ansible tasks
+
+- name: Extract docker image from client-cmd.sh
+  shell: |
+    # Extract the first word (docker image) from node_docker line
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_docker=' "$project_root/client-cmds/lighthouse-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+  register: lighthouse_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    # Extract the value from node_setup line
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/lighthouse-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: lighthouse_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    lighthouse_docker_image: "{{ lighthouse_docker_image_raw.stdout | trim | default('hopinheimer/lighthouse:latest') }}"
+    deployment_mode: "{{ lighthouse_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+  register: lighthouse_node_config
+  changed_when: false
+  loop:
+    - enrFields.quic
+    - privkey
+  when: node_name is defined
+
+- name: Set node ports
+  set_fact:
+    lighthouse_quic_port: "{{ lighthouse_node_config.results[0].stdout }}"
+    lighthouse_privkey: "{{ lighthouse_node_config.results[1].stdout }}"
+  when: lighthouse_node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Debug node key file check
+  debug:
+    msg: "Checking for key file at {{ genesis_dir }}/{{ node_name }}.key - exists: {{ node_key_stat.stat.exists | default('undefined') }}"
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not (node_key_stat.stat.exists | default(false))
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false) | bool
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Lighthouse node using Docker
+  block:
+    - name: Pull Lighthouse docker image
+      command: docker pull {{ lighthouse_docker_image }}
+      register: lighthouse_docker_pull
+      changed_when: '"Downloaded newer image" in lighthouse_docker_pull.stdout'
+
+    - name: Stop existing Lighthouse container (if any)
+      command: docker rm -f {{ node_name }}
+      register: lighthouse_stop
+      failed_when: false
+      changed_when: lighthouse_stop.rc == 0
+
+    - name: Start Lighthouse container
+      command: >-
+        docker run -d
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ lighthouse_docker_image }}
+        lighthouse lean_node
+        --datadir /data
+        --config /config/config.yaml
+        --validators /config/validator-config.yaml
+        --nodes /config/nodes.yaml
+        --node-id {{ node_name }}
+        --private-key /config/{{ node_name }}.key
+        --genesis-json /config/genesis.json
+        --socket-port {{ lighthouse_quic_port }}
+      register: lighthouse_container
+      changed_when: lighthouse_container.rc == 0
+  when: deployment_mode == 'docker'
