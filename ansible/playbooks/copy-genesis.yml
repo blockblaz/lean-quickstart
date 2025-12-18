@@ -1,9 +1,15 @@
 ---
 # Copy Genesis Files: Copy locally generated genesis files to remote hosts
-# Assumes genesis files have been generated locally using generate-genesis.sh
+# 
+# Prerequisites: Genesis files must be generated first using one of:
+#   - ./generate-genesis.sh <genesis-dir> --mode ansible
+#   - ansible-playbook playbooks/generate-genesis.yml -e "genesis_dir=<path>"
+#   - ansible-playbook playbooks/site.yml (runs generate-genesis automatically)
+#
+# This playbook validates all required files exist locally before copying.
 
 - name: Copy Genesis Files to Remote Hosts
-  hosts: all
+  hosts: all:!local
   gather_facts: yes
   vars:
     validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
@@ -62,14 +68,58 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Find all .key files locally
-      find:
-        paths: "{{ genesis_dir }}"
-        patterns: "*.key"
-      register: key_files_result
+    - name: Extract all node names from validator-config.yaml
+      shell: |
+        yq eval '.validators[].name' "{{ genesis_dir }}/validator-config.yaml"
+      register: all_node_names_raw
       delegate_to: localhost
       run_once: true
       changed_when: false
+
+    - name: Set all node names list
+      set_fact:
+        all_node_names: "{{ all_node_names_raw.stdout_lines }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Check each node key file exists locally
+      stat:
+        path: "{{ genesis_dir }}/{{ item }}.key"
+      register: node_key_stats
+      delegate_to: localhost
+      run_once: true
+      loop: "{{ all_node_names }}"
+
+    - name: Identify missing key files
+      set_fact:
+        missing_key_files: "{{ node_key_stats.results | selectattr('stat.exists', 'equalto', false) | map(attribute='item') | list }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fail if any node key files are missing
+      fail:
+        msg: |
+          ❌ Missing .key files for nodes: {{ missing_key_files | join(', ') }}
+          
+          Expected files:
+          {% for node in missing_key_files %}
+            - {{ genesis_dir }}/{{ node }}.key
+          {% endfor %}
+          
+          Please run generate-genesis.sh first to create the key files:
+            ./generate-genesis.sh {{ genesis_dir }} --mode ansible
+            
+          Or run the full deployment with site.yml which generates genesis automatically:
+            ansible-playbook playbooks/site.yml -e "genesis_dir={{ genesis_dir }}" -e "node_names=all"
+      when: missing_key_files | length > 0
+      delegate_to: localhost
+      run_once: true
+
+    - name: Confirm all key files are present
+      debug:
+        msg: "✅ All {{ all_node_names | length }} key file(s) are present and ready to copy: {{ all_node_names | join(', ') }}"
+      delegate_to: localhost
+      run_once: true
 
   tasks:
     - name: Create remote genesis directory
@@ -78,11 +128,12 @@
         state: directory
         mode: '0755'
 
-    - name: Copy genesis files to remote host
+    - name: Copy genesis config files to remote host
       copy:
         src: "{{ genesis_dir }}/{{ item }}"
         dest: "{{ actual_remote_genesis_dir }}/{{ item }}"
         mode: '0644'
+        force: yes
       loop:
         - config.yaml
         - validators.yaml
@@ -93,46 +144,51 @@
         - validator-config.yaml
 
     - name: Copy node private key files to remote host
-      synchronize:
-        src: "{{ item.path }}"
-        dest: "{{ actual_remote_genesis_dir }}/{{ item.path | basename }}"
-        mode: push
-        perms: yes
-      loop: "{{ key_files_result.files | default([]) }}"
-      when: 
-        - key_files_result is defined
-        - key_files_result.files is defined
-        - key_files_result.files | length > 0
+      copy:
+        src: "{{ genesis_dir }}/{{ item }}.key"
+        dest: "{{ actual_remote_genesis_dir }}/{{ item }}.key"
+        mode: '0600'
+        force: yes
+      loop: "{{ all_node_names }}"
       loop_control:
-        label: "{{ item.path | basename }}"
-      delegate_to: localhost
-      tags: always
+        label: "{{ item }}.key"
+
+    - name: Create hash-sig-keys directory on remote
+      file:
+        path: "{{ actual_remote_genesis_dir }}/hash-sig-keys"
+        state: directory
+        mode: '0755'
+      when: hash_sig_keys_stat.stat.exists
 
     - name: Copy hash-sig-keys directory to remote host
-      synchronize:
+      copy:
         src: "{{ genesis_dir }}/hash-sig-keys/"
         dest: "{{ actual_remote_genesis_dir }}/hash-sig-keys/"
-        mode: push
-        delete: no
-        recursive: yes
+        mode: '0644'
+        force: yes
       when: hash_sig_keys_stat.stat.exists
-      delegate_to: localhost
+
+    - name: List files on remote genesis directory
+      find:
+        paths: "{{ actual_remote_genesis_dir }}"
+        recurse: yes
+        file_type: file
+      register: remote_files
 
     - name: Display copied files summary
       debug:
         msg: |
-          ✅ Genesis files copied successfully!
+          ✅ Genesis directory copied successfully!
           
-          Copied files:
-            - {{ genesis_dir }}/config.yaml
-            - {{ genesis_dir }}/validators.yaml
-            - {{ genesis_dir }}/annotated_validators.yaml
-            - {{ genesis_dir }}/nodes.yaml
-            - {{ genesis_dir }}/genesis.json
-            - {{ genesis_dir }}/genesis.ssz
-            - {{ genesis_dir }}/validator-config.yaml
-            - {{ genesis_dir }}/*.key (private key files)
-            - {{ genesis_dir }}/hash-sig-keys/ (hash-sig key files, if present)
-          
+          Source: {{ genesis_dir }}/
+          Destination: {{ actual_remote_genesis_dir }}/
           Remote host: {{ inventory_hostname }}
+          
+          Files copied: {{ remote_files.files | length }}
+          {% for f in remote_files.files[:15] %}
+            - {{ f.path | replace(actual_remote_genesis_dir + '/', '') }}
+          {% endfor %}
+          {% if remote_files.files | length > 15 %}
+            ... and {{ remote_files.files | length - 15 }} more files
+          {% endif %}
 

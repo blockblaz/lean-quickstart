@@ -11,7 +11,7 @@ validators:
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
       # verify /ip4/127.0.0.1/udp/9000/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
-      ip: "46.224.123.223"
+      ip: "46.224.135.169"
       quic: 9001
     metricsPort: 8081
     count: 1 # number of indices for this node

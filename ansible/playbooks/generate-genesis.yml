@@ -1,0 +1,87 @@
+---
+# Generate Genesis Files: Run genesis generation locally before deployment
+# This playbook runs generate-genesis.sh which creates all required files including .key files and GENESIS_VALIDATORS
+
+- name: Generate Genesis Files Locally
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  vars:
+    # Genesis time offset: local=30s, ansible=180s (to allow time for deployment)
+    genesis_time_offset: "{{ genesis_offset | default(180) }}"
+
+  tasks:
+    - name: Validate genesis_dir is provided
+      fail:
+        msg: "genesis_dir must be specified. Example: -e genesis_dir=ansible-devnet/genesis"
+      when: genesis_dir is not defined or genesis_dir == ""
+
+    - name: Display genesis configuration
+      debug:
+        msg: |
+          📦 Genesis Generation Configuration
+          =====================================
+          Genesis directory: {{ genesis_dir }}
+          Genesis time offset: {{ genesis_time_offset }} seconds
+
+    - name: Get absolute path to project root
+      shell: |
+        cd "{{ playbook_dir }}/../.." && pwd
+      register: project_root_result
+      changed_when: false
+
+    - name: Set project root
+      set_fact:
+        project_root: "{{ project_root_result.stdout }}"
+
+    - name: Run generate-genesis.sh script
+      shell: |
+        cd "{{ project_root }}" && ./generate-genesis.sh "{{ genesis_dir }}" --mode ansible
+      register: genesis_result
+      args:
+        executable: /bin/bash
+
+    - name: Display genesis generation output
+      debug:
+        msg: "{{ genesis_result.stdout_lines[-30:] | join('\n') }}"
+      when: genesis_result.stdout_lines | length > 0
+
+    - name: Verify config.yaml has GENESIS_VALIDATORS
+      shell: |
+        grep -q "GENESIS_VALIDATORS" "{{ genesis_dir }}/config.yaml"
+      register: genesis_validators_check
+      failed_when: genesis_validators_check.rc != 0
+      changed_when: false
+
+    - name: Extract node names from validator-config.yaml
+      shell: |
+        yq eval '.validators[].name' "{{ genesis_dir }}/validator-config.yaml"
+      register: node_names_raw
+      changed_when: false
+
+    - name: Set node names list
+      set_fact:
+        node_names_list: "{{ node_names_raw.stdout_lines | default([]) }}"
+
+    - name: Verify all key files were generated
+      stat:
+        path: "{{ genesis_dir }}/{{ item }}.key"
+      register: key_file_check
+      loop: "{{ node_names_list }}"
+      failed_when: not key_file_check.stat.exists
+
+    - name: Display success summary
+      debug:
+        msg: |
+          ✅ Genesis generation complete!
+          
+          Generated files in {{ genesis_dir }}:
+            - config.yaml (with GENESIS_VALIDATORS)
+            - validators.yaml
+            - nodes.yaml
+            - genesis.json
+            - genesis.ssz
+            - annotated_validators.yaml
+          {% for node in node_names_list %}
+            - {{ node }}.key
+          {% endfor %}

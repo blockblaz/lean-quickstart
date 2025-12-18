@@ -328,7 +328,7 @@ TIME_NOW="$(date +%s)"
 if [ "$DEPLOYMENT_MODE" == "local" ]; then
     GENESIS_TIME_OFFSET=30
 else
-    GENESIS_TIME_OFFSET=180
+    GENESIS_TIME_OFFSET=360
 fi
 GENESIS_TIME=$((TIME_NOW + GENESIS_TIME_OFFSET))
 echo "   Deployment mode: $DEPLOYMENT_MODE"
@@ -440,12 +440,19 @@ VALIDATOR_ENTRY_INDEX=0
 # Create temporary file for genesis_validators YAML
 GENESIS_VALIDATORS_TMP=$(mktemp)
 
+# Debug: show manifest file and pubkey field
+echo "   Reading pubkeys from: $MANIFEST_FILE"
+echo "   Using pubkey field: $PUBKEY_FIELD"
+
 # Iterate through validators in validator-config.yaml
 while IFS= read -r validator_name; do
     COUNT=$(yq eval ".validators[$VALIDATOR_ENTRY_INDEX].count" "$VALIDATOR_CONFIG_FILE")
     
     # Read hex pubkey directly from manifest (hash-sig-cli now generates hex)
     PUBKEY_HEX=$(yq eval ".validators[$VALIDATOR_ENTRY_INDEX].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
+    
+    # Debug output
+    echo "   Validator $VALIDATOR_ENTRY_INDEX ($validator_name): count=$COUNT, pubkey=${PUBKEY_HEX:0:20}..."
     
     if [ -z "$PUBKEY_HEX" ] || [ "$PUBKEY_HEX" == "null" ]; then
         echo "   ❌ Error: Could not read pubkey for validator $VALIDATOR_ENTRY_INDEX from manifest"
@@ -474,23 +481,20 @@ while IFS= read -r validator_name; do
     VALIDATOR_ENTRY_INDEX=$((VALIDATOR_ENTRY_INDEX + 1))
 done < <(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE")
 
-# Merge genesis_validators into config.yaml using yq
+# Append genesis_validators to config.yaml
 if [ -s "$GENESIS_VALIDATORS_TMP" ]; then
-    # Build a temporary YAML file with just genesis_validators
-    GENESIS_VALIDATORS_YAML=$(mktemp)
-    echo "GENESIS_VALIDATORS:" > "$GENESIS_VALIDATORS_YAML"
-    cat "$GENESIS_VALIDATORS_TMP" >> "$GENESIS_VALIDATORS_YAML"
+    # Append directly to config.yaml (simpler and more reliable than yq merge)
+    echo "" >> "$CONFIG_FILE"
+    echo "# Genesis Validator Pubkeys" >> "$CONFIG_FILE"
+    echo "GENESIS_VALIDATORS:" >> "$CONFIG_FILE"
+    cat "$GENESIS_VALIDATORS_TMP" >> "$CONFIG_FILE"
     
-    # Use yq to merge the genesis_validators into config.yaml
-    yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' -i "$CONFIG_FILE" "$GENESIS_VALIDATORS_YAML" 2>/dev/null || {
-        # Fallback: append manually if yq merge fails
-        echo "" >> "$CONFIG_FILE"
-        cat "$GENESIS_VALIDATORS_YAML" >> "$CONFIG_FILE"
-    }
-    rm -f "$GENESIS_VALIDATORS_YAML"
-    echo "   ✅ Added genesis_validators to config.yaml"
+    echo "   ✅ Added GENESIS_VALIDATORS to config.yaml"
+    echo "   Validators added: $(wc -l < "$GENESIS_VALIDATORS_TMP" | tr -d ' ')"
 else
-    echo "   ⚠️  Warning: No genesis_validators to add"
+    echo "   ❌ Error: No genesis_validators to add - GENESIS_VALIDATORS_TMP is empty"
+    echo "   This will cause zeam to fail with MissingValidatorConfig error"
+    exit 1
 fi
 
 # Clean up temp file
@@ -552,7 +556,9 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
     ENTRY_FOUND=false
 
     while IFS= read -r raw_index; do
-        raw_index=$(echo "$raw_index" | xargs)
+        # Trim whitespace using bash parameter expansion (avoids xargs which can fail in sandboxed environments)
+        raw_index="${raw_index#"${raw_index%%[![:space:]]*}"}"
+        raw_index="${raw_index%"${raw_index##*[![:space:]]}"}"
         if [ -z "$raw_index" ] || [ "$raw_index" == "null" ]; then
             continue
         fi
