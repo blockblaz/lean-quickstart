@@ -60,7 +60,15 @@
     - lantern
     - deploy
 
+- name: Deploy Lighthouse node
+  include_role:
+    name: lighthouse
+  when: client_type == "lighthouse"
+  tags:
+    - lighthouse
+    - deploy
+
 - name: Fail if unknown client type
   fail:
-    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, or lantern"
-  when: client_type not in ["zeam", "ream", "qlean", "lantern"]
+    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, or lighthouse"
+  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse"]
