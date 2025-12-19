@@ -83,11 +83,6 @@
 
 - name: Deploy Zeam node using Docker
   block:
-    - name: Pull Zeam docker image
-      command: docker pull {{ zeam_docker_image }}
-      register: docker_pull_result
-      changed_when: '"Downloaded newer image" in docker_pull_result.stdout'
-
     - name: Stop existing Zeam container (if any)
       command: docker rm -f {{ node_name }}
       register: docker_stop_result

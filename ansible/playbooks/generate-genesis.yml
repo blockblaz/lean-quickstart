@@ -7,8 +7,8 @@
   connection: local
   gather_facts: yes
   vars:
-    # Genesis time offset: local=30s, ansible=180s (to allow time for deployment)
-    genesis_time_offset: "{{ genesis_offset | default(180) }}"
+    # Genesis time offset: local=30s, ansible=360s (to allow time for deployment)
+    genesis_time_offset: "{{ genesis_offset | default(360) }}"
 
   tasks:
     - name: Validate genesis_dir is provided
@@ -36,7 +36,7 @@
 
     - name: Run generate-genesis.sh script
       shell: |
-        cd "{{ project_root }}" && ./generate-genesis.sh "{{ genesis_dir }}" --mode ansible
+        cd "{{ project_root }}" && ./generate-genesis.sh "{{ genesis_dir }}" --mode ansible --offset {{ genesis_time_offset }}
       register: genesis_result
       args:
         executable: /bin/bash

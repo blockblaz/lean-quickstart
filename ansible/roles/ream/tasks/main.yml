@@ -74,11 +74,6 @@
 
 - name: Deploy Ream node using Docker
   block:
-    - name: Pull Ream docker image
-      command: docker pull {{ ream_docker_image }}
-      register: ream_docker_pull
-      changed_when: '"Downloaded newer image" in ream_docker_pull.stdout'
-
     - name: Stop existing Ream container (if any)
       command: docker rm -f {{ node_name }}
       register: ream_stop

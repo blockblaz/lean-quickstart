@@ -15,7 +15,7 @@ PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"
 # ========================================
 show_usage() {
     cat << EOF
-Usage: $0 <genesis-directory> [--mode local|ansible] [--forceKeyGen]
+Usage: $0 <genesis-directory> [--mode local|ansible] [--offset <seconds>] [--forceKeyGen]
 
 Generate genesis configuration files using PK's eth-beacon-genesis tool.
 Generates: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
@@ -27,13 +27,15 @@ Arguments:
 
 Options:
   --mode <mode>        Deployment mode: 'local' or 'ansible' (default: local)
-                       - local: GENESIS_TIME = now + 30 seconds
-                       - ansible: GENESIS_TIME = now + 180 seconds
+                       - local: GENESIS_TIME = now + 30 seconds (default)
+                       - ansible: GENESIS_TIME = now + 360 seconds (default)
+  --offset <seconds>   Override genesis time offset in seconds (overrides mode defaults)
   --forceKeyGen        Force regeneration of hash-sig validator keys
 
 Examples:
   $0 local-devnet/genesis                      # Local mode (30s offset)
-  $0 ansible-devnet/genesis --mode ansible     # Ansible mode (180s offset)
+  $0 ansible-devnet/genesis --mode ansible     # Ansible mode (360s offset)
+  $0 ansible-devnet/genesis --mode ansible --offset 600  # Custom 600s offset
 
 Generated Files:
   - config.yaml        Auto-generated with GENESIS_TIME, VALIDATOR_COUNT, shuffle, and config.activeEpoch
@@ -44,7 +46,7 @@ Generated Files:
   - <node>.key         Private key files for each node
 
 How It Works:
-  1. Calculates GENESIS_TIME based on --mode (local: +30s, ansible: +180s)
+  1. Calculates GENESIS_TIME based on --mode (local: +30s, ansible: +360s) or --offset if provided
   2. Reads individual validator 'count' fields from validator-config.yaml
   3. Reads config.activeEpoch from validator-config.yaml (required)
   4. Automatically sums them to calculate total VALIDATOR_COUNT
@@ -86,6 +88,7 @@ VALIDATOR_CONFIG_FILE="$GENESIS_DIR/validator-config.yaml"
 # Parse optional flags
 SKIP_KEY_GEN="true"
 DEPLOYMENT_MODE="local"  # Default to local mode
+GENESIS_TIME_OFFSET=""   # Will be set based on mode or --offset flag
 shift
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -99,6 +102,19 @@ while [[ $# -gt 0 ]]; do
                 shift 2
             else
                 echo "❌ Error: --mode requires a value (local or ansible)"
+                exit 1
+            fi
+            ;;
+        --offset)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                    echo "❌ Error: --offset requires a positive integer"
+                    exit 1
+                fi
+                GENESIS_TIME_OFFSET="$2"
+                shift 2
+            else
+                echo "❌ Error: --offset requires a value (positive integer)"
                 exit 1
             fi
             ;;
@@ -322,10 +338,13 @@ echo ""
 # ========================================
 echo "🔧 Step 2: Generating config.yaml..."
 
-# Calculate genesis time based on deployment mode
-# Local mode: 30 seconds, Ansible mode: 180 seconds
+# Calculate genesis time based on deployment mode or explicit offset
+# Default offsets: Local mode: 30 seconds, Ansible mode: 360 seconds
 TIME_NOW="$(date +%s)"
-if [ "$DEPLOYMENT_MODE" == "local" ]; then
+if [ -n "$GENESIS_TIME_OFFSET" ]; then
+    # Use explicit offset if provided
+    :
+elif [ "$DEPLOYMENT_MODE" == "local" ]; then
     GENESIS_TIME_OFFSET=30
 else
     GENESIS_TIME_OFFSET=360
