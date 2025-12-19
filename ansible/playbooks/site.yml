@@ -14,7 +14,7 @@
 #   genesis_dir      - Path to genesis directory (required)
 #   node_names       - Nodes to deploy: "all" or comma-separated names
 #   skip_genesis     - Set to true to skip genesis generation (default: false)
-#   genesis_offset   - Seconds to add to current time for genesis (default: 180)
+#   genesis_offset   - Seconds to add to current time for genesis (default: 360 for ansible mode)
 
 - name: Generate Genesis Files
   import_playbook: generate-genesis.yml

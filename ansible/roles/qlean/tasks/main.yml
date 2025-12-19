@@ -86,11 +86,6 @@
 
 - name: Deploy Qlean node using Docker
   block:
-    - name: Pull Qlean docker image
-      command: docker pull {{ qlean_docker_image }}
-      register: qlean_docker_pull
-      changed_when: '"Downloaded newer image" in qlean_docker_pull.stdout'
-
     - name: Stop existing Qlean container (if any)
       command: docker rm -f {{ node_name }}
       register: qlean_stop
