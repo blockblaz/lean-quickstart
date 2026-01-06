@@ -1,0 +1,114 @@
+---
+# Clean data playbook: Clean node data directories
+
+- name: Parse and validate node names
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+  tags:
+    - zeam
+    - ream
+    - qlean
+    - lantern
+    - lighthouse
+    - deploy
+
+  tasks:
+    - name: Validate validator-config.yaml exists
+      stat:
+        path: "{{ validator_config_file }}"
+      register: validator_config_stat
+
+    - name: Fail if validator-config.yaml missing
+      fail:
+        msg: "validator-config.yaml not found at {{ validator_config_file }}"
+      when: not validator_config_stat.stat.exists
+
+    - name: Extract all node names
+      shell: |
+        yq eval '.validators[].name' {{ validator_config_file }}
+      register: all_node_names_raw
+      changed_when: false
+
+    - name: Set all node names
+      set_fact:
+        all_node_names: "{{ all_node_names_raw.stdout_lines }}"
+
+    - name: Fail if node_names is not specified
+      fail:
+        msg: "node_names must be specified. Provide one or more node names (comma or space separated)."
+      when: node_names is not defined or node_names == ""
+
+    - name: Handle "all" node names - expand to all nodes
+      set_fact:
+        clean_nodes: "{{ all_node_names }}"
+      when:
+        - node_names is defined
+        - node_names == "all"
+
+    - name: Parse node names if provided as comma-separated string
+      set_fact:
+        clean_nodes: "{{ node_names.split(',') | map('trim') | list }}"
+      when:
+        - node_names is defined
+        - node_names is string
+        - node_names != "all"
+        - '("," in node_names)'
+
+    - name: Parse node names if provided as space-separated string
+      set_fact:
+        clean_nodes: "{{ node_names.split(' ') | map('trim') | select('length') | list }}"
+      when:
+        - node_names is defined
+        - node_names is string
+        - node_names != "all"
+        - '("," not in node_names)'
+        - '(" " in node_names)'
+
+    - name: Handle single node name
+      set_fact:
+        clean_nodes: "{{ [node_names] }}"
+      when:
+        - node_names is defined
+        - node_names is string
+        - node_names != "all"
+        - '"," not in node_names'
+        - '" " not in node_names'
+
+    - name: Display nodes to clean
+      debug:
+        msg: "Cleaning data directories for nodes: {{ clean_nodes | join(', ') }}"
+
+    - name: Add nodes to clean_targets group
+      add_host:
+        name: "{{ item }}"
+        groups: clean_targets
+      loop: "{{ clean_nodes }}"
+
+- name: Clean node data directories on remote hosts
+  hosts: clean_targets
+  gather_facts: no
+  vars:
+    # Use remote paths on remote hosts
+    data_dir: "{{ remote_data_dir | default('/opt/lean-quickstart/data') }}"
+    node_name: "{{ inventory_hostname }}"
+  tags:
+    - zeam
+    - ream
+    - qlean
+    - lantern
+    - lighthouse
+    - deploy
+
+  tasks:
+    - name: Clean node data directory
+      file:
+        path: "{{ data_dir }}/{{ node_name }}"
+        state: absent
+      become: yes
+
+    - name: Display cleaned directory
+      debug:
+        msg: "Cleaned data directory: {{ data_dir }}/{{ node_name }}"
