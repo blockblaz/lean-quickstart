@@ -35,13 +35,15 @@
   changed_when: false
   loop:
     - enrFields.quic
+    - metricsPort
     - privkey
   when: node_name is defined
 
 - name: Set node ports
   set_fact:
     lighthouse_quic_port: "{{ lighthouse_node_config.results[0].stdout }}"
-    lighthouse_privkey: "{{ lighthouse_node_config.results[1].stdout }}"
+    lighthouse_metrics_port: "{{ lighthouse_node_config.results[1].stdout }}"
+    lighthouse_privkey: "{{ lighthouse_node_config.results[2].stdout }}"
   when: lighthouse_node_config is defined
 
 - name: Ensure node key file exists
@@ -112,6 +114,9 @@
         --private-key /config/{{ node_name }}.key
         --genesis-json /config/genesis.json
         --socket-port {{ lighthouse_quic_port }}
+        --metrics
+        --metrics-address 0.0.0.0
+        --metrics-port {{ lighthouse_metrics_port }}
       register: lighthouse_container
       changed_when: lighthouse_container.rc == 0
   when: deployment_mode == 'docker'
