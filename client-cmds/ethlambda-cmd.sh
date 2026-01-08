@@ -6,8 +6,7 @@ binary_path="/Users/mega/lean_consensus/ethlambda/target/debug/ethlambda"
 
 # Command when running as binary
 node_binary="$binary_path \
-      --custom-genesis-json-file \"$configDir/genesis.json\" \
-      --validators-file \"$configDir/nodes.yaml\" \
+      --custom-network-config-dir $configDir \
       --gossipsub-port $quicPort
 "
 
