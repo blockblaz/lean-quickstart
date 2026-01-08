@@ -16,7 +16,7 @@ node_binary="$lighthouse_bin lean_node \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort"
 
-node_docker="hopinheimer/lighthouse:0.2.0 lighthouse lean_node \
+node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       --datadir /data \
       --config /config/config.yaml \
       --validators /config/validator-config.yaml \
