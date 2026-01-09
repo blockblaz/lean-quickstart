@@ -65,11 +65,22 @@
     msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
   when: not (node_key_stat.stat.exists | default(false))
 
+- name: Check if node data directory has contents
+  find:
+    paths: "{{ data_dir }}/{{ node_name }}"
+    file_type: any
+    hidden: yes
+  register: node_data_contents
+  failed_when: false
+  when: clean_data | default(false) | bool
+
 - name: Clean node data directory
   file:
     path: "{{ data_dir }}/{{ node_name }}"
     state: absent
-  when: clean_data | default(false) | bool
+  when:
+    - clean_data | default(false) | bool
+    - node_data_contents.matched | default(0) > 0
 
 - name: Create node data directory
   file:
