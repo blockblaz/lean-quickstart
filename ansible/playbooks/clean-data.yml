@@ -26,6 +26,18 @@
         msg: "validator-config.yaml not found at {{ validator_config_file }}"
       when: not validator_config_stat.stat.exists
 
+    - name: Verify yq is available
+      command: yq --version
+      register: yq_version
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Fail if yq is not available
+      fail:
+        msg: "yq is required but not installed. Install on macOS: brew install yq, or see https://github.com/mikefarah/yq"
+      when: yq_version.rc != 0
+
     - name: Extract all node names
       shell: |
         yq eval '.validators[].name' {{ validator_config_file }}
@@ -104,10 +116,7 @@
 
   tasks:
     - name: Clean node data directory
-      file:
-        path: "{{ data_dir }}/{{ node_name }}"
-        state: absent
-      become: yes
+      raw: rm -rf {{ data_dir }}/{{ node_name }}
 
     - name: Display cleaned directory
       debug:
