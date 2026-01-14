@@ -68,7 +68,15 @@
     - lighthouse
     - deploy
 
+- name: Deploy Grandine node
+  include_role:
+    name: grandine
+  when: client_type == "grandine"
+  tags:
+    - grandine
+    - deploy
+
 - name: Fail if unknown client type
   fail:
-    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, or lighthouse"
-  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse"]
+    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, lighthouse or grandine"
+  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse", "grandine"]
