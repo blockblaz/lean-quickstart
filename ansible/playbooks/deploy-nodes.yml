@@ -94,6 +94,19 @@
     node_name: "{{ inventory_hostname }}"
 
   tasks:
+    - name: Clean node data directory
+      raw: rm -rf {{ data_dir }}/{{ node_name }}
+      when:
+        - clean_data | default(false) | bool
+        - not (skip_role_cleaning | default(false) | bool)
+      tags:
+        - zeam
+        - ream
+        - qlean
+        - lantern
+        - lighthouse
+        - deploy
+
     - name: Include common role
       include_role:
         name: common
@@ -104,7 +117,7 @@
         - deploy
 
     - name: Deploy this node
-      include_tasks: deploy-single-node.yml
+      include_tasks: helpers/deploy-single-node.yml
       vars:
         node_name: "{{ inventory_hostname }}"
       tags:

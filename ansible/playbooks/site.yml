@@ -19,7 +19,7 @@
 #   genesis_offset   - Seconds to add to current time for genesis (default: 360 for ansible mode)
 
 - name: Clean Data Directories
-  import_playbook: clean-data.yml
+  import_playbook: clean-node-data.yml
   vars:
     genesis_dir: "{{ network_dir }}/genesis"
     node_names: "{{ node_names }}"
@@ -41,3 +41,4 @@
   import_playbook: deploy-nodes.yml
   vars:
     node_names: "{{ node_names }}"
+    skip_role_cleaning: "{{ clean_data | default(false) | bool }}"
