@@ -59,3 +59,11 @@ validators:
       quic: 9005
     metricsPort: 8085
     count: 1
+
+  - name: "grandine_0"
+    privkey: "64a7f5ab53907966374ca23af36392910af682eec82c12e3abbb6c2ccdf39a72"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9006
+    metricsPort: 8086
+    count: 1
