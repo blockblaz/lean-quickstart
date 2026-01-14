@@ -1,0 +1,8 @@
+---
+# Default variables for grandine role
+# Note: These are fallback defaults. Actual values are extracted from client-cmds/grandine-cmd.sh
+# in the tasks/main.yml file. These defaults are used if extraction fails.
+
+grandine_docker_image: "sifrai/lean:unstable"
+deployment_mode: docker  # docker or binary
+
