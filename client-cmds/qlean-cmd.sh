@@ -17,7 +17,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --prometheus-port $metricsPort \
       -ldebug"
       
-node_docker="qdrvm/qlean-mini:3a96a1f \
+node_docker="qdrvm/qlean-mini:273cfa1 \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \
