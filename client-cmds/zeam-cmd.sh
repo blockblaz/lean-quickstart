@@ -12,15 +12,15 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
-      --metrics_port $metricsPort"
+      --api-port $metricsPort"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet1 node \
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:latest node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
       $metrics_flag \
-      --metrics_port $metricsPort"
+      --api-port $metricsPort"
 
 # choose either binary or docker
 node_setup="docker"
