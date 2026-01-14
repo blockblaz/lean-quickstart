@@ -258,6 +258,13 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
+    # If a docker image override was provided, replace the image name in node_docker
+    if [ -n "$dockerImageOverride" ]; then
+      # Replace the first token containing ':' (image:tag pattern) with the override image
+      # This handles cases where node_docker may start with flags like --security-opt
+      node_docker="$(echo "$node_docker" | sed -E "s|([^ ]+:[^ ]+)|$dockerImageOverride|1")"
+    fi
+
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
     # Pull image first 
@@ -272,6 +279,11 @@ for item in "${spin_nodes[@]}"; do
       execCmd="sudo $execCmd"
     fi;
 
+    # Use --network host for peer-to-peer communication to work
+    # On macOS Docker Desktop, containers share the VM's network stack, allowing them
+    # to reach each other via 127.0.0.1 (as configured in nodes.yaml ENR records).
+    # Note: Port mapping (-p) doesn't work with --network host, so metrics endpoints
+    # are not directly accessible from the macOS host. Use 'docker exec' to access them.
     execCmd="$execCmd --name $item --network host \
           -v $configDir:/config \
           -v $dataDir/$item:/data \
