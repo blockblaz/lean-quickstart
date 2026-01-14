@@ -14,7 +14,7 @@ node_binary="$scriptDir/../zeam/zig-out/bin/zeam node \
       $metrics_flag \
       --metrics_port $metricsPort"
 
-node_docker="--security-opt seccomp=unconfined zeam:local --console_log_level debug --log_file_active_level debug node \
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet1 --console_log_level debug --log_file_active_level debug node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \

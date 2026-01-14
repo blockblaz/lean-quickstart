@@ -16,7 +16,7 @@ validators:
     metricsPort: 8081
     count: 1 # number of indices for this node
 
-  - name: "zeam_1"
+  - name: "ream_0"
     # node id bc531fc1a99a896acb45603f28a32f81ae607480af46435009de4609370cb7bb
     # peer id 16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
     privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
@@ -27,8 +27,8 @@ validators:
     metricsPort: 8082
     count: 1
 
-  - name: "zeam_2"
-    # node id for zeam_2
+  - name: "qlean_0"
+    # node id for qlean_0
     privkey: "c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9"
     enrFields:
       #verify /ip4/127.0.0.1/udp/9003/quic-v1/p2p/16Uiu2HAmQj1RDNAxopeeeCFPRr3zhJYmH6DEPHYKmxLViLahWcFE
