@@ -10,6 +10,9 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
+# Load client configuration (default + user config if provided)
+source "$(dirname $0)/load-client-config.sh"
+
 # Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."
@@ -229,6 +232,9 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
   done
 fi
 spinned_pids=()
+declare -A node_images
+declare -A node_modes
+
 for item in "${spin_nodes[@]}"; do
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
@@ -248,10 +254,44 @@ for item in "${spin_nodes[@]}"; do
   IFS='_' read -r -a elements <<< "$item"
   client="${elements[0]}"
 
+  # Get docker image from config (always set - from default-client-config.yml or user override)
+  client_image=$(get_client_image "$client")
+
+  # Export the image variable for this client (will be used by client-cmd.sh)
+  case "$client" in
+    zeam)
+      export zeamImage="$client_image"
+      ;;
+    ream)
+      export reamImage="$client_image"
+      ;;
+    qlean)
+      export qleanImage="$client_image"
+      ;;
+    lantern)
+      export lanternImage="$client_image"
+      ;;
+    lighthouse)
+      export lighthouseImage="$client_image"
+      ;;
+    grandine)
+      export grandineImage="$client_image"
+      ;;
+  esac
+  echo "  ✓ Using image for $client: $client_image"
+
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
   echo "$sourceCmd"
   eval $sourceCmd
+
+  # Store the final image for display
+  if [ "$node_setup" == "docker" ]; then
+    node_images["$item"]=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
+  fi
+
+  # Store node mode
+  node_modes["$item"]="$node_setup"
 
   # spin nodes
   if [ "$node_setup" == "binary" ]
@@ -291,6 +331,25 @@ done;
 
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
+
+# Display summary table
+echo ""
+echo "=================================================="
+echo "Deployed Nodes Summary:"
+echo "=================================================="
+printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
+echo "--------------------------------------------------"
+for node in "${spin_nodes[@]}"; do
+  mode="${node_modes[$node]}"
+  if [ "$mode" == "docker" ]; then
+    image="${node_images[$node]}"
+    printf "%-15s | %-10s | %s\n" "$node" "$mode" "$image"
+  else
+    printf "%-15s | %-10s | %s\n" "$node" "$mode" "N/A (binary mode)"
+  fi
+done
+echo "=================================================="
+echo ""
 
 cleanup() {
   echo -e "\n\ncleaning up"

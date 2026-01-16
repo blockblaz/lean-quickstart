@@ -6,6 +6,9 @@
 # Metrics enabled by default
 metrics_flag="--metrics_enable"
 
+# Docker image (set from default-client-config.yml or user config via --config-file)
+# zeamImage is exported by spin-node.sh before sourcing this file
+
 node_binary="$scriptDir/../zig-out/bin/zeam node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig \
@@ -14,7 +17,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       $metrics_flag \
       --metrics_port $metricsPort"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet1 node \
+node_docker="--security-opt seccomp=unconfined $zeamImage node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \

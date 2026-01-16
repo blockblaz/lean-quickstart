@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.1"
+# Docker image (set from default-client-config.yml or user config via --config-file)
+# lanternImage is exported by spin-node.sh before sourcing this file
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
@@ -24,7 +25,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --log-level debug \
         --hash-sig-key-dir $configDir/hash-sig-keys"
 
-node_docker="$LANTERN_IMAGE --data-dir /data \
+node_docker="$lanternImage --data-dir /data \
         --genesis-config /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --genesis-state /config/genesis.ssz \

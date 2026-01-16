@@ -3,6 +3,10 @@
 #-----------------------qlean setup----------------------
 # expects "qlean" submodule or symlink inside "lean-quickstart" root directory
 # https://github.com/qdrvm/qlean-mini
+
+# Docker image (set from default-client-config.yml or user config via --config-file)
+# qleanImage is exported by spin-node.sh before sourcing this file
+
 node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --modules-dir $scriptDir/qlean/build/src/modules \
       --genesis $configDir/config.yaml \
@@ -16,8 +20,8 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --prometheus-port $metricsPort \
       -ldebug"
-      
-node_docker="qdrvm/qlean-mini:3a96a1f \
+
+node_docker="$qleanImage \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \

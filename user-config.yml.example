@@ -1,0 +1,26 @@
+# User Client Configuration Example
+# Copy this file to user-config.yml and customize your client images
+# Usage: ./spin-node.sh --config-file user-config.yml --node all
+#
+# Only specify clients you want to override - others will use defaults
+# from client-cmds/default-client-config.yml
+
+clients:
+  - name: zeam
+    image: blockblaz/zeam:custom-tag
+
+  - name: ream
+    image: ghcr.io/reamlabs/ream:my-branch
+
+  # Add more clients as needed:
+  # - name: qlean
+  #   image: qdrvm/qlean-mini:custom-tag
+  #
+  # - name: lantern
+  #   image: piertwo/lantern:custom-tag
+  #
+  # - name: lighthouse
+  #   image: hopinheimer/lighthouse:custom-tag
+  #
+  # - name: grandine
+  #   image: sifrai/lean:custom-tag

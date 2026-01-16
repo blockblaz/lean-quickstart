@@ -3,6 +3,9 @@
 # Metrics enabled by default
 metrics_flag="--metrics"
 
+# Docker image (set from default-client-config.yml or user config via --config-file)
+# lighthouseImage is exported by spin-node.sh before sourcing this file
+
 node_binary="$lighthouse_bin lean_node \
       --datadir \"$dataDir/$item\" \
       --config \"$configDir/config.yaml\" \
@@ -16,7 +19,7 @@ node_binary="$lighthouse_bin lean_node \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort"
 
-node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
+node_docker="$lighthouseImage lighthouse lean_node \
       --datadir /data \
       --config /config/config.yaml \
       --validators /config/validator-config.yaml \
