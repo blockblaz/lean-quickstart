@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Docker image (set from default-client-config.yml or user config via --config-file)
+# grandineImage is exported by spin-node.sh before sourcing this file
+
 node_binary="$grandine_bin \
         --genesis $configDir/config.yaml \
         --validator-registry-path $configDir/validators.yaml \
@@ -10,7 +13,7 @@ node_binary="$grandine_bin \
         --address 0.0.0.0 \
         --hash-sig-key-dir $configDir/hash-sig-keys"
 
-node_docker="sifrai/lean:unstable \
+node_docker="$grandineImage \
         --genesis /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --bootnodes /config/nodes.yaml \

@@ -1,0 +1,22 @@
+# Default Client Configuration
+# This file contains the default Docker images for all supported clients
+# These defaults are used when no custom config file is specified via --config-file
+
+clients:
+  - name: zeam
+    image: blockblaz/zeam:latest
+
+  - name: ream
+    image: ghcr.io/reamlabs/ream:latest
+
+  - name: qlean
+    image: qdrvm/qlean-mini:latest
+
+  - name: lantern
+    image: piertwo/lantern:latest
+
+  - name: lighthouse
+    image: hopinheimer/lighthouse:latest
+
+  - name: grandine
+    image: sifrai/lean:latest

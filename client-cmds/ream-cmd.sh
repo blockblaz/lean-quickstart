@@ -4,6 +4,9 @@
 # Metrics enabled by default
 metrics_flag="--metrics"
 
+# Docker image (set from default-client-config.yml or user config via --config-file)
+# reamImage is exported by spin-node.sh before sourcing this file
+
 # modify the path to the ream binary as per your system
 node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         lean_node \
@@ -17,7 +20,7 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         --metrics-port $metricsPort \
         --http-address 0.0.0.0"
 
-node_docker="ghcr.io/reamlabs/ream:latest --data-dir /data \
+node_docker="$reamImage --data-dir /data \
         lean_node \
         --network /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
