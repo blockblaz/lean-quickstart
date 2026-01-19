@@ -1,0 +1,100 @@
+---
+# Ethlambda role: Deploy and manage Ethlambda nodes
+# Converts client-cmds/ethlambda-cmd.sh logic to Ansible tasks
+
+- name: Extract docker image from client-cmd.sh
+  shell: |
+    # Extract the first word (docker image) from node_docker line
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_docker=' "$project_root/client-cmds/ethlambda-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+  register: ethlambda_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    # Extract the value from node_setup line
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/ethlambda-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: ethlambda_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:latest') }}"
+    deployment_mode: "{{ ethlambda_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+  register: ethlambda_node_config
+  changed_when: false
+  loop:
+    - enrFields.quic
+    - privkey
+  when: node_name is defined
+
+- name: Set node ports
+  set_fact:
+    ethlambda_quic_port: "{{ ethlambda_node_config.results[0].stdout }}"
+    ethlambda_metrics_port: "{{ ethlambda_node_config.results[1].stdout | default('8081') }}"
+  when: ethlambda_node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Debug node key file check
+  debug:
+    msg: "Checking for key file at {{ genesis_dir }}/{{ node_name }}.key - exists: {{ node_key_stat.stat.exists | default('undefined') }}"
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not (node_key_stat.stat.exists | default(false))
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false) | bool
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Ethlambda node using Docker
+  block:
+    - name: Stop existing Ethlambda container (if any)
+      command: docker rm -f {{ node_name }}
+      register: ethlambda_stop
+      failed_when: false
+      changed_when: ethlambda_stop.rc == 0
+
+    - name: Start Ethlambda container
+      command: >-
+        docker run -d
+        --pull=always
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ ethlambda_docker_image }}
+        --custom-network-config-dir /config
+        --gossipsub-port {{ ethlambda_quic_port }}
+        --node-id {{ node_name }}
+        --node-key /config/{{ node_name }}.key
+        --metrics-address 0.0.0.0
+        --metrics-port {{ ethlambda_metrics_port }}
+      register: ethlambda_container
+      changed_when: ethlambda_container.rc == 0
+  when: deployment_mode == 'docker'
