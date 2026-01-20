@@ -14,7 +14,7 @@ node_binary="$binary_path \
       --metrics-port $metricsPort"
 
 # Command when running as docker container
-node_docker="ghcr.io/lambdaclass/ethlambda:latest \
+node_docker="ghcr.io/lambdaclass/ethlambda:devnet1 \
       --custom-network-config-dir /config \
       --gossipsub-port $quicPort \
       --node-id $item \
