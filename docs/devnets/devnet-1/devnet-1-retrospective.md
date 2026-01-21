@@ -10,13 +10,38 @@ This note covers our findings from the Devnet-1 run in late December 2025 and th
 >
 > **Observability stack**: Prometheus, Grafana, Node Exporter.
 
+### Contents
+
+- [Summary & Key Achievements](#summary--key-achievements)
+  - [PQ Signature Performance](#pq-signature-performance)
+  - [Liveness and Finalization Results](#liveness-and-finalization-results)
+- [Troubleshooting](#troubleshooting)
+  - [Finalization issues](#finalization-issues)
+  - [Hash Signature and SSZ Bugs](#hash-signature-and-ssz-bugs)
+  - [Peer Connection Issues](#peer-connection-issues)
+  - [Memory and storage issues](#memory-and-storage-issues)
+  - [Req/resp issues](#reqresp-issues)
+  - [Genesis/anchor block](#genesisanchor-block)
+  - [Unstable Node Syncing](#unstable-node-syncing)
+- [Next steps for Devnet-2](#next-steps-for-devnet-2)
+  - [Checkpoint Sync Implementation](#checkpoint-sync-implementation)
+  - [Observability Improvements](#observability-improvements)
+  - [Upcoming Metrics](#upcoming-metrics)
+  - [Expected Clients Updates](#expected-clients-updates)
+  - [Lean Spec Proposals](#lean-spec-proposals)
+  - [Tooling Improvements](#tooling-improvements)
+
 ## Summary & Key Achievements
 
-The primary goals of Devnet-1 were successfully reached. All participating clients followed the specs and implemented a working [3SF-mini](https://github.com/ethereum/research/tree/master/3sf-mini) with 4-second slots. Using attestations signed by [XMSS signatures](https://github.com/leanEthereum/leanSpec/tree/main/src/lean_spec/subspecs/xmss), the network successfully reached finality.
+The [primary goals of Devnet-1](https://github.com/leanEthereum/pm/blob/main/breakout-rooms/leanConsensus/pq-interop/pq-devnet-1.md) were successfully reached. All participating clients followed the specs and implemented a working [3SF-mini](https://github.com/ethereum/research/tree/master/3sf-mini) with 4-second slots. Using attestations signed by [XMSS signatures](https://github.com/leanEthereum/leanSpec/tree/main/src/lean_spec/subspecs/xmss), the network successfully reached finality.
+
+### PQ Signature Performance
 
 PQ signature signing and verification remained stable throughout Devnet-1. Based on metrics from Zeam, Ream, Qlean, and Lantern, signing time ranged from 5–25ms, reaching up to 50ms. Verification took on average 5ms, with occasional spikes up to 10ms.
 
 ![PQ Signatures Performance](./images/devnet1-pq-signatures.png)
+
+### Liveness and Finalization Results
 
 While the network reached finality and maintained liveness throughout the run, finalization remained unstable. Despite these issues, having a devnet running on 6 clients with achieved finality is a significant success. All teams were responsive, open to collaboration, and worked quickly to fix bugs and keep the network alive.
 
@@ -193,9 +218,9 @@ Besides following the [pq-devnet-2: High Level Plan](https://github.com/leanEthe
 
 ### Lean Spec Proposals
 
-- **Dynamic Validator Count:** Moving away from a strictly defined validator set to allow finality calculation based on currently active validators. This will prevent finality stalls when individual nodes are upgrading or restarting. See the PR [#256](https://github.com/leanEthereum/leanSpec/pull/256).
+- **Dynamic Validator Count:** A [proposal from PR #256](https://github.com/leanEthereum/leanSpec/pull/256) to move away from a strictly defined validator set was discussed to prevent finality stalls. While the PR is closed for now to avoid premature complexity (activation/exit delays), the team concluded during the Jan 14, 2026 interop that **node syncing and checkpoint sync** will serve as the primary workarounds for Devnet-2. Dynamic validators will be reconsidered once the final consensus mechanism is in place.
 
-## Tooling Improvements
+### Tooling Improvements
 
 Hands-on time with `lean-quickstart` brought up a few ideas to discuss:
 
