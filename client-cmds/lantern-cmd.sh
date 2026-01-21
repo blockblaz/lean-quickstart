@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-# Docker image (set from default-client-config.yml or user config via --config-file)
+# Docker image (set from validator-config.yaml or user config via --config-file)
 # lanternImage is exported by spin-node.sh before sourcing this file
 
 devnet_flag=""

@@ -148,16 +148,16 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$configFile"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
     exit 0
   fi
-  
+
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$configFile"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -254,7 +254,7 @@ for item in "${spin_nodes[@]}"; do
   IFS='_' read -r -a elements <<< "$item"
   client="${elements[0]}"
 
-  # Get docker image from config (always set - from default-client-config.yml or user override)
+  # Get docker image from config (always set - from validator-config.yaml or user override)
   client_image=$(get_client_image "$client")
 
   # Export the image variable for this client (will be used by client-cmd.sh)
@@ -300,12 +300,25 @@ for item in "${spin_nodes[@]}"; do
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
-    # Pull image first 
+    # Pull image first
     if [ -n "$dockerWithSudo" ]; then
       sudo docker pull "$docker_image" || true
     else
       docker pull "$docker_image" || true
     fi
+
+    # Check if the image exists locally (either pulled successfully or was cached)
+    if [ -n "$dockerWithSudo" ]; then
+      image_exists=$(sudo docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
+    else
+      image_exists=$(docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
+    fi
+
+    if [ "$image_exists" == "no" ]; then
+      echo "⚠️  Skipping $item: Docker image '$docker_image' does not exist and could not be pulled"
+      continue
+    fi
+
     execCmd="docker run --rm --pull=never"
     if [ -n "$dockerWithSudo" ]
     then

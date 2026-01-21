@@ -76,37 +76,37 @@ You can override default Docker images using the `--config-file` flag. This is u
 
 **Basic usage (without custom images):**
 ```sh
-# Uses default images from client-cmds/default-client-config.yml
+# Uses default images from validator-config.yaml in your network directory
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 ```
 
 **With custom config file:**
 ```sh
-# Override specific client images
+# Override specific node images
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --config-file user-config.yml
 ```
 
 **Example config file (user-config.yml):**
 ```yaml
-clients:
-  - name: zeam
+nodes:
+  - name: zeam_0
     image: blockblaz/zeam:feature-branch
-  - name: ream
+  - name: ream_0
     image: ghcr.io/reamlabs/ream:v2.0
 ```
 
 **Testing a specific client build:**
 ```sh
 # Create custom config file for zeam <your-PATH>/my-zeam-config.yml
-clients:
-  - name: zeam
+nodes:
+  - name: zeam_0
     image: blockblaz/zeam:custom-tag
 
 # Run with custom zeam image
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --config-file <your-PATH>/my-zeam-config.yml
 ```
 
-Only specify clients you want to override - others will use their defaults from `client-cmds/default-client-config.yml`.
+Only specify nodes you want to override - others will use their defaults from `validator-config.yaml`.
 
 ## Args
 
@@ -157,9 +157,9 @@ Only specify clients you want to override - others will use their defaults from 
    - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
-11. `--config-file` specifies a custom configuration file to override default Docker images for specific clients.
-   - Path to a YAML file containing client image overrides (e.g., `user-config.yml` or `/path/to/my-config.yml`)
-   - Only clients specified in the config file are overridden; others use defaults from `client-cmds/default-client-config.yml`
+11. `--config-file` specifies a custom configuration file to override default Docker images for specific nodes.
+   - Path to a YAML file containing node image overrides (e.g., `user-config.yml` or `/path/to/my-config.yml`)
+   - Only nodes specified in the config file are overridden; others use defaults from `validator-config.yaml`
    - See [Using custom Docker images](#using-custom-docker-images) scenario for usage examples
    - Example: `--config-file user-config.yml` or `--config-file /path/to/custom-config.yml`
 12. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
@@ -192,7 +192,6 @@ The quickstart uses separate directories for local and Ansible deployments:
 ```
 lean-quickstart/
 ├── client-cmds/                   # Client command scripts
-│   ├── default-client-config.yml  # Default Docker images for all clients
 │   ├── zeam-cmd.sh
 │   ├── ream-cmd.sh
 │   └── ...

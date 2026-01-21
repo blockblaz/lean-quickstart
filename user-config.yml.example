@@ -1,26 +1,26 @@
-# User Client Configuration Example
-# Copy this file to user-config.yml and customize your client images
-# Usage: ./spin-node.sh --config-file user-config.yml --node all
+# User Configuration Example
+# Copy this file to user-config.yml or <your-custom-name>.yml and customize your docker images
+# Usage: ./spin-node.sh --config-file <your-config-file>.yml --node zeam_0,ream_0
 #
-# Only specify clients you want to override - others will use defaults
-# from client-cmds/default-client-config.yml
+# Only specify nodes you want to override - others will use defaults
+# from validator-config.yaml in your network directory
 
-clients:
-  - name: zeam
+nodes:
+  - name: zeam_0
     image: blockblaz/zeam:custom-tag
 
-  - name: ream
+  - name: ream_0
     image: ghcr.io/reamlabs/ream:my-branch
 
-  # Add more clients as needed:
-  # - name: qlean
+  # Add more nodes as needed:
+  # - name: qlean_0
   #   image: qdrvm/qlean-mini:custom-tag
   #
-  # - name: lantern
+  # - name: lantern_0
   #   image: piertwo/lantern:custom-tag
   #
-  # - name: lighthouse
+  # - name: lighthouse_0
   #   image: hopinheimer/lighthouse:custom-tag
   #
-  # - name: grandine
+  # - name: grandine_0
   #   image: sifrai/lean:custom-tag
