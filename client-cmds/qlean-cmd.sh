@@ -15,7 +15,8 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --node-id $item --node-key $configDir/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --prometheus-port $metricsPort \
-      -ldebug"
+      -ldebug \
+      -ltrace"
       
 node_docker="qdrvm/qlean-mini:3a96a1f \
       --genesis /config/config.yaml \
@@ -28,7 +29,8 @@ node_docker="qdrvm/qlean-mini:3a96a1f \
       --node-id $item --node-key /config/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --prometheus-port $metricsPort \
-      -ldebug"
+      -ldebug \
+      -ltrace"
 
 # choose either binary or docker
 node_setup="docker"

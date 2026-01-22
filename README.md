@@ -531,6 +531,10 @@ However, for most use cases, `spin-node.sh` is recommended as it provides a cons
 
 ### Installing Ansible
 
+**Minimum Required Version:** Ansible 2.13+
+
+The Ansible configuration uses `result_format = yaml` which requires Ansible 2.13 or later (released May 2022).
+
 **macOS:**
 ```sh
 brew install ansible
@@ -545,6 +549,11 @@ sudo apt-get install ansible
 **Using pip:**
 ```sh
 pip install ansible
+```
+
+**Verify your version meets the requirement:**
+```sh
+ansible --version  # Must be 2.13+
 ```
 
 ### Installing Ansible Dependencies

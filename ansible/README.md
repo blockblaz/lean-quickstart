@@ -121,6 +121,10 @@ This guide covers comprehensive testing strategies for the Ansible deployment in
 
 ### 1. Install Ansible
 
+**Minimum Required Version:** Ansible 2.13+
+
+The configuration uses `result_format = yaml` (introduced in Ansible 2.13). Earlier versions will fail with an error about the removed `community.general.yaml` callback plugin.
+
 **macOS:**
 ```sh
 brew install ansible
@@ -132,7 +136,7 @@ sudo apt-get update
 sudo apt-get install ansible
 ```
 
-**Verify installation:**
+**Verify installation (must be 2.13+):**
 ```sh
 ansible --version
 ansible-playbook --version
