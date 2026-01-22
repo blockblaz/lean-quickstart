@@ -54,9 +54,6 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --deploymen
 # Run only zeam_0 and ream_0 nodes (comma-separated)
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0,ream_0 --generateGenesis --popupTerminal
 
-# Run zeam_0 with a custom Docker image override (without editing client-cmds)
-NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --docker-image ghcr.io/your-org/custom-zeam:dev
-
 # Run only zeam_0 and qlean_0 nodes (space-separated)
 NETWORK_DIR=local-devnet ./spin-node.sh --node "zeam_0 qlean_0" --generateGenesis --popupTerminal
 
@@ -122,11 +119,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
    - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
-11. `--docker-image` specifies a full Docker image reference (image[:tag]) to override the default client image.
-   - Applies to Docker mode only; the override is injected into the `node_docker` command for the selected nodes.
-   - Useful for testing local builds or custom tags without modifying `client-cmds/*-cmd.sh`.
-   - Example: `--docker-image ghcr.io/your-org/custom-zeam:dev`
-12. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
+11. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
 
 ### Clients supported
 

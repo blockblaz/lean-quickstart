@@ -258,13 +258,6 @@ for item in "${spin_nodes[@]}"; do
   then
     execCmd="$node_binary"
   else
-    # If a docker image override was provided, replace the image name in node_docker
-    if [ -n "$dockerImageOverride" ]; then
-      # Replace the first token containing ':' (image:tag pattern) with the override image
-      # This handles cases where node_docker may start with flags like --security-opt
-      node_docker="$(echo "$node_docker" | sed -E "s|([^ ]+:[^ ]+)|$dockerImageOverride|1")"
-    fi
-
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
     # Pull image first 
