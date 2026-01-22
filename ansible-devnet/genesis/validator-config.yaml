@@ -67,3 +67,11 @@ validators:
       quic: 9001
     metricsPort: 8081
     count: 1
+
+  - name: "ethlambda_0"
+    privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
+    enrFields:
+      ip: "91.99.52.24"
+      quic: 9001
+    metricsPort: 8081
+    count: 1
