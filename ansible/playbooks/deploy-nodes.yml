@@ -106,6 +106,7 @@
         - lantern
         - lighthouse
         - grandine
+        - ethlambda
         - deploy
 
     - name: Include common role

@@ -17,7 +17,7 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         --metrics-port $metricsPort \
         --http-address 0.0.0.0"
 
-node_docker="ghcr.io/reamlabs/ream:latest --data-dir /data \
+node_docker="ghcr.io/reamlabs/ream:latest-devnet2 --data-dir /data \
         lean_node \
         --network /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
