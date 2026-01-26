@@ -76,7 +76,15 @@
     - grandine
     - deploy
 
+- name: Deploy Ethlambda node
+  include_role:
+    name: ethlambda
+  when: client_type == "ethlambda"
+  tags:
+    - ethlambda
+    - deploy
+
 - name: Fail if unknown client type
   fail:
-    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, lighthouse or grandine"
-  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse", "grandine"]
+    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, lighthouse, grandine or ethlambda"
+  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse", "grandine", "ethlambda"]

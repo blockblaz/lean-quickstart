@@ -15,7 +15,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
-      --metrics_port $metricsPort"
+      --api-port $metricsPort"
 
 node_docker="--security-opt seccomp=unconfined $zeamImage node \
       --custom_genesis /config \
@@ -23,7 +23,7 @@ node_docker="--security-opt seccomp=unconfined $zeamImage node \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
       $metrics_flag \
-      --metrics_port $metricsPort"
+      --api-port $metricsPort"
 
 # choose either binary or docker
 node_setup="docker"

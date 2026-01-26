@@ -1,14 +1,21 @@
 ---
-# Deploy nodes playbook: Deploy and manage Lean nodes
-# Requires node_names to be specified (comma or space separated)
-# This playbook runs on localhost to parse node names, then deploys to remote hosts
+# Clean data playbook: Clean node data directories
 
 - name: Parse and validate node names
   hosts: localhost
   connection: local
-  gather_facts: yes
+  gather_facts: no
   vars:
     validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+  tags:
+    - zeam
+    - ream
+    - qlean
+    - lantern
+    - lighthouse
+    - grandine
+    - ethlambda
+    - deploy
 
   tasks:
     - name: Validate validator-config.yaml exists
@@ -20,6 +27,18 @@
       fail:
         msg: "validator-config.yaml not found at {{ validator_config_file }}"
       when: not validator_config_stat.stat.exists
+
+    - name: Verify yq is available
+      command: yq --version
+      register: yq_version
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Fail if yq is not available
+      fail:
+        msg: "yq is required but not installed. Install on macOS: brew install yq, or see https://github.com/mikefarah/yq"
+      when: yq_version.rc != 0
 
     - name: Extract all node names
       shell: |
@@ -38,15 +57,15 @@
 
     - name: Handle "all" node names - expand to all nodes
       set_fact:
-        deploy_nodes: "{{ all_node_names }}"
+        clean_nodes: "{{ all_node_names }}"
       when:
         - node_names is defined
         - node_names == "all"
 
     - name: Parse node names if provided as comma-separated string
       set_fact:
-        deploy_nodes: "{{ node_names.split(',') | map('trim') | list }}"
-      when: 
+        clean_nodes: "{{ node_names.split(',') | map('trim') | list }}"
+      when:
         - node_names is defined
         - node_names is string
         - node_names != "all"
@@ -54,8 +73,8 @@
 
     - name: Parse node names if provided as space-separated string
       set_fact:
-        deploy_nodes: "{{ node_names.split(' ') | map('trim') | select('length') | list }}"
-      when: 
+        clean_nodes: "{{ node_names.split(' ') | map('trim') | select('length') | list }}"
+      when:
         - node_names is defined
         - node_names is string
         - node_names != "all"
@@ -64,7 +83,7 @@
 
     - name: Handle single node name
       set_fact:
-        deploy_nodes: "{{ [node_names] }}"
+        clean_nodes: "{{ [node_names] }}"
       when:
         - node_names is defined
         - node_names is string
@@ -72,56 +91,37 @@
         - '"," not in node_names'
         - '" " not in node_names'
 
-    - name: Display deployment targets
+    - name: Display nodes to clean
       debug:
-        msg: "Deploying nodes: {{ deploy_nodes | join(', ') }}"
+        msg: "Cleaning data directories for nodes: {{ clean_nodes | join(', ') }}"
 
-    - name: Add deployment hosts to inventory
+    - name: Add nodes to clean_targets group
       add_host:
         name: "{{ item }}"
-        groups: deployment_targets
-      loop: "{{ deploy_nodes }}"
+        groups: clean_targets
+      loop: "{{ clean_nodes }}"
 
-- name: Deploy nodes on remote hosts
-  hosts: deployment_targets
-  gather_facts: yes
+- name: Clean node data directories on remote hosts
+  hosts: clean_targets
+  gather_facts: no
   vars:
     # Use remote paths on remote hosts
-    genesis_dir: "{{ remote_genesis_dir | default('/opt/lean-quickstart/genesis') }}"
     data_dir: "{{ remote_data_dir | default('/opt/lean-quickstart/data') }}"
-    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
-    # node_name is set to inventory_hostname (which matches the node name)
     node_name: "{{ inventory_hostname }}"
+  tags:
+    - zeam
+    - ream
+    - qlean
+    - lantern
+    - lighthouse
+    - grandine
+    - ethlambda
+    - deploy
 
   tasks:
     - name: Clean node data directory
       raw: rm -rf {{ data_dir }}/{{ node_name }}
-      when:
-        - clean_data | default(false) | bool
-        - not (skip_role_cleaning | default(false) | bool)
-      tags:
-        - zeam
-        - ream
-        - qlean
-        - lantern
-        - lighthouse
-        - grandine
-        - ethlambda
-        - deploy
 
-    - name: Include common role
-      include_role:
-        name: common
-      vars:
-        node_names: "{{ [inventory_hostname] }}"
-      tags:
-        - setup
-        - deploy
-
-    - name: Deploy this node
-      include_tasks: helpers/deploy-single-node.yml
-      vars:
-        node_name: "{{ inventory_hostname }}"
-      tags:
-        - deploy
-
+    - name: Display cleaned directory
+      debug:
+        msg: "Cleaned data directory: {{ data_dir }}/{{ node_name }}"

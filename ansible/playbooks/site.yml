@@ -1,8 +1,9 @@
 ---
 # Main site playbook: Complete deployment workflow
-# 1. Generate genesis files locally (including .key files)
-# 2. Copy genesis files to remote hosts
-# 3. Deploy nodes
+# 1. Clean data directories (if clean_data=true)
+# 2. Generate genesis files locally (including .key files)
+# 3. Copy genesis files to remote hosts
+# 4. Deploy nodes
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
@@ -13,8 +14,16 @@
 #   network_dir      - Path to network directory (genesis_dir derived from this)
 #   genesis_dir      - Path to genesis directory (required)
 #   node_names       - Nodes to deploy: "all" or comma-separated names
+#   clean_data       - Set to true to clean data directories before deployment (default: false)
 #   skip_genesis     - Set to true to skip genesis generation (default: false)
 #   genesis_offset   - Seconds to add to current time for genesis (default: 360 for ansible mode)
+
+- name: Clean Data Directories
+  import_playbook: clean-node-data.yml
+  vars:
+    genesis_dir: "{{ network_dir }}/genesis"
+    node_names: "{{ node_names }}"
+  when: clean_data | default(false) | bool
 
 - name: Generate Genesis Files
   import_playbook: generate-genesis.yml
@@ -32,3 +41,4 @@
   import_playbook: deploy-nodes.yml
   vars:
     node_names: "{{ node_names }}"
+    skip_role_cleaning: "{{ clean_data | default(false) | bool }}"

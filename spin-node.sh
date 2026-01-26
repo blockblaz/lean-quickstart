@@ -325,6 +325,11 @@ for item in "${spin_nodes[@]}"; do
       execCmd="sudo $execCmd"
     fi;
 
+    # Use --network host for peer-to-peer communication to work
+    # On macOS Docker Desktop, containers share the VM's network stack, allowing them
+    # to reach each other via 127.0.0.1 (as configured in nodes.yaml ENR records).
+    # Note: Port mapping (-p) doesn't work with --network host, so metrics endpoints
+    # are not directly accessible from the macOS host. Use 'docker exec' to access them.
     execCmd="$execCmd --name $item --network host \
           -v $configDir:/config \
           -v $dataDir/$item:/data \
