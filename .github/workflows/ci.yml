@@ -1,0 +1,165 @@
+name: CI (Advisory)
+
+# Non-blocking CI - provides feedback without preventing merges.
+# To make checks required: remove continue-on-error and add to branch protection.
+
+on:
+  pull_request:
+    branches: [main, release]
+  push:
+    branches: [main]
+
+jobs:
+  lint-shell:
+    name: "ShellCheck (Advisory)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          severity: warning
+          scandir: '.'
+          format: gcc
+        env:
+          # SC1091: Can't follow sourced files (valid - dynamic paths)
+          SHELLCHECK_OPTS: -e SC1091
+        continue-on-error: true
+
+  lint-yaml:
+    name: "YAML Lint (Advisory)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint YAML files
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: |
+            .github/workflows/
+            ansible/
+            local-devnet/genesis/
+            ansible-devnet/genesis/
+          config_data: |
+            extends: relaxed
+            rules:
+              line-length: disable
+              truthy:
+                allowed-values: ['true', 'false', 'yes', 'no']
+              comments:
+                min-spaces-from-content: 1
+        continue-on-error: true
+
+  ansible-syntax:
+    name: "Ansible Syntax (Advisory)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Install Ansible collections
+        working-directory: ansible
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Syntax check all playbooks
+        working-directory: ansible
+        run: |
+          for playbook in playbooks/*.yml; do
+            echo "Checking $playbook..."
+            ansible-playbook --syntax-check "$playbook" || echo "⚠️ Syntax issues in $playbook"
+          done
+        continue-on-error: true
+
+  validate-configs:
+    name: "Config Validation (Advisory)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate validator-config.yaml files
+        run: |
+          for config in local-devnet/genesis/validator-config.yaml ansible-devnet/genesis/validator-config.yaml; do
+            echo "========================================="
+            echo "Validating: $config"
+            echo "========================================="
+
+            # Check file exists
+            if [ ! -f "$config" ]; then
+              echo "⚠️ File not found: $config"
+              continue
+            fi
+
+            # Check valid YAML
+            if ! yq eval '.' "$config" > /dev/null 2>&1; then
+              echo "❌ Invalid YAML syntax in $config"
+              continue
+            fi
+            echo "✅ Valid YAML syntax"
+
+            # Check required field: validators (array of nodes)
+            VALIDATORS=$(yq eval '.validators | length' "$config" 2>/dev/null)
+            if [ -z "$VALIDATORS" ] || [ "$VALIDATORS" = "null" ] || [ "$VALIDATORS" -eq 0 ]; then
+              echo "⚠️ Missing or empty 'validators' array"
+            else
+              echo "✅ 'validators' array present with $VALIDATORS entries"
+            fi
+
+            # Check required field: config.activeEpoch
+            ACTIVE_EPOCH=$(yq eval '.config.activeEpoch' "$config" 2>/dev/null)
+            if [ -z "$ACTIVE_EPOCH" ] || [ "$ACTIVE_EPOCH" = "null" ]; then
+              echo "⚠️ Missing 'config.activeEpoch' (required for hash-sig-cli)"
+            else
+              echo "✅ 'config.activeEpoch' present: $ACTIVE_EPOCH"
+            fi
+
+            # Check required field: config.keyType
+            KEY_TYPE=$(yq eval '.config.keyType' "$config" 2>/dev/null)
+            if [ -z "$KEY_TYPE" ] || [ "$KEY_TYPE" = "null" ]; then
+              echo "⚠️ Missing 'config.keyType'"
+            else
+              echo "✅ 'config.keyType' present: $KEY_TYPE"
+            fi
+
+            # Validate each validator has required fields
+            echo "Checking validator entries..."
+            VALIDATOR_COUNT=$(yq eval '.validators | length' "$config")
+            for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
+              NAME=$(yq eval ".validators[$i].name" "$config")
+              COUNT=$(yq eval ".validators[$i].count" "$config")
+              PRIVKEY=$(yq eval ".validators[$i].privkey" "$config")
+
+              if [ "$NAME" = "null" ] || [ -z "$NAME" ]; then
+                echo "  ⚠️ Validator $i: missing 'name'"
+              elif [ "$COUNT" = "null" ] || [ -z "$COUNT" ]; then
+                echo "  ⚠️ Validator $NAME: missing 'count'"
+              elif [ "$PRIVKEY" = "null" ] || [ -z "$PRIVKEY" ]; then
+                echo "  ⚠️ Validator $NAME: missing 'privkey'"
+              else
+                echo "  ✅ $NAME: count=$COUNT, privkey=<present>"
+              fi
+            done
+
+            echo ""
+          done
+        continue-on-error: true
