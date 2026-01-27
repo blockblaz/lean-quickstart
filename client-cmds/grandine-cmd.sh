@@ -10,7 +10,7 @@ node_binary="$grandine_bin \
         --address 0.0.0.0 \
         --hash-sig-key-dir $configDir/hash-sig-keys"
 
-node_docker="sifrai/lean:unstable \
+node_docker="sifrai/lean:devnet-2 \
         --genesis /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --bootnodes /config/nodes.yaml \

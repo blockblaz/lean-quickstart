@@ -3,7 +3,7 @@
 # Note: These are fallback defaults. Actual values are extracted from client-cmds/qlean-cmd.sh
 # in the tasks/main.yml file. These defaults are used if extraction fails.
 
-qlean_docker_image: "qdrvm/qlean-mini:devnet-2"
+qlean_docker_image: "qdrvm/qlean-mini:latest"
 qlean_docker_platform: "linux/amd64"
 qlean_binary_path: "{{ playbook_dir }}/../qlean/build/src/executable/qlean"
 qlean_modules_dir: "{{ playbook_dir }}/../qlean/build/src/modules"

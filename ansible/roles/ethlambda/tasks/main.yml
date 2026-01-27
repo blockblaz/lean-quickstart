@@ -26,7 +26,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:devnet1') }}"
+    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:latest') }}"
     deployment_mode: "{{ ethlambda_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
