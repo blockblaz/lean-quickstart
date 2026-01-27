@@ -2,6 +2,13 @@
 # Deploy nodes playbook: Deploy and manage Lean nodes
 # Requires node_names to be specified (comma or space separated)
 # This playbook runs on localhost to parse node names, then deploys to remote hosts
+#
+# Before deployment, it syncs essential config files from local to remote:
+#   - validator-config.yaml
+#   - node key files (*.key)
+#   - config.yaml, validators.yaml, nodes.yaml
+#   - genesis.ssz, genesis.json
+#   - hash-sig-keys/ directory (if exists, for qlean nodes)
 
 - name: Parse and validate node names
   hosts: localhost
@@ -82,6 +89,11 @@
         groups: deployment_targets
       loop: "{{ deploy_nodes }}"
 
+    - name: Store local genesis dir for remote plays
+      set_fact:
+        local_genesis_dir_path: "{{ genesis_dir }}"
+        cacheable: yes
+
 - name: Deploy nodes on remote hosts
   hosts: deployment_targets
   gather_facts: yes
@@ -92,8 +104,85 @@
     validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
     # node_name is set to inventory_hostname (which matches the node name)
     node_name: "{{ inventory_hostname }}"
+    # Local genesis directory for syncing config files (from localhost play)
+    local_genesis_dir: "{{ hostvars['localhost']['local_genesis_dir_path'] }}"
 
   tasks:
+    - name: Create remote genesis directory
+      file:
+        path: "{{ genesis_dir }}"
+        state: directory
+        mode: '0755'
+      tags:
+        - deploy
+        - sync
+
+    - name: Sync validator-config.yaml to remote host
+      copy:
+        src: "{{ local_genesis_dir }}/validator-config.yaml"
+        dest: "{{ genesis_dir }}/validator-config.yaml"
+        mode: '0644'
+        force: yes
+      tags:
+        - deploy
+        - sync
+
+    - name: Sync node key file to remote host
+      copy:
+        src: "{{ local_genesis_dir }}/{{ node_name }}.key"
+        dest: "{{ genesis_dir }}/{{ node_name }}.key"
+        mode: '0600'
+        force: yes
+      tags:
+        - deploy
+        - sync
+
+    - name: Sync essential genesis config files
+      copy:
+        src: "{{ local_genesis_dir }}/{{ item }}"
+        dest: "{{ genesis_dir }}/{{ item }}"
+        mode: '0644'
+        force: yes
+      loop:
+        - config.yaml
+        - validators.yaml
+        - nodes.yaml
+        - genesis.ssz
+        - genesis.json
+      tags:
+        - deploy
+        - sync
+
+    - name: Check if hash-sig-keys directory exists locally
+      stat:
+        path: "{{ local_genesis_dir }}/hash-sig-keys"
+      register: hash_sig_keys_local
+      delegate_to: localhost
+      tags:
+        - deploy
+        - sync
+
+    - name: Create hash-sig-keys directory on remote
+      file:
+        path: "{{ genesis_dir }}/hash-sig-keys"
+        state: directory
+        mode: '0755'
+      when: hash_sig_keys_local.stat.exists
+      tags:
+        - deploy
+        - sync
+
+    - name: Sync hash-sig-keys directory (for qlean nodes)
+      copy:
+        src: "{{ local_genesis_dir }}/hash-sig-keys/"
+        dest: "{{ genesis_dir }}/hash-sig-keys/"
+        mode: '0644'
+        force: yes
+      when: hash_sig_keys_local.stat.exists
+      tags:
+        - deploy
+        - sync
+
     - name: Clean node data directory
       raw: rm -rf {{ data_dir }}/{{ node_name }}
       when:
