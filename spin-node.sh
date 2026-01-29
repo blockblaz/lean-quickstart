@@ -10,6 +10,9 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
+# Load client configuration (default + user config if provided)
+source "$(dirname $0)/load-client-config.sh"
+
 # Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."
@@ -145,16 +148,16 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$configFile"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
     exit 0
   fi
-  
+
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$configFile"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -229,6 +232,9 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
   done
 fi
 spinned_pids=()
+declare -A node_images
+declare -A node_modes
+
 for item in "${spin_nodes[@]}"; do
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
@@ -253,10 +259,44 @@ for item in "${spin_nodes[@]}"; do
   IFS='_' read -r -a elements <<< "$item"
   client="${elements[0]}"
 
+  # Get docker image from config (always set - from validator-config.yaml or user override)
+  client_image=$(get_client_image "$client")
+
+  # Export the image variable for this client (will be used by client-cmd.sh)
+  case "$client" in
+    zeam)
+      export zeamImage="$client_image"
+      ;;
+    ream)
+      export reamImage="$client_image"
+      ;;
+    qlean)
+      export qleanImage="$client_image"
+      ;;
+    lantern)
+      export lanternImage="$client_image"
+      ;;
+    lighthouse)
+      export lighthouseImage="$client_image"
+      ;;
+    grandine)
+      export grandineImage="$client_image"
+      ;;
+  esac
+  echo "  ✓ Using image for $client: $client_image"
+
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
   echo "$sourceCmd"
   eval $sourceCmd
+
+  # Store the final image for display
+  if [ "$node_setup" == "docker" ]; then
+    node_images["$item"]=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
+  fi
+
+  # Store node mode
+  node_modes["$item"]="$node_setup"
 
   # spin nodes
   if [ "$node_setup" == "binary" ]
@@ -265,12 +305,25 @@ for item in "${spin_nodes[@]}"; do
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
-    # Pull image first 
+    # Pull image first
     if [ -n "$dockerWithSudo" ]; then
       sudo docker pull "$docker_image" || true
     else
       docker pull "$docker_image" || true
     fi
+
+    # Check if the image exists locally (either pulled successfully or was cached)
+    if [ -n "$dockerWithSudo" ]; then
+      image_exists=$(sudo docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
+    else
+      image_exists=$(docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
+    fi
+
+    if [ "$image_exists" == "no" ]; then
+      echo "⚠️  Skipping $item: Docker image '$docker_image' does not exist and could not be pulled"
+      continue
+    fi
+
     execCmd="docker run --rm --pull=never"
     if [ -n "$dockerWithSudo" ]
     then
@@ -301,6 +354,25 @@ done;
 
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
+
+# Display summary table
+echo ""
+echo "=================================================="
+echo "Deployed Nodes Summary:"
+echo "=================================================="
+printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
+echo "--------------------------------------------------"
+for node in "${spin_nodes[@]}"; do
+  mode="${node_modes[$node]}"
+  if [ "$mode" == "docker" ]; then
+    image="${node_images[$node]}"
+    printf "%-15s | %-10s | %s\n" "$node" "$mode" "$image"
+  else
+    printf "%-15s | %-10s | %s\n" "$node" "$mode" "N/A (binary mode)"
+  fi
+done
+echo "=================================================="
+echo ""
 
 cleanup() {
   echo -e "\n\ncleaning up"

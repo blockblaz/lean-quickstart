@@ -26,6 +26,7 @@ validator_config_file="$5"
 sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
 action="$8"   # Action: "stop" to stop nodes, otherwise deploy
+userConfigFile="$9"  # User config file for docker images (--config-file)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -119,6 +120,16 @@ fi
 # Use default deployment mode (can be overridden by adding a 'deployment_mode' field per node in validator-config.yaml)
 EXTRA_VARS="$EXTRA_VARS deployment_mode=$DEFAULT_DEPLOYMENT_MODE"
 
+# Pass user config file path for docker images if provided
+if [ -n "$userConfigFile" ]; then
+  # Convert to absolute path if relative
+  if [[ "$userConfigFile" != /* ]]; then
+    userConfigFile="$(cd "$(dirname "$userConfigFile")" 2>/dev/null && pwd)/$(basename "$userConfigFile")"
+  fi
+  EXTRA_VARS="$EXTRA_VARS user_config_file=$userConfigFile"
+  echo "Using user config file for docker images: $userConfigFile"
+fi
+
 # Determine which playbook to run
 if [ "$action" == "stop" ]; then
   PLAYBOOK="$ANSIBLE_DIR/playbooks/stop-nodes.yml"
@@ -148,6 +159,64 @@ if [ $EXIT_CODE -eq 0 ]; then
   if [ "$action" == "stop" ]; then
     echo "✅ Ansible stop operation completed successfully!"
   else
+    # Display summary of deployed nodes
+    echo ""
+    echo "=================================================="
+    echo "Deployed Nodes Summary:"
+    echo "=================================================="
+    printf "%-15s | %-10s | %s\n" "Node" "Mode" "Image / Binary Path"
+    echo "--------------------------------------------------"
+
+    # Parse node names (comma or space separated)
+    if [[ "$node" == *","* ]]; then
+      IFS=',' read -r -a deployed_nodes <<< "$node"
+    else
+      IFS=' ' read -r -a deployed_nodes <<< "$node"
+    fi
+
+    # Get config file paths - use validator-config.yaml from genesis dir
+    validator_config="$configDir/validator-config.yaml"
+
+    for node_name in "${deployed_nodes[@]}"; do
+      # Extract client type from node name (e.g., zeam_0 -> zeam)
+      client_type=$(echo "$node_name" | sed 's/_[0-9]*$//')
+
+      if [ "$DEFAULT_DEPLOYMENT_MODE" == "binary" ]; then
+        # Extract binary path from client-cmd.sh
+        client_cmd_file="$scriptDir/client-cmds/${client_type}-cmd.sh"
+        binary_path=""
+        if [ -f "$client_cmd_file" ]; then
+          # Extract the first word from node_binary line (the actual binary path)
+          binary_path=$(grep -E '^node_binary=' "$client_cmd_file" | head -1 | sed -E 's/node_binary="([^ "\\]+).*/\1/')
+          # Resolve $scriptDir to actual path
+          binary_path=$(echo "$binary_path" | sed "s|\\\$scriptDir|$scriptDir|g")
+          # For unresolved variables (like $grandine_bin), show as custom binary path
+          if [[ "$binary_path" == \$* ]]; then
+            binary_path="<custom: ${binary_path}>"
+          fi
+        fi
+        printf "%-15s | %-10s | %s\n" "$node_name" "binary" "${binary_path:-unknown}"
+      else
+        # Get image from user config or validator-config.yaml
+        docker_image=""
+        if [ -n "$userConfigFile" ] && [ -f "$userConfigFile" ]; then
+          # Try nodes format first (zeam_0 style)
+          docker_image=$(yq eval ".nodes[] | select(.name | test(\"^${client_type}_\")) | .image" "$userConfigFile" 2>/dev/null | head -1)
+          # Try clients format (backwards compatibility)
+          if [ -z "$docker_image" ] || [ "$docker_image" == "null" ]; then
+            docker_image=$(yq eval ".clients[] | select(.name == \"$client_type\") | .image" "$userConfigFile" 2>/dev/null)
+          fi
+        fi
+        if [ -z "$docker_image" ] || [ "$docker_image" == "null" ]; then
+          # Read from validators array in validator-config.yaml
+          docker_image=$(yq eval ".validators[] | select(.name | test(\"^${client_type}_\")) | .image" "$validator_config" 2>/dev/null | head -1)
+        fi
+
+        printf "%-15s | %-10s | %s\n" "$node_name" "docker" "${docker_image:-unknown}"
+      fi
+    done
+    echo "=================================================="
+    echo ""
     echo "✅ Ansible deployment completed successfully!"
   fi
 else
