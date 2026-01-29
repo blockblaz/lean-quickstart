@@ -26,7 +26,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    grandine_docker_image: "{{ grandine_docker_image_raw.stdout | trim | default('sifrai/lean:unstable') }}"
+    grandine_docker_image: "{{ grandine_docker_image_raw.stdout | trim | default('sifrai/lean:latest') }}"
     deployment_mode: "{{ grandine_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
