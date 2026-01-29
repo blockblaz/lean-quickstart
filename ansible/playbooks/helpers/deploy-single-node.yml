@@ -6,20 +6,22 @@
   set_fact:
     client_type: "{{ node_name.split('_')[0] }}"
 
-- name: Set validator config file path
+- name: Set validator config file paths
   set_fact:
     actual_validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+    local_validator_config_file: "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
 
-- name: Extract node configuration
+- name: Extract node configuration (from local config)
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .name" {{ actual_validator_config_file }}
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .name" {{ local_validator_config_file }}
   register: node_check
   changed_when: false
   failed_when: false
+  delegate_to: localhost
 
 - name: Fail if node not found in config
   fail:
-    msg: "Node '{{ node_name }}' not found in {{ actual_validator_config_file }}"
+    msg: "Node '{{ node_name }}' not found in {{ local_validator_config_file }}"
   when: node_check.stdout == "" or node_check.rc != 0
 
 - name: Set zeam validator config

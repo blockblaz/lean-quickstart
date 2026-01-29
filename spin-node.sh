@@ -243,9 +243,14 @@ for item in "${spin_nodes[@]}"; do
   # create and/or cleanup datadirs
   itemDataDir="$dataDir/$item"
   mkdir -p $itemDataDir
-  cmd="sudo rm -rf $itemDataDir/*"
-  echo $cmd
-  eval $cmd
+  if [ -n "$cleanData" ]; then
+    cmd="rm -rf \"$itemDataDir\"/*"
+    if [ -n "$dockerWithSudo" ]; then
+      cmd="sudo $cmd"
+    fi
+    echo "$cmd"
+    eval "$cmd"
+  fi
 
   # parse validator-config.yaml for $item to load args values
   source parse-vc.sh
