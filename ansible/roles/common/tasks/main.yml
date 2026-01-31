@@ -24,21 +24,31 @@
   failed_when: false
   ignore_errors: true
 
-- name: Install Docker (non-localhost)
+- name: Fail if Docker missing on unsupported OS (non-localhost)
+  fail:
+    msg: |
+      Docker is not installed on {{ inventory_hostname }}.
+      Automatic Docker install is only supported on Debian/Ubuntu.
+      Please install Docker manually on this host, then re-run the playbook.
+      See https://docs.docker.com/engine/install/
+  when:
+    - not is_localhost | default(false)
+    - docker_check.rc != 0
+    - ansible_os_family != "Debian"
+
+- name: Install Docker (Debian/Ubuntu, non-localhost)
   block:
     - name: Add Docker GPG key
       apt_key:
         url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
         state: present
       become: yes
-      when: ansible_os_family == "Debian"
 
     - name: Add Docker repository
       apt_repository:
         repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
         state: present
       become: yes
-      when: ansible_os_family == "Debian"
 
     - name: Install Docker packages
       package:
@@ -55,7 +65,10 @@
         state: started
         enabled: yes
       become: yes
-  when: not is_localhost | default(false) and docker_check.rc != 0
+  when:
+    - not is_localhost | default(false)
+    - docker_check.rc != 0
+    - ansible_os_family == "Debian"
 
 - name: Check if yq is installed
   command: which yq
@@ -109,7 +122,10 @@
 
 - name: Fail if Docker is not available
   fail:
-    msg: "Docker is required but not installed. Please install Docker first."
+    msg: |
+      Docker is required but not available on {{ inventory_hostname }}.
+      Install failed or Docker is not in PATH.
+      Please install Docker manually: https://docs.docker.com/engine/install/
   when: docker_version.rc != 0
 
 - name: Verify yq is available
