@@ -1,0 +1,20 @@
+---
+# Tools server role: Install tool images on a dedicated tools server
+# Prerequisite: Docker is ensured by the common role (install or fail)
+
+- name: Pull tool Docker images
+  command: docker pull {{ item }}
+  loop: "{{ tools_docker_images }}"
+  register: pull_results
+  changed_when: true
+  loop_control:
+    label: "{{ item }}"
+
+- name: List installed tool images
+  command: docker images --format "{{ '{{' }}.Repository{{ '}}' }}:{{ '{{' }}.Tag{{ '}}' }}"
+  register: images_list
+  changed_when: false
+
+- name: Display installed tool images
+  debug:
+    msg: "Tools server {{ inventory_hostname }} has images: {{ images_list.stdout_lines | default([]) }}"

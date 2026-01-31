@@ -1,0 +1,5 @@
+---
+# Docker images to install (pull) on the tools server
+# Add more images as needed
+tools_docker_images:
+  - blockblaz/leanpoint:latest

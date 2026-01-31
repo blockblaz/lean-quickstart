@@ -10,6 +10,27 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
+# Single entry point: tools server setup (no NETWORK_DIR or node required)
+if [ -n "$setupToolsServer" ] && [ "$setupToolsServer" == "true" ]; then
+  echo "Setting up tools server(s) (Docker + tool images)..."
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed. Install Ansible first."
+    exit 1
+  fi
+  if ! ansible-galaxy collection list 2>/dev/null | grep -q "community.docker"; then
+    echo "Installing community.docker collection..."
+    ansible-galaxy collection install community.docker
+  fi
+  RUN_CMD=("$scriptDir/setup-tools-server.sh")
+  [ -n "$sshKeyFile" ] && RUN_CMD+=("--sshKey" "$sshKeyFile")
+  [ -n "$useRoot" ] && [ "$useRoot" == "true" ] && RUN_CMD+=("--useRoot")
+  if ! "${RUN_CMD[@]}"; then
+    echo "❌ Tools server setup failed."
+    exit 1
+  fi
+  exit 0
+fi
+
 # Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."

@@ -1,0 +1,38 @@
+---
+# Setup tools server: Ensure Docker, then install tool images (e.g. blockblaz/leanpoint:latest)
+# Targets hosts in group 'tools_servers' (defined in inventory/tools_servers.yml).
+#
+# Usage (single entry point):
+#   ./spin-node.sh --setupToolsServer [--sshKey PATH] [--useRoot]
+# Or directly:
+#   ansible-playbook -i inventory/hosts.yml -i inventory/tools_servers.yml \
+#     playbooks/setup-tools-server.yml -e "network_dir=/opt/lean-quickstart" [--sshKey ...]
+#
+# Require at least one host in tools_servers (edit inventory/tools_servers.yml).
+
+- name: Ensure tools_servers has hosts
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check that tools_servers group has at least one host
+      assert:
+        that: groups['tools_servers'] | length > 0
+        fail_msg: |
+          No hosts in group 'tools_servers'. Edit ansible/inventory/tools_servers.yml
+          and add your tools server(s), then re-run this playbook.
+      run_once: true
+
+- name: Setup tools server (Docker + tools)
+  hosts: tools_servers
+  gather_facts: true
+  vars:
+    network_dir: "{{ tools_network_dir | default('/opt/lean-quickstart') }}"
+    genesis_dir: "{{ network_dir }}/genesis"
+    data_dir: "{{ network_dir }}/data"
+    node_names: []
+  roles:
+    - role: common
+      vars:
+        node_names_list: []
+    - role: tools_server

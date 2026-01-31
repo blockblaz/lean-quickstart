@@ -1,0 +1,22 @@
+---
+# Tools server inventory - DEFINE SEPARATELY from validator nodes
+# Edit this file to add your tools server host(s).
+# Docker will be validated/installed on these hosts; then tools (e.g. leanpoint) are installed.
+#
+# Example - add under tools_servers.hosts:
+#   tools_server_0:
+#     ansible_host: 192.0.2.10
+#     ansible_user: root
+#     ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+#
+# Run (single entry point): ./spin-node.sh --setupToolsServer [--sshKey PATH] [--useRoot]
+
+all:
+  children:
+    local:
+      hosts:
+        localhost:
+          ansible_connection: local
+          ansible_python_interpreter: auto_silent
+    tools_servers:
+      hosts: {}

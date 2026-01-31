@@ -38,13 +38,19 @@ cd lean-quickstart
 
 ### Quickly startup various nodes as a local devnet
 
-**Using spin-node.sh (unified entry point):**
+**Using spin-node.sh (single entry point for all operations):**
 ```sh
 # Local deployment (default)
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --popupTerminal
 
 # Ansible deployment (set deployment_mode: ansible in validator-config.yaml or use --deploymentMode ansible)
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --deploymentMode ansible
+
+# Tools server setup (Docker + tool images on hosts in ansible/inventory/tools_servers.yml; no NETWORK_DIR or --node)
+./spin-node.sh --setupToolsServer [--sshKey PATH] [--useRoot]
+
+# Stop nodes (local or Ansible)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --stop
 ```
 > 📖 **Note**: When deployment mode is `ansible`, the script automatically uses `ansible-devnet/genesis/validator-config.yaml` and generates genesis files in `ansible-devnet/genesis/`. This keeps local and remote deployment configurations separate. See [Ansible Deployment](#ansible-deployment) section or [ansible/README.md](ansible/README.md) for details
 
@@ -120,6 +126,8 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
 11. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
+12. `--setupToolsServer` runs the tools server setup playbook: ensures Docker is installed on hosts defined in `ansible/inventory/tools_servers.yml`, then pulls tool images (e.g. `blockblaz/leanpoint:latest`). Does not require `NETWORK_DIR` or `--node`. Edit `ansible/inventory/tools_servers.yml` to add your tools server host(s). Example: `./spin-node.sh --setupToolsServer --sshKey ~/.ssh/key --useRoot`
+13. `--stop` stops the specified node(s) (local containers or remote via Ansible). Example: `NETWORK_DIR=local-devnet ./spin-node.sh --node all --stop`
 
 ### Clients supported
 
