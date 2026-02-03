@@ -3,7 +3,7 @@
 # Metrics enabled by default
 metrics_flag="--metrics"
 
-# Docker image (set from validator-config.yaml or user config via --config-file)
+# Docker image (set from validator-config.yaml or user config via --configFile)
 # lighthouseImage is exported by spin-node.sh before sourcing this file
 
 node_binary="$lighthouse_bin lean_node \

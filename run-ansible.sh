@@ -22,11 +22,10 @@ configDir="$1"
 node="$2"
 cleanData="$3"
 validatorConfig="$4"
-validator_config_file="$5"
+deploy_config_file="$5"  # deploy-validator-config.yaml (with user overrides merged)
 sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
 action="$8"   # Action: "stop" to stop nodes, otherwise deploy
-userConfigFile="$9"  # User config file for docker images (--config-file)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -36,9 +35,9 @@ else
 fi
 
 # Validate required arguments
-if [ -z "$configDir" ] || [ -z "$validator_config_file" ]; then
+if [ -z "$configDir" ] || [ -z "$deploy_config_file" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot]"
+  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <deploy_config_file> [sshKeyFile] [useRoot] [action]"
   exit 1
 fi
 
@@ -50,10 +49,10 @@ echo "SSH user for remote connections: $sshUser"
 ANSIBLE_DIR="$scriptDir/ansible"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 
-# Generate inventory if it doesn't exist or if validator config is newer
-if [ ! -f "$INVENTORY_FILE" ] || [ "$validator_config_file" -nt "$INVENTORY_FILE" ]; then
-  echo "Generating Ansible inventory from validator-config.yaml..."
-  "$scriptDir/generate-ansible-inventory.sh" "$validator_config_file" "$INVENTORY_FILE"
+# Generate inventory if it doesn't exist or if resolved config is newer
+if [ ! -f "$INVENTORY_FILE" ] || [ "$deploy_config_file" -nt "$INVENTORY_FILE" ]; then
+  echo "Generating Ansible inventory from deploy-validator-config.yaml..."
+  "$scriptDir/generate-ansible-inventory.sh" "$deploy_config_file" "$INVENTORY_FILE"
 fi
 
 # Update inventory with SSH key file and user if provided
@@ -120,16 +119,6 @@ fi
 # Use default deployment mode (can be overridden by adding a 'deployment_mode' field per node in validator-config.yaml)
 EXTRA_VARS="$EXTRA_VARS deployment_mode=$DEFAULT_DEPLOYMENT_MODE"
 
-# Pass user config file path for docker images if provided
-if [ -n "$userConfigFile" ]; then
-  # Convert to absolute path if relative
-  if [[ "$userConfigFile" != /* ]]; then
-    userConfigFile="$(cd "$(dirname "$userConfigFile")" 2>/dev/null && pwd)/$(basename "$userConfigFile")"
-  fi
-  EXTRA_VARS="$EXTRA_VARS user_config_file=$userConfigFile"
-  echo "Using user config file for docker images: $userConfigFile"
-fi
-
 # Determine which playbook to run
 if [ "$action" == "stop" ]; then
   PLAYBOOK="$ANSIBLE_DIR/playbooks/stop-nodes.yml"
@@ -174,9 +163,6 @@ if [ $EXIT_CODE -eq 0 ]; then
       IFS=' ' read -r -a deployed_nodes <<< "$node"
     fi
 
-    # Get config file paths - use validator-config.yaml from genesis dir
-    validator_config="$configDir/validator-config.yaml"
-
     for node_name in "${deployed_nodes[@]}"; do
       # Extract client type from node name (e.g., zeam_0 -> zeam)
       client_type=$(echo "$node_name" | sed 's/_[0-9]*$//')
@@ -197,21 +183,8 @@ if [ $EXIT_CODE -eq 0 ]; then
         fi
         printf "%-15s | %-10s | %s\n" "$node_name" "binary" "${binary_path:-unknown}"
       else
-        # Get image from user config or validator-config.yaml
-        docker_image=""
-        if [ -n "$userConfigFile" ] && [ -f "$userConfigFile" ]; then
-          # Try nodes format first (zeam_0 style)
-          docker_image=$(yq eval ".nodes[] | select(.name | test(\"^${client_type}_\")) | .image" "$userConfigFile" 2>/dev/null | head -1)
-          # Try clients format (backwards compatibility)
-          if [ -z "$docker_image" ] || [ "$docker_image" == "null" ]; then
-            docker_image=$(yq eval ".clients[] | select(.name == \"$client_type\") | .image" "$userConfigFile" 2>/dev/null)
-          fi
-        fi
-        if [ -z "$docker_image" ] || [ "$docker_image" == "null" ]; then
-          # Read from validators array in validator-config.yaml
-          docker_image=$(yq eval ".validators[] | select(.name | test(\"^${client_type}_\")) | .image" "$validator_config" 2>/dev/null | head -1)
-        fi
-
+        # Get image from resolved config (overrides already merged)
+        docker_image=$(yq eval ".validators[] | select(.name == \"$node_name\") | .image" "$deploy_config_file" 2>/dev/null)
         printf "%-15s | %-10s | %s\n" "$node_name" "docker" "${docker_image:-unknown}"
       fi
     done

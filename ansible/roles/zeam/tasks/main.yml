@@ -1,69 +1,24 @@
 ---
 # Zeam role: Deploy and manage Zeam nodes
 # Converts client-cmds/zeam-cmd.sh logic to Ansible tasks
-
-- name: Extract docker image from config file
-  shell: |
-    # Read image from user config file if provided, otherwise from validator-config.yaml
-    validator_config="{{ genesis_dir }}/validator-config.yaml"
-    user_config="{{ user_config_file | default('') }}"
-
-    # Try user config first if provided (supports both 'nodes' and 'clients' format)
-    if [ -n "$user_config" ] && [ -f "$user_config" ]; then
-      # Try nodes format first (zeam_0 style)
-      image=$(yq eval '.nodes[] | select(.name | test("^zeam_")) | .image' "$user_config" 2>/dev/null | head -1)
-      if [ -n "$image" ] && [ "$image" != "null" ]; then
-        echo "$image"
-        exit 0
-      fi
-      # Try clients format (backwards compatibility)
-      image=$(yq eval '.clients[] | select(.name == "zeam") | .image' "$user_config" 2>/dev/null)
-      if [ -n "$image" ] && [ "$image" != "null" ]; then
-        echo "$image"
-        exit 0
-      fi
-    fi
-
-    # Fall back to validator-config.yaml (read from validators array)
-    yq eval '.validators[] | select(.name | test("^zeam_")) | .image' "$validator_config" | head -1
-  register: zeam_docker_image_raw
-  changed_when: false
-  delegate_to: localhost
-  run_once: true
-
-- name: Extract deployment mode from client-cmd.sh
-  shell: |
-    # Extract the value from node_setup line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
-    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_setup=' "$project_root/client-cmds/zeam-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
-  register: zeam_deployment_mode_raw
-  changed_when: false
-  delegate_to: localhost
-  run_once: true
-
-- name: Set docker image and deployment mode from client-cmd.sh
-  set_fact:
-    zeam_docker_image: "{{ zeam_docker_image_raw.stdout | trim | default('blockblaz/zeam:latest') }}"
-    deployment_mode: "{{ zeam_deployment_mode_raw.stdout | trim | default('docker') }}"
-  delegate_to: localhost
-  run_once: true
+# Note: validator-config.yaml on remote already has user overrides merged (from deploy-validator-config.yaml)
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
-  register: node_config
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+  register: zeam_node_config
   changed_when: false
-  delegate_to: localhost
   loop:
+    - image
     - metricsPort
-    - privkey
   when: node_name is defined
 
-- name: Set node metrics port
+- name: Set node configuration
   set_fact:
-    zeam_metrics_port: "{{ node_config.results[0].stdout }}"
-  when: node_config is defined
+    zeam_docker_image: "{{ zeam_node_config.results[0].stdout | trim | default('blockblaz/zeam:latest') }}"
+    zeam_metrics_port: "{{ zeam_node_config.results[1].stdout | trim }}"
+    deployment_mode: "{{ deployment_mode | default('docker') }}"
+  when: zeam_node_config is defined
 
 - name: Ensure node key file exists
   stat:

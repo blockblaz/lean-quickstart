@@ -1,82 +1,38 @@
 ---
 # Qlean role: Deploy and manage Qlean nodes
 # Converts client-cmds/qlean-cmd.sh logic to Ansible tasks
-
-- name: Extract docker image from config file
-  shell: |
-    # Read image from user config file if provided, otherwise from validator-config.yaml
-    validator_config="{{ genesis_dir }}/validator-config.yaml"
-    user_config="{{ user_config_file | default('') }}"
-
-    # Try user config first if provided (supports both 'nodes' and 'clients' format)
-    if [ -n "$user_config" ] && [ -f "$user_config" ]; then
-      # Try nodes format first (qlean_0 style)
-      image=$(yq eval '.nodes[] | select(.name | test("^qlean_")) | .image' "$user_config" 2>/dev/null | head -1)
-      if [ -n "$image" ] && [ "$image" != "null" ]; then
-        echo "$image"
-        exit 0
-      fi
-      # Try clients format (backwards compatibility)
-      image=$(yq eval '.clients[] | select(.name == "qlean") | .image' "$user_config" 2>/dev/null)
-      if [ -n "$image" ] && [ "$image" != "null" ]; then
-        echo "$image"
-        exit 0
-      fi
-    fi
-
-    # Fall back to validator-config.yaml (read from validators array)
-    yq eval '.validators[] | select(.name | test("^qlean_")) | .image' "$validator_config" | head -1
-  register: qlean_docker_image_raw
-  changed_when: false
-  delegate_to: localhost
-  run_once: true
-
-- name: Extract deployment mode from client-cmd.sh
-  shell: |
-    # Extract the value from node_setup line
-    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_setup=' "$project_root/client-cmds/qlean-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
-  register: qlean_deployment_mode_raw
-  changed_when: false
-  delegate_to: localhost
-  run_once: true
-
-- name: Set docker image and deployment mode from client-cmd.sh
-  set_fact:
-    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:dd67521') }}"
-    deployment_mode: "{{ qlean_deployment_mode_raw.stdout | trim | default('docker') }}"
+# Note: validator-config.yaml on remote already has user overrides merged (from deploy-validator-config.yaml)
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
   register: qlean_node_config
   changed_when: false
-  delegate_to: localhost
   loop:
+    - image
     - enrFields.quic
     - metricsPort
-    - privkey
   when: node_name is defined
 
-- name: Set node ports
+- name: Set node configuration
   set_fact:
-    qlean_quic_port: "{{ qlean_node_config.results[0].stdout }}"
-    qlean_metrics_port: "{{ qlean_node_config.results[1].stdout }}"
-    qlean_privkey: "{{ qlean_node_config.results[2].stdout }}"
+    qlean_docker_image: "{{ qlean_node_config.results[0].stdout | trim | default('qdrvm/qlean-mini:latest') }}"
+    qlean_quic_port: "{{ qlean_node_config.results[1].stdout | trim }}"
+    qlean_metrics_port: "{{ qlean_node_config.results[2].stdout | trim }}"
+    deployment_mode: "{{ deployment_mode | default('docker') }}"
   when: qlean_node_config is defined
 
 - name: Extract validator index from validators.yaml
   shell: |
-    yq eval '."{{ node_name }}" | .[0]' "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validators.yaml"
-  register: qlean_validator_index
+    yq eval '."{{ node_name }}" | .[0]' "{{ genesis_dir }}/validators.yaml"
+  register: qlean_validator_index_raw
   changed_when: false
   failed_when: false
-  delegate_to: localhost
 
 - name: Set validator index
   set_fact:
-    qlean_validator_index: "{{ qlean_validator_index.stdout | trim | default('0') }}"
-  when: qlean_validator_index is defined
+    qlean_validator_index: "{{ qlean_validator_index_raw.stdout | trim | default('0') }}"
+  when: qlean_validator_index_raw is defined
 
 - name: Ensure node key file exists
   stat:

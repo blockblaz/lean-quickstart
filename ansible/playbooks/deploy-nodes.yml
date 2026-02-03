@@ -117,9 +117,9 @@
         - deploy
         - sync
 
-    - name: Sync validator-config.yaml to remote host
+    - name: Sync deploy-validator-config.yaml to remote host (as validator-config.yaml)
       copy:
-        src: "{{ local_genesis_dir }}/validator-config.yaml"
+        src: "{{ local_genesis_dir }}/deploy-validator-config.yaml"
         dest: "{{ genesis_dir }}/validator-config.yaml"
         mode: '0644'
         force: yes

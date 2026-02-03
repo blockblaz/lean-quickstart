@@ -76,7 +76,7 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    --config-file)
+    --configFile)
       configFile="$2"
       shift # past argument
       shift # past value

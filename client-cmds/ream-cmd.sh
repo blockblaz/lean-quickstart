@@ -4,7 +4,7 @@
 # Metrics enabled by default
 metrics_flag="--metrics"
 
-# Docker image (set from validator-config.yaml or user config via --config-file)
+# Docker image (set from validator-config.yaml or user config via --configFile)
 # reamImage is exported by spin-node.sh before sourcing this file
 
 # modify the path to the ream binary as per your system

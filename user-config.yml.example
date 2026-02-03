@@ -1,9 +1,11 @@
 # User Configuration Example
-# Copy this file to user-config.yml or <your-custom-name>.yml and customize your docker images
-# Usage: ./spin-node.sh --config-file <your-config-file>.yml --node zeam_0,ream_0
+# Copy this file to user-config.yml or <your-custom-name>.yml and customize
+# Usage: ./spin-node.sh --configFile <your-config-file>.yml --node zeam_0,ream_0
 #
-# Only specify nodes you want to override - others will use defaults
-# from validator-config.yaml in your network directory
+# Only specify nodes and fields you want to override - others will use defaults
+# from validator-config.yaml in your network directory.
+#
+# Overrides are merged into deploy-validator-config.yaml before deployment.
 
 nodes:
   - name: zeam_0
@@ -24,3 +26,6 @@ nodes:
   #
   # - name: grandine_0
   #   image: sifrai/lean:custom-tag
+  #
+  # - name: ethlambda_0
+  #   image: ghcr.io/lambdaclass/ethlambda:custom-tag

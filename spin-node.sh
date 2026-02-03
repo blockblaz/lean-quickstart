@@ -10,9 +10,6 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
-# Load client configuration (default + user config if provided)
-source "$(dirname $0)/load-client-config.sh"
-
 # Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."
@@ -59,12 +56,18 @@ source "$(dirname $0)/set-up.sh"
 # ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
 # Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
 
-# 2. collect the nodes that the user has asked us to spin and perform setup
+# 2. Create deploy-validator-config.yaml (merges user config overrides if provided)
+echo ""
+echo "Creating resolved validator config..."
+"$scriptDir/merge-config.sh" "$validator_config_file" "$configFile"
+deploy_config_file="$configDir/deploy-validator-config.yaml"
 
-# Load nodes from validator config file
-if [ -f "$validator_config_file" ]; then
-    # Use yq to extract node names from validator config
-    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+# 3. collect the nodes that the user has asked us to spin and perform setup
+
+# Load nodes from resolved validator config file
+if [ -f "$deploy_config_file" ]; then
+    # Use yq to extract node names from resolved config
+    nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
     
     # Validate that we found nodes
     if [ ${#nodes[@]} -eq 0 ]; then
@@ -72,10 +75,8 @@ if [ -f "$validator_config_file" ]; then
         exit 1
     fi
 else
-    echo "Error: Validator config file not found at $validator_config_file"
-    if [ "$deployment_mode" == "ansible" ]; then
-        echo "Please create ansible-devnet/genesis/validator-config.yaml for Ansible deployments"
-    fi
+    echo "Error: Resolved validator config file not found at $deploy_config_file"
+    echo "This file should have been created by merge-config.sh"
     nodes=()
     exit 1
 fi
@@ -148,7 +149,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$configFile"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_config_file" "$sshKeyFile" "$useRoot" "stop"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
@@ -157,7 +158,7 @@ if [ "$deployment_mode" == "ansible" ]; then
 
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$configFile"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_config_file" "$sshKeyFile" "$useRoot" ""; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -169,12 +170,12 @@ fi
 # Handle stop action for local deployment
 if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
   echo "Stopping local nodes..."
-  
-  # Load nodes from validator config file
-  if [ -f "$validator_config_file" ]; then
-    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+
+  # Load nodes from resolved validator config file
+  if [ -f "$deploy_config_file" ]; then
+    nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
   else
-    echo "Error: Validator config file not found at $validator_config_file"
+    echo "Error: Resolved validator config file not found at $deploy_config_file"
     exit 1
   fi
   
@@ -252,38 +253,38 @@ for item in "${spin_nodes[@]}"; do
     eval "$cmd"
   fi
 
-  # parse validator-config.yaml for $item to load args values
+  # parse validator-config.yaml for $item to load args values (including docker_image)
   source parse-vc.sh
 
   # extract client config
   IFS='_' read -r -a elements <<< "$item"
   client="${elements[0]}"
 
-  # Get docker image from config (always set - from validator-config.yaml or user override)
-  client_image=$(get_client_image "$client")
-
   # Export the image variable for this client (will be used by client-cmd.sh)
+  # docker_image is set by parse-vc.sh
   case "$client" in
     zeam)
-      export zeamImage="$client_image"
+      export zeamImage="$docker_image"
       ;;
     ream)
-      export reamImage="$client_image"
+      export reamImage="$docker_image"
       ;;
     qlean)
-      export qleanImage="$client_image"
+      export qleanImage="$docker_image"
       ;;
     lantern)
-      export lanternImage="$client_image"
+      export lanternImage="$docker_image"
       ;;
     lighthouse)
-      export lighthouseImage="$client_image"
+      export lighthouseImage="$docker_image"
       ;;
     grandine)
-      export grandineImage="$client_image"
+      export grandineImage="$docker_image"
+      ;;
+    ethlambda)
+      export ethlambdaImage="$docker_image"
       ;;
   esac
-  echo "  ✓ Using image for $client: $client_image"
 
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
