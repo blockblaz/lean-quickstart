@@ -8,6 +8,9 @@ node_binary="$grandine_bin \
         --node-key $configDir/$privKeyPath \
         --port $quicPort \
         --address 0.0.0.0 \
+        --metrics \
+        --http-address 0.0.0.0 \
+        --http-port $metricsPort \
         --hash-sig-key-dir $configDir/hash-sig-keys"
 
 node_docker="sifrai/lean:devnet-2 \
@@ -18,6 +21,9 @@ node_docker="sifrai/lean:devnet-2 \
         --node-key /config/$privKeyPath \
         --port $quicPort \
         --address 0.0.0.0 \
+        --metrics \
+        --http-address 0.0.0.0 \
+        --http-port $metricsPort \
         --hash-sig-key-dir /config/hash-sig-keys"
 
 # choose either binary or docker
