@@ -32,6 +32,7 @@ node_count=$(yq eval '.validators | length' "$validator_config")
 
 # Build scrape configs
 scrape_configs=""
+emitted_count=0
 for ((i=0; i<node_count; i++)); do
     name=$(yq eval ".validators[$i].name" "$validator_config")
     port=$(yq eval ".validators[$i].metricsPort" "$validator_config")
@@ -40,6 +41,8 @@ for ((i=0; i<node_count; i++)); do
         echo "Warning: Skipping validator $i (missing name or metricsPort)"
         continue
     fi
+
+    emitted_count=$((emitted_count + 1))
 
     scrape_configs="${scrape_configs}
   - job_name: \"${name}\"
@@ -70,4 +73,4 @@ ${scrape_configs}
       - targets: ["localhost:9090"]
 EOF
 
-echo "Generated $output_dir/prometheus.yml with $node_count scrape targets"
+echo "Generated $output_dir/prometheus.yml with $emitted_count scrape targets"
