@@ -17,9 +17,11 @@
 
 - name: Set node configuration
   set_fact:
-    grandine_quic_port: "{{ grandine_node_config.results[0].stdout }}"
-    grandine_metrics_port: "{{ grandine_node_config.results[1].stdout }}"
-    grandine_privkey: "{{ grandine_node_config.results[2].stdout }}"
+    grandine_docker_image: "{{ grandine_node_config.results[0].stdout | trim | default('sifrai/lean:unstable') }}"
+    grandine_quic_port: "{{ grandine_node_config.results[1].stdout | trim }}"
+    grandine_metrics_port: "{{ grandine_node_config.results[2].stdout | trim }}"
+    grandine_privkey: "{{ grandine_node_config.results[3].stdout | trim }}"
+    deployment_mode: "{{ deployment_mode | default('docker') }}"
   when: grandine_node_config is defined
 
 - name: Ensure node key file exists
