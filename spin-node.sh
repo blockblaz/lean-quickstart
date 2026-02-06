@@ -10,6 +10,23 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
+# Helper function to check if core dumps should be enabled for a node
+# Accepts: "all", exact node names (zeam_0), or client types (zeam)
+should_enable_core_dumps() {
+  local node_name="$1"
+  local client_type="${node_name%%_*}"  # Extract client type (e.g., "zeam" from "zeam_0")
+
+  [ -z "$coreDumps" ] && return 1
+  [ "$coreDumps" = "all" ] && return 0
+
+  IFS=',' read -r -a dump_targets <<< "$coreDumps"
+  for target in "${dump_targets[@]}"; do
+    # Exact node name match or client type match
+    [ "$target" = "$node_name" ] || [ "$target" = "$client_type" ] && return 0
+  done
+  return 1
+}
+
 # Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."
@@ -282,6 +299,14 @@ for item in "${spin_nodes[@]}"; do
     # to reach each other via 127.0.0.1 (as configured in nodes.yaml ENR records).
     # Note: Port mapping (-p) doesn't work with --network host, so metrics endpoints
     # are not directly accessible from the macOS host. Use 'docker exec' to access them.
+
+    # Add core dump support if enabled for this node
+    # Sets workdir to /data so dumps land in the mounted volume
+    if should_enable_core_dumps "$item"; then
+      execCmd="$execCmd --ulimit core=-1 --workdir /data"
+      echo "Core dumps enabled for $item (dumps will be written to $dataDir/$item/)"
+    fi
+
     execCmd="$execCmd --name $item --network host \
           -v $configDir:/config \
           -v $dataDir/$item:/data \
