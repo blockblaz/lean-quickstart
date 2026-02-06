@@ -11,13 +11,15 @@
   loop:
     - image
     - enrFields.quic
+    - metricsPort
+    - privkey
   when: node_name is defined
 
 - name: Set node configuration
   set_fact:
-    grandine_docker_image: "{{ grandine_node_config.results[0].stdout | trim | default('sifrai/lean:unstable') }}"
-    grandine_quic_port: "{{ grandine_node_config.results[1].stdout | trim }}"
-    deployment_mode: "{{ deployment_mode | default('docker') }}"
+    grandine_quic_port: "{{ grandine_node_config.results[0].stdout }}"
+    grandine_metrics_port: "{{ grandine_node_config.results[1].stdout }}"
+    grandine_privkey: "{{ grandine_node_config.results[2].stdout }}"
   when: grandine_node_config is defined
 
 - name: Ensure node key file exists
@@ -72,6 +74,9 @@
         --port {{ grandine_quic_port }}
         --address 0.0.0.0
         --hash-sig-key-dir /config/hash-sig-keys
+        --metrics
+        --http-address 0.0.0.0
+        --http-port {{ grandine_metrics_port }}
       register: grandine_container
       changed_when: grandine_container.rc == 0
   when: deployment_mode == 'docker'
