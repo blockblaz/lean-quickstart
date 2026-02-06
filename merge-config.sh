@@ -43,10 +43,10 @@ fi
 echo "Merging user config overrides from $user_config..."
 
 # Get all node names from user config
-node_names=$(yq eval '.nodes[].name' "$user_config" 2>/dev/null)
+node_names=$(yq eval '.validators[].name' "$user_config" 2>/dev/null)
 
 if [ -z "$node_names" ]; then
-  echo "✓ Created deploy-validator-config.yaml (no nodes in user config)"
+  echo "✓ Created deploy-validator-config.yaml (no validators in user config)"
   exit 0
 fi
 
@@ -61,7 +61,7 @@ for node in $node_names; do
   fi
 
   # Merge image if specified
-  image=$(yq eval ".nodes[] | select(.name == \"$node\") | .image // \"\"" "$user_config" 2>/dev/null)
+  image=$(yq eval ".validators[] | select(.name == \"$node\") | .image // \"\"" "$user_config" 2>/dev/null)
   if [ -n "$image" ] && [ "$image" != "null" ] && [ "$image" != "" ]; then
     yq eval -i "(.validators[] | select(.name == \"$node\")).image = \"$image\"" "$output_config"
     echo "  ✓ $node: image = $image"

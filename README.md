@@ -88,25 +88,25 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --configFil
 
 **Example config file (user-config.yml):**
 ```yaml
-nodes:
-  - name: zeam_0
+validators:
+  - name: "zeam_0"
     image: blockblaz/zeam:feature-branch
-  - name: ream_0
+  - name: "ream_0"
     image: ghcr.io/reamlabs/ream:v2.0
 ```
 
 **Testing a specific client build:**
 ```sh
 # Create custom config file for zeam <your-PATH>/my-zeam-config.yml
-nodes:
-  - name: zeam_0
+validators:
+  - name: "zeam_0"
     image: blockblaz/zeam:custom-tag
 
 # Run with custom zeam image
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --configFile <your-PATH>/my-zeam-config.yml
 ```
 
-Only specify nodes you want to override - others will use their defaults from `validator-config.yaml`.
+Only specify validators you want to override - others will use their defaults from `validator-config.yaml`.
 
 ## Args
 

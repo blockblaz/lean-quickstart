@@ -8,7 +8,7 @@ validators:
   - name: "zeam_0"
     # node id 7d0904dc6d8d7130e0e68d5d3175d0c3cf470f8725f67bd8320882f5b9753cc0
     # peer id 16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
-    image: blockblaz/zeam:devnet2
+    image: blockblaz/zeam:latest
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
       # verify /ip4/127.0.0.1/udp/9000/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
@@ -20,7 +20,7 @@ validators:
   - name: "ream_0"
     # node id bc531fc1a99a896acb45603f28a32f81ae607480af46435009de4609370cb7bb
     # peer id 16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
-    image: ghcr.io/reamlabs/ream:latest-devnet2
+    image: ghcr.io/reamlabs/ream:latest
     privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
     enrFields:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
@@ -32,7 +32,7 @@ validators:
 
   - name: "qlean_0"
     # TODO: add a third entry in nodes.yaml corresponding to this
-    image: qdrvm/qlean-mini:devnet-2
+    image: qdrvm/qlean-mini:latest
     privkey: "c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9"
     enrFields:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
@@ -66,19 +66,19 @@ validators:
     count: 1
 
   - name: "grandine_0"
-    image: sifrai/lean:devnet-2
+    image: sifrai/lean:latest
     privkey: "64a7f5ab53907966374ca23af36392910af682eec82c12e3abbb6c2ccdf39a72"
     enrFields:
-      ip: "46.62.163.74"
+      ip: "37.27.250.20"
       quic: 9001
     metricsPort: 9095
     count: 1
 
   - name: "ethlambda_0"
-    image: ghcr.io/lambdaclass/ethlambda:devnet2
+    image: ghcr.io/lambdaclass/ethlambda:latest
     privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
     enrFields:
-      ip: "91.99.52.24"
+      ip: "78.47.44.215"
       quic: 9001
     metricsPort: 9095
     count: 1
