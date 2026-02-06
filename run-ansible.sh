@@ -22,7 +22,7 @@ configDir="$1"
 node="$2"
 cleanData="$3"
 validatorConfig="$4"
-validator_config_file="$5"
+deploy_config_file="$5"  # deploy-validator-config.yaml (with user overrides merged)
 sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
 action="$8"   # Action: "stop" to stop nodes, otherwise deploy
@@ -35,9 +35,9 @@ else
 fi
 
 # Validate required arguments
-if [ -z "$configDir" ] || [ -z "$validator_config_file" ]; then
+if [ -z "$configDir" ] || [ -z "$deploy_config_file" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot]"
+  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <deploy_config_file> [sshKeyFile] [useRoot] [action]"
   exit 1
 fi
 
@@ -49,10 +49,10 @@ echo "SSH user for remote connections: $sshUser"
 ANSIBLE_DIR="$scriptDir/ansible"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 
-# Generate inventory if it doesn't exist or if validator config is newer
-if [ ! -f "$INVENTORY_FILE" ] || [ "$validator_config_file" -nt "$INVENTORY_FILE" ]; then
-  echo "Generating Ansible inventory from validator-config.yaml..."
-  "$scriptDir/generate-ansible-inventory.sh" "$validator_config_file" "$INVENTORY_FILE"
+# Generate inventory if it doesn't exist or if resolved config is newer
+if [ ! -f "$INVENTORY_FILE" ] || [ "$deploy_config_file" -nt "$INVENTORY_FILE" ]; then
+  echo "Generating Ansible inventory from deploy-validator-config.yaml..."
+  "$scriptDir/generate-ansible-inventory.sh" "$deploy_config_file" "$INVENTORY_FILE"
 fi
 
 # Update inventory with SSH key file and user if provided
@@ -148,6 +148,48 @@ if [ $EXIT_CODE -eq 0 ]; then
   if [ "$action" == "stop" ]; then
     echo "✅ Ansible stop operation completed successfully!"
   else
+    # Display summary of deployed nodes
+    echo ""
+    echo "=================================================="
+    echo "Deployed Nodes Summary:"
+    echo "=================================================="
+    printf "%-15s | %-10s | %s\n" "Node" "Mode" "Image / Binary Path"
+    echo "--------------------------------------------------"
+
+    # Parse node names (comma or space separated)
+    if [[ "$node" == *","* ]]; then
+      IFS=',' read -r -a deployed_nodes <<< "$node"
+    else
+      IFS=' ' read -r -a deployed_nodes <<< "$node"
+    fi
+
+    for node_name in "${deployed_nodes[@]}"; do
+      # Extract client type from node name (e.g., zeam_0 -> zeam)
+      client_type=$(echo "$node_name" | sed 's/_[0-9]*$//')
+
+      if [ "$DEFAULT_DEPLOYMENT_MODE" == "binary" ]; then
+        # Extract binary path from client-cmd.sh
+        client_cmd_file="$scriptDir/client-cmds/${client_type}-cmd.sh"
+        binary_path=""
+        if [ -f "$client_cmd_file" ]; then
+          # Extract the first word from node_binary line (the actual binary path)
+          binary_path=$(grep -E '^node_binary=' "$client_cmd_file" | head -1 | sed -E 's/node_binary="([^ "\\]+).*/\1/')
+          # Resolve $scriptDir to actual path
+          binary_path=$(echo "$binary_path" | sed "s|\\\$scriptDir|$scriptDir|g")
+          # For unresolved variables (like $grandine_bin), show as custom binary path
+          if [[ "$binary_path" == \$* ]]; then
+            binary_path="<custom: ${binary_path}>"
+          fi
+        fi
+        printf "%-15s | %-10s | %s\n" "$node_name" "binary" "${binary_path:-unknown}"
+      else
+        # Get image from resolved config (overrides already merged)
+        docker_image=$(yq eval ".validators[] | select(.name == \"$node_name\") | .image" "$deploy_config_file" 2>/dev/null)
+        printf "%-15s | %-10s | %s\n" "$node_name" "docker" "${docker_image:-unknown}"
+      fi
+    done
+    echo "=================================================="
+    echo ""
     echo "✅ Ansible deployment completed successfully!"
   fi
 else

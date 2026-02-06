@@ -56,12 +56,18 @@ source "$(dirname $0)/set-up.sh"
 # ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
 # Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
 
-# 2. collect the nodes that the user has asked us to spin and perform setup
+# 2. Create deploy-validator-config.yaml (merges user config overrides if provided)
+echo ""
+echo "Creating resolved validator config..."
+"$scriptDir/merge-config.sh" "$validator_config_file" "$configFile"
+deploy_config_file="$configDir/deploy-validator-config.yaml"
 
-# Load nodes from validator config file
-if [ -f "$validator_config_file" ]; then
-    # Use yq to extract node names from validator config
-    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+# 3. collect the nodes that the user has asked us to spin and perform setup
+
+# Load nodes from resolved validator config file
+if [ -f "$deploy_config_file" ]; then
+    # Use yq to extract node names from resolved config
+    nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
     
     # Validate that we found nodes
     if [ ${#nodes[@]} -eq 0 ]; then
@@ -69,10 +75,8 @@ if [ -f "$validator_config_file" ]; then
         exit 1
     fi
 else
-    echo "Error: Validator config file not found at $validator_config_file"
-    if [ "$deployment_mode" == "ansible" ]; then
-        echo "Please create ansible-devnet/genesis/validator-config.yaml for Ansible deployments"
-    fi
+    echo "Error: Resolved validator config file not found at $deploy_config_file"
+    echo "This file should have been created by merge-config.sh"
     nodes=()
     exit 1
 fi
@@ -145,16 +149,16 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_config_file" "$sshKeyFile" "$useRoot" "stop"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
     exit 0
   fi
-  
+
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_config_file" "$sshKeyFile" "$useRoot" ""; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -166,12 +170,12 @@ fi
 # Handle stop action for local deployment
 if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
   echo "Stopping local nodes..."
-  
-  # Load nodes from validator config file
-  if [ -f "$validator_config_file" ]; then
-    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+
+  # Load nodes from resolved validator config file
+  if [ -f "$deploy_config_file" ]; then
+    nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
   else
-    echo "Error: Validator config file not found at $validator_config_file"
+    echo "Error: Resolved validator config file not found at $deploy_config_file"
     exit 1
   fi
   
@@ -229,6 +233,9 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
   done
 fi
 spinned_pids=()
+declare -A node_images
+declare -A node_modes
+
 for item in "${spin_nodes[@]}"; do
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
@@ -246,17 +253,51 @@ for item in "${spin_nodes[@]}"; do
     eval "$cmd"
   fi
 
-  # parse validator-config.yaml for $item to load args values
+  # parse validator-config.yaml for $item to load args values (including docker_image)
   source parse-vc.sh
 
   # extract client config
   IFS='_' read -r -a elements <<< "$item"
   client="${elements[0]}"
 
+  # Export the image variable for this client (will be used by client-cmd.sh)
+  # docker_image is set by parse-vc.sh
+  case "$client" in
+    zeam)
+      export zeamImage="$docker_image"
+      ;;
+    ream)
+      export reamImage="$docker_image"
+      ;;
+    qlean)
+      export qleanImage="$docker_image"
+      ;;
+    lantern)
+      export lanternImage="$docker_image"
+      ;;
+    lighthouse)
+      export lighthouseImage="$docker_image"
+      ;;
+    grandine)
+      export grandineImage="$docker_image"
+      ;;
+    ethlambda)
+      export ethlambdaImage="$docker_image"
+      ;;
+  esac
+
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
   echo "$sourceCmd"
   eval $sourceCmd
+
+  # Store the final image for display
+  if [ "$node_setup" == "docker" ]; then
+    node_images["$item"]=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
+  fi
+
+  # Store node mode
+  node_modes["$item"]="$node_setup"
 
   # spin nodes
   if [ "$node_setup" == "binary" ]
@@ -265,12 +306,25 @@ for item in "${spin_nodes[@]}"; do
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
-    # Pull image first 
+    # Pull image first
     if [ -n "$dockerWithSudo" ]; then
       sudo docker pull "$docker_image" || true
     else
       docker pull "$docker_image" || true
     fi
+
+    # Check if the image exists locally (either pulled successfully or was cached)
+    if [ -n "$dockerWithSudo" ]; then
+      image_exists=$(sudo docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
+    else
+      image_exists=$(docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
+    fi
+
+    if [ "$image_exists" == "no" ]; then
+      echo "⚠️  Skipping $item: Docker image '$docker_image' does not exist and could not be pulled"
+      continue
+    fi
+
     execCmd="docker run --rm --pull=never"
     if [ -n "$dockerWithSudo" ]
     then
@@ -301,6 +355,25 @@ done;
 
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
+
+# Display summary table
+echo ""
+echo "=================================================="
+echo "Deployed Nodes Summary:"
+echo "=================================================="
+printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
+echo "--------------------------------------------------"
+for node in "${spin_nodes[@]}"; do
+  mode="${node_modes[$node]}"
+  if [ "$mode" == "docker" ]; then
+    image="${node_images[$node]}"
+    printf "%-15s | %-10s | %s\n" "$node" "$mode" "$image"
+  else
+    printf "%-15s | %-10s | %s\n" "$node" "$mode" "N/A (binary mode)"
+  fi
+done
+echo "=================================================="
+echo ""
 
 cleanup() {
   echo -e "\n\ncleaning up"

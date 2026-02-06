@@ -47,7 +47,6 @@
       loop:
         - config.yaml
         - validators.yaml
-        - annotated_validators.yaml
         - nodes.yaml
         - genesis.json
         - genesis.ssz
@@ -137,7 +136,6 @@
       loop:
         - config.yaml
         - validators.yaml
-        - annotated_validators.yaml
         - nodes.yaml
         - genesis.json
         - genesis.ssz

@@ -2,6 +2,9 @@
 
 #-----------------------ethlambda setup----------------------
 
+# Docker image (set from validator-config.yaml or user config via --configFile)
+# ethlambdaImage is exported by spin-node.sh before sourcing this file
+
 binary_path="$scriptDir/../ethlambda/target/release/ethlambda"
 
 # Command when running as binary
@@ -14,7 +17,7 @@ node_binary="$binary_path \
       --metrics-port $metricsPort"
 
 # Command when running as docker container
-node_docker="ghcr.io/lambdaclass/ethlambda:devnet2 \
+node_docker="$ethlambdaImage \
       --custom-network-config-dir /config \
       --gossipsub-port $quicPort \
       --node-id $item \
