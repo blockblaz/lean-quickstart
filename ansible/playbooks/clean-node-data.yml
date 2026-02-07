@@ -14,6 +14,7 @@
     - lantern
     - lighthouse
     - grandine
+    - ethlambda
     - deploy
 
   tasks:
@@ -114,6 +115,7 @@
     - lantern
     - lighthouse
     - grandine
+    - ethlambda
     - deploy
 
   tasks:

@@ -31,18 +31,21 @@
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
   register: grandine_node_config
   changed_when: false
+  delegate_to: localhost
   loop:
     - enrFields.quic
+    - metricsPort
     - privkey
   when: node_name is defined
 
 - name: Set node ports
   set_fact:
     grandine_quic_port: "{{ grandine_node_config.results[0].stdout }}"
-    grandine_privkey: "{{ grandine_node_config.results[1].stdout }}"
+    grandine_metrics_port: "{{ grandine_node_config.results[1].stdout }}"
+    grandine_privkey: "{{ grandine_node_config.results[2].stdout }}"
   when: grandine_node_config is defined
 
 - name: Ensure node key file exists
@@ -97,6 +100,9 @@
         --port {{ grandine_quic_port }}
         --address 0.0.0.0
         --hash-sig-key-dir /config/hash-sig-keys
+        --metrics
+        --http-address 0.0.0.0
+        --http-port {{ grandine_metrics_port }}
       register: grandine_container
       changed_when: grandine_container.rc == 0
   when: deployment_mode == 'docker'

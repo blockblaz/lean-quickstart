@@ -11,7 +11,7 @@ A single command line quickstart to spin up lean node(s)
     - Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
     - Generates PQ keys based on specified configuration in `validator-config.yaml`
         - Force regen with flag `--forceKeyGen` when supplied with `generateGenesis`
-- ✅ Integrates zeam, ream, qlean, lantern, lighthouse, grandine
+- ✅ Integrates zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
 - ✅ Configure to run clients in docker or binary mode for easy development
 - ✅ Linux & Mac compatible & tested
 - ✅ Option to operate on single or multiple nodes or `all`
@@ -114,8 +114,8 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
    - If not specified, uses the current user (whoami) for SSH connections
    - If specified, uses `root` user for SSH connections
    - Example: `--useRoot` to connect as root user
-10. `--tag` specifies the Docker image tag to use for zeam, ream, qlean, lantern, lighthouse, and grandine containers.
-   - If provided, all clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`, `piertwo/lantern:${tag}`, `hopinheimer/lighthouse:${tag}`, `sifrai/grandine:${tag}`)
+10. `--tag` specifies the Docker image tag to use for zeam, ream, qlean, lantern, lighthouse, grandine and ethlambda containers.
+   - If provided, all clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`, `piertwo/lantern:${tag}`, `hopinheimer/lighthouse:${tag}`, `sifrai/grandine:${tag}`, `ghcr.io/lambdaclass/ethlambda:${tag}`)
    - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
@@ -642,7 +642,8 @@ ansible/
     ├── qlean/               # Qlean node role
     ├── lantern/             # Lantern node role
     ├── lighthouse/          # Lighthouse node role
-    └── grandine/            # Grandine node role
+    ├── grandine/            # Grandine node role
+    └── ethlambda/           # EthLambda node role    
 ```
 
 ### Remote Deployment
@@ -691,7 +692,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --deploymen
 
 The inventory generator will automatically:
 - Detect remote IPs (non-localhost) and configure remote connections
-- Group nodes by client type (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes, lighthouse_nodes, grandine_nodes)
+- Group nodes by client type (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes, lighthouse_nodes, grandine_nodes, ethlambda_nodes)
 - Set appropriate connection parameters
 - Apply SSH key file if provided via `--sshKey` parameter
 

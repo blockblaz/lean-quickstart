@@ -13,7 +13,7 @@ validators:
       # verify /ip4/127.0.0.1/udp/9000/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
       ip: "46.224.123.223"
       quic: 9001
-    metricsPort: 8081
+    metricsPort: 9095
     count: 1 # number of indices for this node
 
   - name: "ream_0"
@@ -24,7 +24,7 @@ validators:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "77.42.27.219"
       quic: 9001
-    metricsPort: 8081
+    metricsPort: 9095
     devnet: 1
     count: 1
 
@@ -35,7 +35,7 @@ validators:
       #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "46.224.123.220"
       quic: 9001
-    metricsPort: 8081
+    metricsPort: 9095
     count: 1
 
   - name: "lantern_0"
@@ -46,7 +46,7 @@ validators:
     enrFields:
       ip: "46.224.135.177"
       quic: 9001
-    metricsPort: 8081
+    metricsPort: 9095
     count: 1
 
   - name: "lighthouse_0"
@@ -57,21 +57,21 @@ validators:
     enrFields:
       ip: "46.224.135.169"
       quic: 9001
-    metricsPort: 8081
+    metricsPort: 9095
     count: 1
 
   - name: "grandine_0"
     privkey: "64a7f5ab53907966374ca23af36392910af682eec82c12e3abbb6c2ccdf39a72"
     enrFields:
-      ip: "46.62.163.74"
+      ip: "37.27.250.20"
       quic: 9001
-    metricsPort: 8081
+    metricsPort: 9095
     count: 1
 
   - name: "ethlambda_0"
     privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
     enrFields:
-      ip: "91.99.52.24"
+      ip: "78.47.44.215"
       quic: 9001
-    metricsPort: 8081
+    metricsPort: 9095
     count: 1
