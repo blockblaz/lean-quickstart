@@ -144,7 +144,6 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
    - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
-<<<<<<< HEAD
 11. `--metrics` starts a Prometheus + Grafana metrics stack alongside the devnet (local deployments only). When specified:
     - Generates `metrics/prometheus/prometheus.yml` from `validator-config.yaml` with scrape targets for all configured nodes
     - Starts Prometheus (http://localhost:9090) and Grafana (http://localhost:3000) via Docker Compose
@@ -153,15 +152,12 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
     - On Ctrl+C cleanup, the metrics stack is stopped automatically
 
     Note: Client metrics endpoints are always enabled regardless of this flag.
-=======
-11. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
 12. `--aggregator` specifies which node should act as the aggregator (1 aggregator per subnet).
    - If not provided, one node will be randomly selected as the aggregator
    - If provided, the specified node will be set as the aggregator
    - The aggregator selection updates the `isAggregator` flag in `validator-config.yaml`
    - Example: `--aggregator zeam_0` to make zeam_0 the aggregator
    - Example: Without flag, a random node will be selected automatically
->>>>>>> 1030459 (feat: add attestation_committee_count config and auto aggregator selection)
 
 ### Clients supported
 
