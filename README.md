@@ -65,10 +65,22 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupT
 
 ### Enabling metrics
 
+The `--metrics` flag starts a **Prometheus + Grafana** monitoring stack alongside the devnet nodes. Prometheus scrapes all node metrics endpoints and Grafana provides pre-built dashboards for monitoring consensus health.
+
 ```sh
-# Start all nodes with metrics enabled
+# Start all nodes with metrics stack
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
 ```
+
+Once running, services are available at:
+- **Grafana:** http://localhost:3000 (no login required)
+- **Prometheus:** http://localhost:9090
+
+Grafana is started with the two pre-provisioned dashboards from [leanMetrics](https://github.com/leanEthereum/leanMetrics):
+- **Lean Ethereum Client Interop Dashboard**: for seeing a general overview of all clients
+- **Lean Ethereum Client Dashboard**: for viewing metrics for a single client
+
+> **Note:** The `--metrics` flag only affects local deployments. When using Ansible deployment mode, this flag is ignored. Metrics ports are always exposed by clients regardless of this flag.
 
 ## Args
 
@@ -119,7 +131,14 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
    - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
-11. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
+11. `--metrics` starts a Prometheus + Grafana metrics stack alongside the devnet (local deployments only). When specified:
+    - Generates `metrics/prometheus/prometheus.yml` from `validator-config.yaml` with scrape targets for all configured nodes
+    - Starts Prometheus (http://localhost:9090) and Grafana (http://localhost:3000) via Docker Compose
+    - Grafana is pre-provisioned with Lean Ethereum dashboards (no login required)
+    - On `--stop --metrics`, the metrics stack is also torn down
+    - On Ctrl+C cleanup, the metrics stack is stopped automatically
+
+    Note: Client metrics endpoints are always enabled regardless of this flag.
 
 ### Clients supported
 
