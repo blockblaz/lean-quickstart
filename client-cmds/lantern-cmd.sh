@@ -8,6 +8,12 @@ if [ -n "$devnet" ]; then
         devnet_flag="--devnet $devnet"
 fi
 
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
 # Lantern's repo: https://github.com/Pier-Two/lantern
 node_binary="$scriptDir/lantern/build/lantern_cli \
         --data-dir $dataDir/$item \
@@ -22,7 +28,8 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --metrics-port $metricsPort \
         --http-port 5055 \
         --log-level debug \
-        --hash-sig-key-dir $configDir/hash-sig-keys"
+        --hash-sig-key-dir $configDir/hash-sig-keys \
+        $aggregator_flag"
 
 node_docker="$LANTERN_IMAGE --data-dir /data \
         --genesis-config /config/config.yaml \
@@ -36,7 +43,8 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --metrics-port $metricsPort \
         --http-port 5055 \
         --log-level debug \
-        --hash-sig-key-dir /config/hash-sig-keys"
+        --hash-sig-key-dir /config/hash-sig-keys \
+        $aggregator_flag"
 
 # choose either binary or docker
 node_setup="docker"

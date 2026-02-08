@@ -3,6 +3,12 @@
 # Metrics enabled by default
 metrics_flag="--metrics"
 
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
 node_binary="$lighthouse_bin lean_node \
       --datadir \"$dataDir/$item\" \
       --config \"$configDir/config.yaml\" \
@@ -14,7 +20,8 @@ node_binary="$lighthouse_bin lean_node \
       --socket-port $quicPort\
       $metrics_flag \
       --metrics-address 0.0.0.0 \
-      --metrics-port $metricsPort"
+      --metrics-port $metricsPort \
+      $aggregator_flag"
 
 node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       --datadir /data \
@@ -27,6 +34,7 @@ node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       --socket-port $quicPort\
       $metrics_flag \
       --metrics-address 0.0.0.0 \
-      --metrics-port $metricsPort"
+      --metrics-port $metricsPort \
+      $aggregator_flag"
 
 node_setup="docker"
