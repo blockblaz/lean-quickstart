@@ -6,13 +6,21 @@
 # Metrics enabled by default
 metrics_flag="--metrics_enable"
 
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
 node_binary="$scriptDir/../zig-out/bin/zeam node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
-      --api-port $metricsPort"
+      --api-port $metricsPort \
+      --attestation-committee-count $attestationCommitteeCount \
+      $aggregator_flag"
 
 node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet2 node \
       --custom_genesis /config \
@@ -20,7 +28,9 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet2 node \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
       $metrics_flag \
-      --api-port $metricsPort"
+      --api-port $metricsPort \
+      --attestation-committee-count $attestationCommitteeCount \
+      $aggregator_flag"
 
 # choose either binary or docker
 node_setup="docker"

@@ -3,6 +3,13 @@
 #-----------------------qlean setup----------------------
 # expects "qlean" submodule or symlink inside "lean-quickstart" root directory
 # https://github.com/qdrvm/qlean-mini
+
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
 node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --modules-dir $scriptDir/qlean/build/src/modules \
       --genesis $configDir/config.yaml \
@@ -15,6 +22,8 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --node-id $item --node-key $configDir/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --prometheus-port $metricsPort \
+      --attestation-committee-count $attestationCommitteeCount \
+      $aggregator_flag \
       -ldebug \
       -ltrace"
       
@@ -29,6 +38,8 @@ node_docker="qdrvm/qlean-mini:devnet-2 \
       --node-id $item --node-key /config/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --prometheus-port $metricsPort \
+      --attestation-committee-count $attestationCommitteeCount \
+      $aggregator_flag \
       -ldebug \
       -ltrace"
 

@@ -81,6 +81,45 @@ echo "Detected nodes: ${nodes[@]}"
 # nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
 
+# Aggregator selection logic (1 aggregator per subnet)
+# If user specified --aggregator, use that; otherwise randomly select one
+if [ -n "$aggregatorNode" ]; then
+  # Validate that the specified aggregator exists in the validator list
+  aggregator_found=false
+  for available_node in "${nodes[@]}"; do
+    if [[ "$aggregatorNode" == "$available_node" ]]; then
+      selected_aggregator="$aggregatorNode"
+      aggregator_found=true
+      echo "Using user-specified aggregator: $selected_aggregator"
+      break
+    fi
+  done
+  
+  if [[ "$aggregator_found" == false ]]; then
+    echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
+    echo "Available nodes: ${nodes[@]}"
+    exit 1
+  fi
+else
+  # Randomly select one node as aggregator
+  # Get the number of nodes
+  num_nodes=${#nodes[@]}
+  # Generate random index (0 to num_nodes-1)
+  random_index=$((RANDOM % num_nodes))
+  selected_aggregator="${nodes[$random_index]}"
+  echo "Randomly selected aggregator: $selected_aggregator (index $random_index out of $num_nodes nodes)"
+fi
+
+# Update the validator-config.yaml to set isAggregator flag
+# First, reset all nodes to isAggregator: false
+for node_name in "${nodes[@]}"; do
+  yq eval -i ".validators[] | select(.name == \"$node_name\") | .isAggregator = false" "$validator_config_file"
+done
+
+# Set the selected aggregator to isAggregator: true
+yq eval -i ".validators[] | select(.name == \"$selected_aggregator\") | .isAggregator = true" "$validator_config_file"
+echo "Set $selected_aggregator as aggregator in $validator_config_file"
+
 # Parse comma-separated or space-separated node names or handle single node/all
 if [[ "$node" == "all" ]]; then
   # Spin all nodes
@@ -197,6 +236,17 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     fi
   done
   
+  # Stop metrics stack if --metrics flag was passed
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    fi
+  fi
+
   echo "✅ Local nodes stopped successfully!"
   exit 0
 fi
@@ -299,6 +349,31 @@ for item in "${spin_nodes[@]}"; do
   spinned_pids+=($pid)
 done;
 
+# 4. Start metrics stack (Prometheus + Grafana) if --metrics flag was passed
+if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+  echo -e "\n\nStarting metrics stack (Prometheus + Grafana)..."
+  printf '%*s' $(tput cols) | tr ' ' '-'
+  echo
+
+  metricsDir="$scriptDir/metrics"
+
+  # Generate prometheus.yml from validator-config.yaml
+  "$scriptDir/generate-prometheus-config.sh" "$validator_config_file" "$metricsDir/prometheus"
+
+  # Pull and start metrics containers
+  if [ -n "$dockerWithSudo" ]; then
+    sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  else
+    docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  fi
+
+  echo ""
+  echo "📊 Metrics stack started:"
+  echo "   Prometheus: http://localhost:9090"
+  echo "   Grafana:    http://localhost:3000"
+  echo ""
+fi
+
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
 
@@ -320,6 +395,17 @@ cleanup() {
   execCmd="kill -9 $process_ids"
   echo "$execCmd"
   eval "$execCmd"
+
+  # Stop metrics stack if it was started
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    fi
+  fi
 }
 
 trap "echo exit signal received;cleanup" SIGINT SIGTERM

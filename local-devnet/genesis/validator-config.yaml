@@ -4,6 +4,7 @@ deployment_mode: local
 config:
   activeEpoch: 18
   keyType: "hash-sig"
+  attestation_committee_count: 1
 validators:
   - name: "zeam_0"
     # node id 7d0904dc6d8d7130e0e68d5d3175d0c3cf470f8725f67bd8320882f5b9753cc0
@@ -14,6 +15,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9001
     metricsPort: 8081
+    isAggregator: false
     count: 1 # number of indices for this node
 
   - name: "ream_0"
@@ -25,6 +27,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9002
     metricsPort: 8082
+    isAggregator: false
     devnet: 1
     count: 1
 
@@ -36,6 +39,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9003
     metricsPort: 8083
+    isAggregator: false
     count: 1
 
   - name: "lantern_0"
@@ -47,6 +51,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9004
     metricsPort: 8084
+    isAggregator: false
     count: 1
 
   - name: "lighthouse_0"
@@ -58,6 +63,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9005
     metricsPort: 8085
+    isAggregator: false
     count: 1
 
   - name: "grandine_0"
@@ -66,6 +72,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9006
     metricsPort: 8086
+    isAggregator: false
     count: 1
 
   - name: "ethlambda_0"
@@ -77,4 +84,5 @@ validators:
       ip: "127.0.0.1"
       quic: 9007
     metricsPort: 8087
+    isAggregator: false
     count: 1

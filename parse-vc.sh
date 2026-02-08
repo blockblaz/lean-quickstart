@@ -51,6 +51,18 @@ if [ -z "$devnet" ] || [ "$devnet" == "null" ]; then
     devnet=""
 fi
 
+# Automatically extract isAggregator flag using yq (defaults to false if not set)
+isAggregator=$(yq eval ".validators[] | select(.name == \"$item\") | .isAggregator // false" "$validator_config_file")
+if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
+    isAggregator="false"
+fi
+
+# Extract attestation_committee_count from config section (defaults to 1 if not set)
+attestationCommitteeCount=$(yq eval ".config.attestation_committee_count // 1" "$validator_config_file")
+if [ -z "$attestationCommitteeCount" ] || [ "$attestationCommitteeCount" == "null" ]; then
+    attestationCommitteeCount="1"
+fi
+
 # Automatically extract private key using yq
 privKey=$(yq eval ".validators[] | select(.name == \"$item\") | .privkey" "$validator_config_file")
 
@@ -99,10 +111,14 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Hash-Sig Key Index: $hashSigKeyIndex"
     echo "Hash-Sig Public Key: $hashSigPkPath"
     echo "Hash-Sig Secret Key: $hashSigSkPath"
+    echo "Is Aggregator: $isAggregator"
+    echo "Attestation Committee Count: $attestationCommitteeCount"
 else
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
     echo "Metrics Port: $metricsPort"
     echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
+    echo "Is Aggregator: $isAggregator"
+    echo "Attestation Committee Count: $attestationCommitteeCount"
 fi
