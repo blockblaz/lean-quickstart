@@ -170,7 +170,7 @@ Only specify validators you want to override - others will use their defaults fr
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
 11. `--metrics` starts a Prometheus + Grafana metrics stack alongside the devnet (local deployments only). When specified:
-    - Generates `metrics/prometheus/prometheus.yml` from `validator-config.yaml` with scrape targets for all configured nodes
+    - Generates `metrics/prometheus/prometheus.yml` from `deploy-validator-config.yaml` with scrape targets for all configured nodes
     - Starts Prometheus (http://localhost:9090) and Grafana (http://localhost:3000) via Docker Compose
     - Grafana is pre-provisioned with Lean Ethereum dashboards (no login required)
     - On `--stop --metrics`, the metrics stack is also torn down

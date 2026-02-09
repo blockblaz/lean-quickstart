@@ -363,8 +363,8 @@ if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
 
   metricsDir="$scriptDir/metrics"
 
-  # Generate prometheus.yml from validator-config.yaml
-  "$scriptDir/generate-prometheus-config.sh" "$validator_config_file" "$metricsDir/prometheus"
+  # Generate prometheus.yml from deploy-validator-config.yaml
+  "$scriptDir/generate-prometheus-config.sh" "$deploy_validator_config_file" "$metricsDir/prometheus"
 
   # Pull and start metrics containers
   if [ -n "$dockerWithSudo" ]; then
