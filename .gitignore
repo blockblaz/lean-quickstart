@@ -13,6 +13,7 @@ validators.yaml
 nodes.yaml
 genesis.json
 genesis.ssz
+annotated_validators.yaml
 
 # Deploy config (created by merge-config.sh, merges validator-config + user overrides)
 deploy-validator-config.yaml
