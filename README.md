@@ -82,6 +82,19 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
 
 > **Note:** The `--metrics` flag only affects local deployments. When using Ansible deployment mode, this flag is ignored. Metrics ports are always exposed by clients regardless of this flag.
 
+### Aggregator Selection
+
+```sh
+# Let the system randomly select an aggregator (default behavior)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+
+# Manually specify which node should be the aggregator
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregator zeam_0
+
+# The aggregator selection is applied automatically and the isAggregator flag
+# is updated in validator-config.yaml before nodes are started
+```
+
 ## Args
 
 1. `NETWORK_DIR` is an env to specify the network directory. Should have a `genesis` directory with genesis config. A `data` folder will be created inside this `NETWORK_DIR` if not already there.
@@ -139,6 +152,12 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
     - On Ctrl+C cleanup, the metrics stack is stopped automatically
 
     Note: Client metrics endpoints are always enabled regardless of this flag.
+12. `--aggregator` specifies which node should act as the aggregator (1 aggregator per subnet).
+   - If not provided, one node will be randomly selected as the aggregator
+   - If provided, the specified node will be set as the aggregator
+   - The aggregator selection updates the `isAggregator` flag in `validator-config.yaml`
+   - Example: `--aggregator zeam_0` to make zeam_0 the aggregator
+   - Example: Without flag, a random node will be selected automatically
 
 ### Clients supported
 

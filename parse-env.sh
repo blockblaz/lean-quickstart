@@ -80,6 +80,11 @@ while [[ $# -gt 0 ]]; do
       stopNodes=true
       shift
       ;;
+    --aggregator)
+      aggregatorNode="$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
@@ -110,3 +115,4 @@ echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
 echo "dockerTag = ${dockerTag:-latest}"
 echo "enableMetrics = $enableMetrics"
+echo "aggregatorNode = ${aggregatorNode:-<auto-select>}"

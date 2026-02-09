@@ -81,6 +81,43 @@ echo "Detected nodes: ${nodes[@]}"
 # nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
 
+# Aggregator selection logic (1 aggregator per subnet)
+# If user specified --aggregator, use that; otherwise randomly select one
+if [ -n "$aggregatorNode" ]; then
+  # Validate that the specified aggregator exists in the validator list
+  aggregator_found=false
+  for available_node in "${nodes[@]}"; do
+    if [[ "$aggregatorNode" == "$available_node" ]]; then
+      selected_aggregator="$aggregatorNode"
+      aggregator_found=true
+      echo "Using user-specified aggregator: $selected_aggregator"
+      break
+    fi
+  done
+  
+  if [[ "$aggregator_found" == false ]]; then
+    echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
+    echo "Available nodes: ${nodes[@]}"
+    exit 1
+  fi
+else
+  # Randomly select one node as aggregator
+  # Get the number of nodes
+  num_nodes=${#nodes[@]}
+  # Generate random index (0 to num_nodes-1)
+  random_index=$((RANDOM % num_nodes))
+  selected_aggregator="${nodes[$random_index]}"
+  echo "Randomly selected aggregator: $selected_aggregator (index $random_index out of $num_nodes nodes)"
+fi
+
+# Update the validator-config.yaml to set isAggregator flag
+# First, reset all nodes to isAggregator: false
+yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
+
+# Then set the selected aggregator to isAggregator: true
+yq eval -i "(.validators[] | select(.name == \"$selected_aggregator\") | .isAggregator) = true" "$validator_config_file"
+echo "Set $selected_aggregator as aggregator in $validator_config_file"
+
 # Parse comma-separated or space-separated node names or handle single node/all
 if [[ "$node" == "all" ]]; then
   # Spin all nodes
