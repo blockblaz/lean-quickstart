@@ -59,7 +59,7 @@ source "$(dirname $0)/set-up.sh"
 # 2. Create deploy-validator-config.yaml (merges user config overrides if provided)
 echo ""
 echo "Creating deploy-validator-config.yaml..."
-"$scriptDir/merge-config.sh" "$validator_config_file" "$configFile"
+"$scriptDir/scripts/merge-config.sh" "$validator_config_file" "$configFile"
 deploy_config_file="$configDir/deploy-validator-config.yaml"
 
 # 3. collect the nodes that the user has asked us to spin and perform setup
@@ -233,8 +233,6 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
   done
 fi
 spinned_pids=()
-declare -A node_images
-declare -A node_modes
 
 for item in "${spin_nodes[@]}"; do
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
@@ -291,13 +289,6 @@ for item in "${spin_nodes[@]}"; do
   echo "$sourceCmd"
   eval $sourceCmd
 
-  # Store the final image for display
-  if [ "$node_setup" == "docker" ]; then
-    node_images["$item"]=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
-  fi
-
-  # Store node mode
-  node_modes["$item"]="$node_setup"
 
   # spin nodes
   if [ "$node_setup" == "binary" ]
@@ -356,7 +347,7 @@ done;
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
 
-# Display summary table
+# Display summary table (read directly from deploy-validator-config.yaml like ansible does)
 echo ""
 echo "=================================================="
 echo "Deployed Nodes Summary:"
@@ -364,13 +355,8 @@ echo "=================================================="
 printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
 echo "--------------------------------------------------"
 for node in "${spin_nodes[@]}"; do
-  mode="${node_modes[$node]}"
-  if [ "$mode" == "docker" ]; then
-    image="${node_images[$node]}"
-    printf "%-15s | %-10s | %s\n" "$node" "$mode" "$image"
-  else
-    printf "%-15s | %-10s | %s\n" "$node" "$mode" "N/A (binary mode)"
-  fi
+  image=$(yq eval ".validators[] | select(.name == \"$node\") | .image" "$deploy_config_file" 2>/dev/null)
+  printf "%-15s | %-10s | %s\n" "$node" "docker" "$image"
 done
 echo "=================================================="
 echo ""
