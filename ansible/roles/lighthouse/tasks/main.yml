@@ -1,11 +1,11 @@
 ---
 # Lighthouse role: Deploy and manage Lighthouse nodes
 # Converts client-cmds/lighthouse-cmd.sh logic to Ansible tasks
-# Note: validator-config.yaml on remote already has user overrides merged (from deploy-validator-config.yaml)
+# Note: deploy-validator-config.yaml has user overrides merged (from merge-config.sh)
 
-- name: Extract node configuration from validator-config.yaml
+- name: Extract node configuration from deploy-validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/deploy-validator-config.yaml"
   register: lighthouse_node_config
   changed_when: false
   loop:
@@ -67,7 +67,7 @@
         lighthouse lean_node
         --datadir /data
         --config /config/config.yaml
-        --validators /config/validator-config.yaml
+        --validators /config/deploy-validator-config.yaml
         --nodes /config/nodes.yaml
         --node-id {{ node_name }}
         --private-key /config/{{ node_name }}.key

@@ -1,11 +1,11 @@
 ---
 # Ream role: Deploy and manage Ream nodes
 # Converts client-cmds/ream-cmd.sh logic to Ansible tasks
-# Note: validator-config.yaml on remote already has user overrides merged (from deploy-validator-config.yaml)
+# Note: deploy-validator-config.yaml has user overrides merged (from merge-config.sh)
 
-- name: Extract node configuration from validator-config.yaml
+- name: Extract node configuration from deploy-validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/deploy-validator-config.yaml"
   register: ream_node_config
   changed_when: false
   loop:

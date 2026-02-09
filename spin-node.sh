@@ -60,14 +60,14 @@ source "$(dirname $0)/set-up.sh"
 echo ""
 echo "Creating deploy-validator-config.yaml..."
 "$scriptDir/scripts/merge-config.sh" "$validator_config_file" "$configFile"
-deploy_config_file="$configDir/deploy-validator-config.yaml"
+deploy_validator_config_file="$configDir/deploy-validator-config.yaml"
 
 # 3. collect the nodes that the user has asked us to spin and perform setup
 
 # Load nodes from deploy-validator-config.yaml
-if [ -f "$deploy_config_file" ]; then
+if [ -f "$deploy_validator_config_file" ]; then
     # Use yq to extract node names from deploy-validator-config.yaml
-    nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
+    nodes=($(yq eval '.validators[].name' "$deploy_validator_config_file"))
     
     # Validate that we found nodes
     if [ ${#nodes[@]} -eq 0 ]; then
@@ -75,7 +75,7 @@ if [ -f "$deploy_config_file" ]; then
         exit 1
     fi
 else
-    echo "Error: deploy-validator-config.yaml not found at $deploy_config_file"
+    echo "Error: deploy-validator-config.yaml not found at $deploy_validator_config_file"
     echo "This file should have been created by merge-config.sh"
     nodes=()
     exit 1
@@ -149,7 +149,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_config_file" "$sshKeyFile" "$useRoot" "stop"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_validator_config_file" "$sshKeyFile" "$useRoot" "stop"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
@@ -158,7 +158,7 @@ if [ "$deployment_mode" == "ansible" ]; then
 
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_config_file" "$sshKeyFile" "$useRoot" ""; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$deploy_validator_config_file" "$sshKeyFile" "$useRoot" ""; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -172,10 +172,10 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
   echo "Stopping local nodes..."
 
   # Load nodes from deploy-validator-config.yaml
-  if [ -f "$deploy_config_file" ]; then
-    nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
+  if [ -f "$deploy_validator_config_file" ]; then
+    nodes=($(yq eval '.validators[].name' "$deploy_validator_config_file"))
   else
-    echo "Error: deploy-validator-config.yaml not found at $deploy_config_file"
+    echo "Error: deploy-validator-config.yaml not found at $deploy_validator_config_file"
     exit 1
   fi
   
@@ -251,7 +251,7 @@ for item in "${spin_nodes[@]}"; do
     eval "$cmd"
   fi
 
-  # parse validator-config.yaml for $item to load args values (including docker_image)
+  # parse deploy-validator-config.yaml for $item to load args values (including docker_image)
   source parse-vc.sh
 
   # extract client config
@@ -355,7 +355,7 @@ echo "=================================================="
 printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
 echo "--------------------------------------------------"
 for node in "${spin_nodes[@]}"; do
-  image=$(yq eval ".validators[] | select(.name == \"$node\") | .image" "$deploy_config_file" 2>/dev/null)
+  image=$(yq eval ".validators[] | select(.name == \"$node\") | .image" "$deploy_validator_config_file" 2>/dev/null)
   printf "%-15s | %-10s | %s\n" "$node" "docker" "$image"
 done
 echo "=================================================="

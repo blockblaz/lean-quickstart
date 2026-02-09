@@ -3,13 +3,13 @@
 # Metrics enabled by default
 metrics_flag="--metrics"
 
-# Docker image (set from validator-config.yaml or user config via --configFile)
+# Docker image (set from deploy-validator-config.yaml or user config via --configFile)
 # lighthouseImage is exported by spin-node.sh before sourcing this file
 
 node_binary="$lighthouse_bin lean_node \
       --datadir \"$dataDir/$item\" \
       --config \"$configDir/config.yaml\" \
-      --validators \"$configDir/validator-config.yaml\" \
+      --validators \"$configDir/deploy-validator-config.yaml\" \
       --nodes \"$configDir/nodes.yaml\" \
       --node-id \"$item\" \
       --private-key \"$configDir/$privKeyPath\" \
@@ -22,7 +22,7 @@ node_binary="$lighthouse_bin lean_node \
 node_docker="$lighthouseImage lighthouse lean_node \
       --datadir /data \
       --config /config/config.yaml \
-      --validators /config/validator-config.yaml \
+      --validators /config/deploy-validator-config.yaml \
       --nodes /config/nodes.yaml \
       --node-id $item \
       --private-key /config/$privKeyPath \

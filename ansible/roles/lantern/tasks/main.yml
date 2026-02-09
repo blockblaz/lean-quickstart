@@ -1,11 +1,11 @@
 ---
 # Lantern role: Deploy and manage Lantern nodes
 # Converts client-cmds/lantern-cmd.sh logic to Ansible tasks
-# Note: validator-config.yaml on remote already has user overrides merged (from deploy-validator-config.yaml)
+# Note: deploy-validator-config.yaml has user overrides merged (from merge-config.sh)
 
-- name: Extract node configuration from validator-config.yaml
+- name: Extract node configuration from deploy-validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/deploy-validator-config.yaml"
   register: lantern_node_config
   changed_when: false
   loop:
@@ -64,7 +64,7 @@
         --genesis-config /config/config.yaml
         --validator-registry-path /config/validators.yaml
         --genesis-state /config/genesis.ssz
-        --validator-config /config/validator-config.yaml
+        --validator-config /config/deploy-validator-config.yaml
         --nodes-path /config/nodes.yaml
         --node-id {{ node_name }}
         --node-key-path /config/{{ node_name }}.key

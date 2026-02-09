@@ -21,7 +21,7 @@ deploy-validator-config.yaml
 # Hash-sig validator keys (contains sensitive secret keys)
 hash-sig-keys/
 
-# Auto-generated Ansible inventory (generated from validator-config.yaml)
+# Auto-generated Ansible inventory (generated from deploy-validator-config.yaml)
 hosts.yml
 
 # Temporary cache files

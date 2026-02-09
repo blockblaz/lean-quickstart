@@ -6,7 +6,7 @@
 # Metrics enabled by default
 metrics_flag="--metrics_enable"
 
-# Docker image (set from validator-config.yaml or user config via --configFile)
+# Docker image (set from deploy-validator-config.yaml, merged from validator-config.yaml + user config)
 # zeamImage is exported by spin-node.sh before sourcing this file
 
 node_binary="$scriptDir/../zig-out/bin/zeam node \

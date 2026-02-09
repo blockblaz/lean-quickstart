@@ -19,47 +19,47 @@ if ! command -v yq &> /dev/null; then
 fi
 
 # Use deploy-validator-config.yaml (has user overrides merged)
-deploy_config_file="$configDir/deploy-validator-config.yaml"
-if [ ! -f "$deploy_config_file" ]; then
-    echo "Error: deploy-validator-config.yaml not found at $deploy_config_file"
+deploy_validator_config_file="$configDir/deploy-validator-config.yaml"
+if [ ! -f "$deploy_validator_config_file" ]; then
+    echo "Error: deploy-validator-config.yaml not found at $deploy_validator_config_file"
     echo "This file should have been created by merge-config.sh"
     exit 1
 fi
 
 # Automatically extract QUIC port using yq
-quicPort=$(yq eval ".validators[] | select(.name == \"$item\") | .enrFields.quic" "$deploy_config_file")
+quicPort=$(yq eval ".validators[] | select(.name == \"$item\") | .enrFields.quic" "$deploy_validator_config_file")
 
 # Validate that we found a QUIC port for this node
 if [ -z "$quicPort" ] || [ "$quicPort" == "null" ]; then
-    echo "Error: No QUIC port found for node '$item' in $deploy_config_file"
+    echo "Error: No QUIC port found for node '$item' in $deploy_validator_config_file"
     echo "Available nodes:"
-    yq eval '.validators[].name' "$deploy_config_file"
+    yq eval '.validators[].name' "$deploy_validator_config_file"
     exit 1
 fi
 
 # Automatically extract metrics port using yq
-metricsPort=$(yq eval ".validators[] | select(.name == \"$item\") | .metricsPort" "$deploy_config_file")
+metricsPort=$(yq eval ".validators[] | select(.name == \"$item\") | .metricsPort" "$deploy_validator_config_file")
 
 # Validate that we found a metrics port for this node
 if [ -z "$metricsPort" ] || [ "$metricsPort" == "null" ]; then
-    echo "Error: No metrics port found for node '$item' in $deploy_config_file"
+    echo "Error: No metrics port found for node '$item' in $deploy_validator_config_file"
     echo "Available nodes:"
-    yq eval '.validators[].name' "$deploy_config_file"
+    yq eval '.validators[].name' "$deploy_validator_config_file"
     exit 1
 fi
 
 # Automatically extract devnet using yq (optional - only ream uses it)
-devnet=$(yq eval ".validators[] | select(.name == \"$item\") | .devnet" "$deploy_config_file")
+devnet=$(yq eval ".validators[] | select(.name == \"$item\") | .devnet" "$deploy_validator_config_file")
 if [ -z "$devnet" ] || [ "$devnet" == "null" ]; then
     devnet=""
 fi
 
 # Automatically extract private key using yq
-privKey=$(yq eval ".validators[] | select(.name == \"$item\") | .privkey" "$deploy_config_file")
+privKey=$(yq eval ".validators[] | select(.name == \"$item\") | .privkey" "$deploy_validator_config_file")
 
 # Validate that we found a private key for this node
 if [ -z "$privKey" ] || [ "$privKey" == "null" ]; then
-    echo "Error: No private key found for node '$item' in $deploy_config_file"
+    echo "Error: No private key found for node '$item' in $deploy_validator_config_file"
     exit 1
 fi
 
@@ -68,8 +68,8 @@ privKeyPath="$item.key"
 echo "$privKey" > "$configDir/$privKeyPath"
 
 # Extract hash-sig key configuration from top-level config
-keyType=$(yq eval ".config.keyType" "$deploy_config_file")
-hashSigKeyIndex=$(yq eval ".validators | to_entries | .[] | select(.value.name == \"$item\") | .key" "$deploy_config_file")
+keyType=$(yq eval ".config.keyType" "$deploy_validator_config_file")
+hashSigKeyIndex=$(yq eval ".validators | to_entries | .[] | select(.value.name == \"$item\") | .key" "$deploy_validator_config_file")
 
 # Load hash-sig keys if configured
 if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$hashSigKeyIndex" ]; then
@@ -95,7 +95,7 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
 fi
 
 # Load docker image for this node (already merged in deploy-validator-config.yaml)
-docker_image=$(yq eval ".validators[] | select(.name == \"$item\") | .image" "$deploy_config_file" 2>/dev/null)
+docker_image=$(yq eval ".validators[] | select(.name == \"$item\") | .image" "$deploy_validator_config_file" 2>/dev/null)
 if [ -z "$docker_image" ] || [ "$docker_image" == "null" ]; then
     echo "Warning: No docker image found for $item"
     docker_image=""

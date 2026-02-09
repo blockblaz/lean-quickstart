@@ -2,7 +2,7 @@
 
 #-----------------------ethlambda setup----------------------
 
-# Docker image (set from validator-config.yaml or user config via --configFile)
+# Docker image (set from deploy-validator-config.yaml, merged from validator-config.yaml + user config)
 # ethlambdaImage is exported by spin-node.sh before sourcing this file
 
 binary_path="$scriptDir/../ethlambda/target/release/ethlambda"
