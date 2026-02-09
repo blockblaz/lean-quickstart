@@ -57,10 +57,10 @@ if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
     isAggregator="false"
 fi
 
-# Extract attestation_committee_count from config section (defaults to 1 if not set)
-attestationCommitteeCount=$(yq eval ".config.attestation_committee_count // 1" "$validator_config_file")
+# Extract attestation_committee_count from config section (optional - only if explicitly set)
+attestationCommitteeCount=$(yq eval ".config.attestation_committee_count" "$validator_config_file")
 if [ -z "$attestationCommitteeCount" ] || [ "$attestationCommitteeCount" == "null" ]; then
-    attestationCommitteeCount="1"
+    attestationCommitteeCount=""
 fi
 
 # Automatically extract private key using yq
@@ -112,7 +112,9 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Hash-Sig Public Key: $hashSigPkPath"
     echo "Hash-Sig Secret Key: $hashSigSkPath"
     echo "Is Aggregator: $isAggregator"
-    echo "Attestation Committee Count: $attestationCommitteeCount"
+    if [ -n "$attestationCommitteeCount" ]; then
+        echo "Attestation Committee Count: $attestationCommitteeCount"
+    fi
 else
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
@@ -120,5 +122,7 @@ else
     echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
     echo "Is Aggregator: $isAggregator"
-    echo "Attestation Committee Count: $attestationCommitteeCount"
+    if [ -n "$attestationCommitteeCount" ]; then
+        echo "Attestation Committee Count: $attestationCommitteeCount"
+    fi
 fi

@@ -14,6 +14,12 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
 # Lantern's repo: https://github.com/Pier-Two/lantern
 node_binary="$scriptDir/lantern/build/lantern_cli \
         --data-dir $dataDir/$item \
@@ -29,7 +35,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --http-port 5055 \
         --log-level debug \
         --hash-sig-key-dir $configDir/hash-sig-keys \
-        --attestation-committee-count $attestationCommitteeCount \
+        $attestation_committee_flag \
         $aggregator_flag"
 
 node_docker="$LANTERN_IMAGE --data-dir /data \
@@ -45,7 +51,7 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --http-port 5055 \
         --log-level debug \
         --hash-sig-key-dir /config/hash-sig-keys \
-        --attestation-committee-count $attestationCommitteeCount \
+        $attestation_committee_flag \
         $aggregator_flag"
 
 # choose either binary or docker

@@ -9,6 +9,12 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
 node_binary="$lighthouse_bin lean_node \
       --datadir \"$dataDir/$item\" \
       --config \"$configDir/config.yaml\" \
@@ -21,7 +27,7 @@ node_binary="$lighthouse_bin lean_node \
       $metrics_flag \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
-      --attestation-committee-count $attestationCommitteeCount \
+      $attestation_committee_flag \
       $aggregator_flag"
 
 node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
@@ -36,7 +42,7 @@ node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       $metrics_flag \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
-      --attestation-committee-count $attestationCommitteeCount \
+      $attestation_committee_flag \
       $aggregator_flag"
 
 node_setup="docker"

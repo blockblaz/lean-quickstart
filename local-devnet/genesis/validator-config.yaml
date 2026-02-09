@@ -4,7 +4,6 @@ deployment_mode: local
 config:
   activeEpoch: 18
   keyType: "hash-sig"
-  attestation_committee_count: 1
 validators:
   - name: "zeam_0"
     # node id 7d0904dc6d8d7130e0e68d5d3175d0c3cf470f8725f67bd8320882f5b9753cc0
