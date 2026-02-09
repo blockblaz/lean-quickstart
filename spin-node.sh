@@ -201,6 +201,17 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     fi
   done
   
+  # Stop metrics stack if --metrics flag was passed
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    fi
+  fi
+
   echo "✅ Local nodes stopped successfully!"
   exit 0
 fi
@@ -344,6 +355,31 @@ for item in "${spin_nodes[@]}"; do
   spinned_pids+=($pid)
 done;
 
+# 4. Start metrics stack (Prometheus + Grafana) if --metrics flag was passed
+if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+  echo -e "\n\nStarting metrics stack (Prometheus + Grafana)..."
+  printf '%*s' $(tput cols) | tr ' ' '-'
+  echo
+
+  metricsDir="$scriptDir/metrics"
+
+  # Generate prometheus.yml from validator-config.yaml
+  "$scriptDir/generate-prometheus-config.sh" "$validator_config_file" "$metricsDir/prometheus"
+
+  # Pull and start metrics containers
+  if [ -n "$dockerWithSudo" ]; then
+    sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  else
+    docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  fi
+
+  echo ""
+  echo "📊 Metrics stack started:"
+  echo "   Prometheus: http://localhost:9090"
+  echo "   Grafana:    http://localhost:3000"
+  echo ""
+fi
+
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
 
@@ -379,6 +415,17 @@ cleanup() {
   execCmd="kill -9 $process_ids"
   echo "$execCmd"
   eval "$execCmd"
+
+  # Stop metrics stack if it was started
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    fi
+  fi
 }
 
 trap "echo exit signal received;cleanup" SIGINT SIGTERM
