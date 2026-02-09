@@ -112,12 +112,10 @@ fi
 
 # Update the validator-config.yaml to set isAggregator flag
 # First, reset all nodes to isAggregator: false
-for node_name in "${nodes[@]}"; do
-  yq eval -i ".validators[] | select(.name == \"$node_name\") | .isAggregator = false" "$validator_config_file"
-done
+yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
 
-# Set the selected aggregator to isAggregator: true
-yq eval -i ".validators[] | select(.name == \"$selected_aggregator\") | .isAggregator = true" "$validator_config_file"
+# Then set the selected aggregator to isAggregator: true
+yq eval -i "(.validators[] | select(.name == \"$selected_aggregator\") | .isAggregator) = true" "$validator_config_file"
 echo "Set $selected_aggregator as aggregator in $validator_config_file"
 
 # Parse comma-separated or space-separated node names or handle single node/all
