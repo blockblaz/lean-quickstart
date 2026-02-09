@@ -78,10 +78,10 @@
           Generated files in {{ genesis_dir }}:
             - config.yaml (with GENESIS_VALIDATORS)
             - validators.yaml
-            - annotated_validators.yaml
             - nodes.yaml
             - genesis.json
             - genesis.ssz
+            - annotated_validators.yaml
           {% for node in node_names_list %}
             - {{ node }}.key
           {% endfor %}

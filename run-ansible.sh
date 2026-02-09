@@ -153,40 +153,23 @@ if [ $EXIT_CODE -eq 0 ]; then
     echo "=================================================="
     echo "Deployed Nodes Summary:"
     echo "=================================================="
-    printf "%-15s | %-10s | %s\n" "Node" "Mode" "Image / Binary Path"
+    printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
     echo "--------------------------------------------------"
 
-    # Parse node names (comma or space separated)
-    if [[ "$node" == *","* ]]; then
+    # Get node names for summary
+    if [[ "$node" == "all" ]]; then
+      # Expand "all" to actual node names from config
+      deployed_nodes=($(yq eval '.validators[].name' "$deploy_config_file" 2>/dev/null))
+    elif [[ "$node" == *","* ]]; then
       IFS=',' read -r -a deployed_nodes <<< "$node"
     else
       IFS=' ' read -r -a deployed_nodes <<< "$node"
     fi
 
     for node_name in "${deployed_nodes[@]}"; do
-      # Extract client type from node name (e.g., zeam_0 -> zeam)
-      client_type=$(echo "$node_name" | sed 's/_[0-9]*$//')
-
-      if [ "$DEFAULT_DEPLOYMENT_MODE" == "binary" ]; then
-        # Extract binary path from client-cmd.sh
-        client_cmd_file="$scriptDir/client-cmds/${client_type}-cmd.sh"
-        binary_path=""
-        if [ -f "$client_cmd_file" ]; then
-          # Extract the first word from node_binary line (the actual binary path)
-          binary_path=$(grep -E '^node_binary=' "$client_cmd_file" | head -1 | sed -E 's/node_binary="([^ "\\]+).*/\1/')
-          # Resolve $scriptDir to actual path
-          binary_path=$(echo "$binary_path" | sed "s|\\\$scriptDir|$scriptDir|g")
-          # For unresolved variables (like $grandine_bin), show as custom binary path
-          if [[ "$binary_path" == \$* ]]; then
-            binary_path="<custom: ${binary_path}>"
-          fi
-        fi
-        printf "%-15s | %-10s | %s\n" "$node_name" "binary" "${binary_path:-unknown}"
-      else
-        # Get image from deploy-validator-config.yaml (overrides already merged)
-        docker_image=$(yq eval ".validators[] | select(.name == \"$node_name\") | .image" "$deploy_config_file" 2>/dev/null)
-        printf "%-15s | %-10s | %s\n" "$node_name" "docker" "${docker_image:-unknown}"
-      fi
+      # Get image from deploy-validator-config.yaml (overrides already merged)
+      docker_image=$(yq eval ".validators[] | select(.name == \"$node_name\") | .image" "$deploy_config_file" 2>/dev/null)
+      printf "%-15s | %-10s | %s\n" "$node_name" "docker" "${docker_image:-unknown}"
     done
     echo "=================================================="
     echo ""

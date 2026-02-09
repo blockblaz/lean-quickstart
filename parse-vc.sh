@@ -102,6 +102,7 @@ if [ -z "$docker_image" ] || [ "$docker_image" == "null" ]; then
 fi
 
 echo "Node: $item"
+echo "Docker Image: ${docker_image:-<not set>}"
 echo "QUIC Port: $quicPort"
 echo "Metrics Port: $metricsPort"
 echo "Devnet: ${devnet:-<not set>}"
@@ -112,4 +113,3 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Hash-Sig Public Key: $hashSigPkPath"
     echo "Hash-Sig Secret Key: $hashSigSkPath"
 fi
-echo "Docker Image: ${docker_image:-<not set>}"
