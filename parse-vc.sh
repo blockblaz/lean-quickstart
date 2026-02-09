@@ -18,10 +18,10 @@ if ! command -v yq &> /dev/null; then
     exit 1
 fi
 
-# Use resolved config (has user overrides merged)
+# Use deploy-validator-config.yaml (has user overrides merged)
 deploy_config_file="$configDir/deploy-validator-config.yaml"
 if [ ! -f "$deploy_config_file" ]; then
-    echo "Error: Resolved validator config file not found at $deploy_config_file"
+    echo "Error: deploy-validator-config.yaml not found at $deploy_config_file"
     echo "This file should have been created by merge-config.sh"
     exit 1
 fi
@@ -94,7 +94,7 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     export HASH_SIG_KEY_INDEX="$hashSigKeyIndex"
 fi
 
-# Load docker image for this node (already merged in resolved config)
+# Load docker image for this node (already merged in deploy-validator-config.yaml)
 docker_image=$(yq eval ".validators[] | select(.name == \"$item\") | .image" "$deploy_config_file" 2>/dev/null)
 if [ -z "$docker_image" ] || [ "$docker_image" == "null" ]; then
     echo "Warning: No docker image found for $item"

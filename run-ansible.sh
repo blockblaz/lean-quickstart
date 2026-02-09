@@ -49,7 +49,7 @@ echo "SSH user for remote connections: $sshUser"
 ANSIBLE_DIR="$scriptDir/ansible"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 
-# Generate inventory if it doesn't exist or if resolved config is newer
+# Generate inventory if it doesn't exist or if deploy-validator-config.yaml is newer
 if [ ! -f "$INVENTORY_FILE" ] || [ "$deploy_config_file" -nt "$INVENTORY_FILE" ]; then
   echo "Generating Ansible inventory from deploy-validator-config.yaml..."
   "$scriptDir/generate-ansible-inventory.sh" "$deploy_config_file" "$INVENTORY_FILE"
@@ -183,7 +183,7 @@ if [ $EXIT_CODE -eq 0 ]; then
         fi
         printf "%-15s | %-10s | %s\n" "$node_name" "binary" "${binary_path:-unknown}"
       else
-        # Get image from resolved config (overrides already merged)
+        # Get image from deploy-validator-config.yaml (overrides already merged)
         docker_image=$(yq eval ".validators[] | select(.name == \"$node_name\") | .image" "$deploy_config_file" 2>/dev/null)
         printf "%-15s | %-10s | %s\n" "$node_name" "docker" "${docker_image:-unknown}"
       fi

@@ -58,15 +58,15 @@ source "$(dirname $0)/set-up.sh"
 
 # 2. Create deploy-validator-config.yaml (merges user config overrides if provided)
 echo ""
-echo "Creating resolved validator config..."
+echo "Creating deploy-validator-config.yaml..."
 "$scriptDir/merge-config.sh" "$validator_config_file" "$configFile"
 deploy_config_file="$configDir/deploy-validator-config.yaml"
 
 # 3. collect the nodes that the user has asked us to spin and perform setup
 
-# Load nodes from resolved validator config file
+# Load nodes from deploy-validator-config.yaml
 if [ -f "$deploy_config_file" ]; then
-    # Use yq to extract node names from resolved config
+    # Use yq to extract node names from deploy-validator-config.yaml
     nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
     
     # Validate that we found nodes
@@ -75,7 +75,7 @@ if [ -f "$deploy_config_file" ]; then
         exit 1
     fi
 else
-    echo "Error: Resolved validator config file not found at $deploy_config_file"
+    echo "Error: deploy-validator-config.yaml not found at $deploy_config_file"
     echo "This file should have been created by merge-config.sh"
     nodes=()
     exit 1
@@ -171,11 +171,11 @@ fi
 if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
   echo "Stopping local nodes..."
 
-  # Load nodes from resolved validator config file
+  # Load nodes from deploy-validator-config.yaml
   if [ -f "$deploy_config_file" ]; then
     nodes=($(yq eval '.validators[].name' "$deploy_config_file"))
   else
-    echo "Error: Resolved validator config file not found at $deploy_config_file"
+    echo "Error: deploy-validator-config.yaml not found at $deploy_config_file"
     exit 1
   fi
   
