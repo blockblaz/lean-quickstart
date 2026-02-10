@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Docker image (set from deploy-validator-config.yaml, merged from validator-config.yaml + user config)
+# grandineImage is exported by spin-node.sh before sourcing this file
+
 node_binary="$grandine_bin \
         --genesis $configDir/config.yaml \
         --validator-registry-path $configDir/validators.yaml \
@@ -13,7 +16,7 @@ node_binary="$grandine_bin \
         --http-port $metricsPort \
         --hash-sig-key-dir $configDir/hash-sig-keys"
 
-node_docker="sifrai/lean:devnet-2 \
+node_docker="$grandineImage \
         --genesis /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --bootnodes /config/nodes.yaml \

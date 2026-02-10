@@ -5,7 +5,7 @@
 network_dir: "{{ playbook_dir }}/../local-devnet"
 genesis_dir: "{{ network_dir }}/genesis"
 data_dir: "{{ network_dir }}/data"
-validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+deploy_validator_config_file: "{{ genesis_dir }}/deploy-validator-config.yaml"
 
 # Remote paths (for remote deployments)
 # Use standard paths on remote hosts

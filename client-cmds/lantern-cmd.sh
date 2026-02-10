@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.2"
+# Docker image (set from deploy-validator-config.yaml or user config via --configFile)
+# lanternImage is exported by spin-node.sh before sourcing this file
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
@@ -14,7 +15,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --genesis-config $configDir/config.yaml \
         --validator-registry-path $configDir/validators.yaml \
         --genesis-state $configDir/genesis.ssz \
-        --validator-config $configDir/validator-config.yaml \
+        --validator-config $configDir/deploy-validator-config.yaml \
         $devnet_flag \
         --nodes-path $configDir/nodes.yaml \
         --node-id $item --node-key-path $configDir/$privKeyPath \
@@ -24,11 +25,11 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --log-level debug \
         --hash-sig-key-dir $configDir/hash-sig-keys"
 
-node_docker="$LANTERN_IMAGE --data-dir /data \
+node_docker="$lanternImage --data-dir /data \
         --genesis-config /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --genesis-state /config/genesis.ssz \
-        --validator-config /config/validator-config.yaml \
+        --validator-config /config/deploy-validator-config.yaml \
         $devnet_flag \
         --nodes-path /config/nodes.yaml \
         --node-id $item --node-key-path /config/$privKeyPath \
