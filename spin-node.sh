@@ -301,9 +301,10 @@ for item in "${spin_nodes[@]}"; do
     # are not directly accessible from the macOS host. Use 'docker exec' to access them.
 
     # Add core dump support if enabled for this node
-    # Sets workdir to /data so dumps land in the mounted volume
+    # --init: forwards signals and reaps zombies (required for core dumps)
+    # --workdir /data: dumps land in the mounted volume
     if should_enable_core_dumps "$item"; then
-      execCmd="$execCmd --ulimit core=-1 --workdir /data"
+      execCmd="$execCmd --init --ulimit core=-1 --workdir /data"
       echo "Core dumps enabled for $item (dumps will be written to $dataDir/$item/)"
     fi
 
