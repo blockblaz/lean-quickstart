@@ -9,7 +9,7 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
 
-DEPLOY_CONFIG="$1"
+DEPLOY_VALIDATOR_CONFIG="$1"
 OUTPUT_FILE="$2"
 
 # Check if yq is installed
@@ -21,8 +21,8 @@ if ! command -v yq &> /dev/null; then
 fi
 
 # Check if validator config exists
-if [ ! -f "$DEPLOY_CONFIG" ]; then
-    echo "Error: Deploy config file not found: $DEPLOY_CONFIG"
+if [ ! -f "$DEPLOY_VALIDATOR_CONFIG" ]; then
+    echo "Error: Deploy config file not found: $DEPLOY_VALIDATOR_CONFIG"
     exit 1
 fi
 
@@ -63,7 +63,7 @@ all:
 EOF
 
 # Extract node information from deploy-validator-config.yaml
-nodes=($(yq eval '.validators[].name' "$DEPLOY_CONFIG"))
+nodes=($(yq eval '.validators[].name' "$DEPLOY_VALIDATOR_CONFIG"))
 
 # Process each node and generate inventory entries
 for node_name in "${nodes[@]}"; do
@@ -73,8 +73,8 @@ for node_name in "${nodes[@]}"; do
     group_name="${client_type}_nodes"
     
     # Extract node-specific information
-    node_ip=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.ip // \"127.0.0.1\"" "$DEPLOY_CONFIG")
-    node_quic=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.quic // \"9000\"" "$DEPLOY_CONFIG")
+    node_ip=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.ip // \"127.0.0.1\"" "$DEPLOY_VALIDATOR_CONFIG")
+    node_quic=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.quic // \"9000\"" "$DEPLOY_VALIDATOR_CONFIG")
     
     # Check if this is a remote deployment (IP is not localhost/127.0.0.1)
     is_remote=false
