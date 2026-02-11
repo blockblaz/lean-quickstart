@@ -37,14 +37,12 @@
   loop:
     - enrFields.quic
     - metricsPort
-    - privkey
   when: node_name is defined
 
 - name: Set node ports
   set_fact:
     lantern_quic_port: "{{ lantern_node_config.results[0].stdout }}"
     lantern_metrics_port: "{{ lantern_node_config.results[1].stdout }}"
-    lantern_privkey: "{{ lantern_node_config.results[2].stdout }}"
   when: lantern_node_config is defined
 
 - name: Ensure node key file exists

@@ -44,7 +44,6 @@
   delegate_to: localhost
   loop:
     - metricsPort
-    - privkey
   when: node_name is defined
 
 - name: Set node metrics port
