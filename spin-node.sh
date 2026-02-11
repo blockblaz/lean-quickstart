@@ -289,7 +289,13 @@ for item in "${spin_nodes[@]}"; do
   # spin nodes
   if [ "$node_setup" == "binary" ]
   then
-    execCmd="$node_binary"
+    # Add core dump support if enabled for this node
+    if should_enable_core_dumps "$item"; then
+      execCmd="ulimit -c unlimited && $node_binary"
+      echo "Core dumps enabled for $item (binary mode)"
+    else
+      execCmd="$node_binary"
+    fi
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
