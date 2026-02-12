@@ -298,31 +298,6 @@ qlean_0:
     - 2
 ```
 
-**Recommended:** `annotated_validators.yaml` is also generated and should be preferred by client software as it includes public keys and private key file references directly, eliminating the need for clients to derive key filenames from validator indices:
-
-```yaml
-zeam_0:
-  - index: 0
-    pubkey_hex: 4b3c31094bcc9b45446b2028eae5ad192b2df16778837b10230af102255c9c5f72d7ba43eae30b2c6a779f47367ebf5a42f6c959
-    privkey_file: validator_0_sk.json
-  - index: 3
-    pubkey_hex: 8df32a54d2fbdf3a88035b2fe3931320cb900d364d6e7c56b19c0f3c6006ce5b3ebe802a65fe1b420183f62e830a953cb33b7804
-    privkey_file: validator_3_sk.json
-
-ream_0:
-  - index: 1
-    pubkey_hex: 5b15f72f90bd655b039f9839c36951454b89c605f8c334581cfa832bdd0c994a1350094f7e22617d77607b067b0aa2439e0ead7d
-    privkey_file: validator_1_sk.json
-  - index: 4
-    pubkey_hex: 71bf8f73980591574de34a0db471da74f5cfd84d4731d53f47bf3023b26c2638ac5bd24993ea71492fedbd6c4afe5c299213b76b
-    privkey_file: validator_4_sk.json
-
-qlean_0:
-  - index: 2
-    pubkey_hex: b87e69568a347d1aa811cc158634fb1f4e247c5509ad2b1652a8d758ec0ab0796954e307b97dd6284fbb30088c2e595546fdf663
-    privkey_file: validator_2_sk.json
-```
-
 `nodes.yaml` provide enrs of all the nodes so that clients don't have to run a discovery protocol:
 
 ```yaml

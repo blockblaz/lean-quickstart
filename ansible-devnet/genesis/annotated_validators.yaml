@@ -1,0 +1,29 @@
+ethlambda_0:
+  - index: 5
+    pubkey_hex: 6e01c00e9072c67682a1ef518f13d163925e271bf07fea002339fc0c84a1950d6b273f5731a11632b559a62d0a5e051afde52f2a
+    privkey_file: validator_5_sk.ssz
+
+grandine_0:
+  - index: 4
+    pubkey_hex: 0ef8694be847ec6719fc620ffe81c13a56e37373906ebc613d9eaf4f8b6ed54611120762c62cb803c4941574c6941832424ab70b
+    privkey_file: validator_4_sk.ssz
+
+lantern_0:
+  - index: 3
+    pubkey_hex: 6abd60595707ad6d992b9959737b476aa8d30f16a5129f2c485fcb2b11cfa0637295b7300a4b8e1bbb06777ba188f91c1b90d00f
+    privkey_file: validator_3_sk.ssz
+
+qlean_0:
+  - index: 2
+    pubkey_hex: 23694c4388679e3368cb0a38b8fc5a7406cd9947543d2c6d614af86fdf52e948ac55e63918a8cb40bfd90e2ebccfe55219af1a0e
+    privkey_file: validator_2_sk.ssz
+
+ream_0:
+  - index: 1
+    pubkey_hex: 1ed8fa061a70477c2ef9ca05abcf5533612b6f234a6b982ee3936b0f64e81474b535b90feb9fd271931ad80615588418535ac618
+    privkey_file: validator_1_sk.ssz
+
+zeam_0:
+  - index: 0
+    pubkey_hex: b1b55d559bb8a32549508b381e9ff66fa809b963ee0e6f58c260ac51e4a07b437ab2aa7951f9104aad05e46358a6c83d36b4cd12
+    privkey_file: validator_0_sk.ssz

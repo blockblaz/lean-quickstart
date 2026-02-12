@@ -10,7 +10,6 @@ validators.yaml
 nodes.yaml
 genesis.json
 genesis.ssz
-annotated_validators.yaml
 
 # Hash-sig validator keys (contains sensitive secret keys)
 hash-sig-keys/
