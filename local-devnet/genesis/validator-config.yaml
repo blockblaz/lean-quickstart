@@ -10,7 +10,7 @@ validators:
     # peer id 16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
-      # verify /ip4/127.0.0.1/udp/9000/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
+      # verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
       ip: "127.0.0.1"
       quic: 9001
     metricsPort: 8081
@@ -21,25 +21,25 @@ validators:
     # peer id 16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
     privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
     enrFields:
-      #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
+      #verify /ip4/127.0.0.1/udp/9002/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
       ip: "127.0.0.1"
       quic: 9002
     metricsPort: 8082
-    devnet: 1
     count: 1
 
   - name: "qlean_0"
-    # TODO: add a third entry in nodes.yaml corresponding to this
+    # node id f0af4dcd8864372ca01ae984b9a386f86e5cb582331394db3434fea59ad78bde
+    # peer id 16Uiu2HAmQj1RDNAxopeeeCFPRr3zhJYmH6DEPHYKmxLViLahWcFE
     privkey: "c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9"
     enrFields:
-      #verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
+      #verify /ip4/127.0.0.1/udp/9003/quic-v1/p2p/16Uiu2HAmQj1RDNAxopeeeCFPRr3zhJYmH6DEPHYKmxLViLahWcFE
       ip: "127.0.0.1"
       quic: 9003
     metricsPort: 8083
     count: 1
 
   - name: "lantern_0"
-    # node id a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+    # node id 974c5fd0a680f5e576189123d5808cefd6c748c75effde28c5c3aacbb8d4c652
     # peer id 16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
     privkey: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5"
     # verify /ip4/127.0.0.1/udp/9004/quic-v1/p2p/16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
@@ -50,10 +50,10 @@ validators:
     count: 1
 
   - name: "lighthouse_0"
-    # node id a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
-    # peer id 16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
+    # node id af7df69e602552d2ba639e09ca87107b1bc315306ed434aa86c8515dcad0a252
+    # peer id 16Uiu2HAmTrYwvBDY3GLEv5zR48ZfBwCYyKgmuLTDsCdBJUo127HY
     privkey: "4fd22cf461fbeae4947a3fdaef8d533fc7fd1ef1ce4cd98e993210c18234df3f"
-    # verify /ip4/127.0.0.1/udp/9004/quic-v1/p2p/16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
+    # verify /ip4/127.0.0.1/udp/9005/quic-v1/p2p/16Uiu2HAmTrYwvBDY3GLEv5zR48ZfBwCYyKgmuLTDsCdBJUo127HY
     enrFields:
       ip: "127.0.0.1"
       quic: 9005
@@ -61,7 +61,10 @@ validators:
     count: 1
 
   - name: "grandine_0"
+    # node id f9e3dfd0eb2e8fb7dfb072b91b23e3286c0fae245cd2c732f4752577f32e5782
+    # peer id 16Uiu2HAmErASHzouSQumaetyU18brt4HNUm4151K55ySBQMRLzSS
     privkey: "64a7f5ab53907966374ca23af36392910af682eec82c12e3abbb6c2ccdf39a72"
+    # verify /ip4/127.0.0.1/udp/9006/quic-v1/p2p/16Uiu2HAmErASHzouSQumaetyU18brt4HNUm4151K55ySBQMRLzSS
     enrFields:
       ip: "127.0.0.1"
       quic: 9006
@@ -69,7 +72,7 @@ validators:
     count: 1
 
   - name: "ethlambda_0"
-    # node id a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+    # node id 86cec93353ffcc6f38c9c15becadcb30d1acab21a92b30418110c980a38d9c3d
     # peer id 16Uiu2HAmPV5jU62WtmDkCEmfq1jzbBDkGbHNsDN78gJyvmv2TuC5
     privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
     # verify /ip4/127.0.0.1/udp/9007/quic-v1/p2p/16Uiu2HAmPV5jU62WtmDkCEmfq1jzbBDkGbHNsDN78gJyvmv2TuC5
