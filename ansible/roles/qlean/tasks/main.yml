@@ -37,14 +37,12 @@
   loop:
     - enrFields.quic
     - metricsPort
-    - privkey
   when: node_name is defined
 
 - name: Set node ports
   set_fact:
     qlean_quic_port: "{{ qlean_node_config.results[0].stdout }}"
     qlean_metrics_port: "{{ qlean_node_config.results[1].stdout }}"
-    qlean_privkey: "{{ qlean_node_config.results[2].stdout }}"
   when: qlean_node_config is defined
 
 - name: Extract validator index from validators.yaml

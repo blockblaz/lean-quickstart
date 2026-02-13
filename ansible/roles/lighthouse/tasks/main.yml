@@ -37,14 +37,12 @@
   loop:
     - enrFields.quic
     - metricsPort
-    - privkey
   when: node_name is defined
 
 - name: Set node ports
   set_fact:
     lighthouse_quic_port: "{{ lighthouse_node_config.results[0].stdout }}"
     lighthouse_metrics_port: "{{ lighthouse_node_config.results[1].stdout }}"
-    lighthouse_privkey: "{{ lighthouse_node_config.results[2].stdout }}"
   when: lighthouse_node_config is defined
 
 - name: Ensure node key file exists

@@ -38,14 +38,12 @@
   loop:
     - enrFields.quic
     - metricsPort
-    - privkey
   when: node_name is defined
 
 - name: Set node ports
   set_fact:
     grandine_quic_port: "{{ grandine_node_config.results[0].stdout }}"
     grandine_metrics_port: "{{ grandine_node_config.results[1].stdout }}"
-    grandine_privkey: "{{ grandine_node_config.results[2].stdout }}"
   when: grandine_node_config is defined
 
 - name: Ensure node key file exists

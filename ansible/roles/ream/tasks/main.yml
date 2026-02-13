@@ -37,14 +37,12 @@
   loop:
     - enrFields.quic
     - metricsPort
-    - privkey
   when: node_name is defined
 
 - name: Set node ports
   set_fact:
     ream_quic_port: "{{ ream_node_config.results[0].stdout }}"
     ream_metrics_port: "{{ ream_node_config.results[1].stdout }}"
-    ream_privkey: "{{ ream_node_config.results[2].stdout }}"
   when: ream_node_config is defined
 
 - name: Ensure node key file exists
