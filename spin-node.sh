@@ -51,16 +51,17 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
-#1. setup genesis params and run genesis generator
-source "$(dirname $0)/set-up.sh"
-# ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
-# Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
-
-# 2. Create deploy-validator-config.yaml (merges user config overrides if provided)
+# 1. Create deploy-validator-config.yaml (merges user config overrides if provided)
+# This must run BEFORE genesis generation so that generate-genesis.sh can read the merged config
 echo ""
 echo "Creating deploy-validator-config.yaml..."
 "$scriptDir/scripts/merge-config.sh" "$validator_config_file" "$configFile"
 deploy_validator_config_file="$configDir/deploy-validator-config.yaml"
+
+# 2. Setup genesis params and run genesis generator
+source "$(dirname $0)/set-up.sh"
+# ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
+# Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
 
 # 3. collect the nodes that the user has asked us to spin and perform setup
 
