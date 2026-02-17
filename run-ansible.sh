@@ -26,6 +26,7 @@ validator_config_file="$5"
 sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
 action="$8"   # Action: "stop" to stop nodes, otherwise deploy
+coreDumps="$9"  # Core dump configuration: "all", node names, or client types
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -37,7 +38,7 @@ fi
 # Validate required arguments
 if [ -z "$configDir" ] || [ -z "$validator_config_file" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot]"
+  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot] [action] [coreDumps]"
   exit 1
 fi
 
@@ -105,6 +106,10 @@ fi
 
 if [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ]; then
   EXTRA_VARS="$EXTRA_VARS validator_config=$validatorConfig"
+fi
+
+if [ -n "$coreDumps" ]; then
+  EXTRA_VARS="$EXTRA_VARS enable_core_dumps=$coreDumps"
 fi
 
 # Determine deployment mode (docker/binary) - read default from group_vars/all.yml

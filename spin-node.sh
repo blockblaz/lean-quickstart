@@ -10,6 +10,23 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
+# Helper function to check if core dumps should be enabled for a node
+# Accepts: "all", exact node names (zeam_0), or client types (zeam)
+should_enable_core_dumps() {
+  local node_name="$1"
+  local client_type="${node_name%%_*}"  # Extract client type (e.g., "zeam" from "zeam_0")
+
+  [ -z "$coreDumps" ] && return 1
+  [ "$coreDumps" = "all" ] && return 0
+
+  IFS=',' read -r -a dump_targets <<< "$coreDumps"
+  for target in "${dump_targets[@]}"; do
+    # Exact node name match or client type match
+    [ "$target" = "$node_name" ] || [ "$target" = "$client_type" ] && return 0
+  done
+  return 1
+}
+
 # Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."
@@ -145,7 +162,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
@@ -154,7 +171,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -197,6 +214,17 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     fi
   done
   
+  # Stop metrics stack if --metrics flag was passed
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    fi
+  fi
+
   echo "✅ Local nodes stopped successfully!"
   exit 0
 fi
@@ -261,7 +289,13 @@ for item in "${spin_nodes[@]}"; do
   # spin nodes
   if [ "$node_setup" == "binary" ]
   then
-    execCmd="$node_binary"
+    # Add core dump support if enabled for this node
+    if should_enable_core_dumps "$item"; then
+      execCmd="ulimit -c unlimited && $node_binary"
+      echo "Core dumps enabled for $item (binary mode)"
+    else
+      execCmd="$node_binary"
+    fi
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
@@ -282,6 +316,15 @@ for item in "${spin_nodes[@]}"; do
     # to reach each other via 127.0.0.1 (as configured in nodes.yaml ENR records).
     # Note: Port mapping (-p) doesn't work with --network host, so metrics endpoints
     # are not directly accessible from the macOS host. Use 'docker exec' to access them.
+
+    # Add core dump support if enabled for this node
+    # --init: forwards signals and reaps zombies (required for core dumps)
+    # --workdir /data: dumps land in the mounted volume
+    if should_enable_core_dumps "$item"; then
+      execCmd="$execCmd --init --ulimit core=-1 --workdir /data"
+      echo "Core dumps enabled for $item (dumps will be written to $dataDir/$item/)"
+    fi
+
     execCmd="$execCmd --name $item --network host \
           -v $configDir:/config \
           -v $dataDir/$item:/data \
@@ -298,6 +341,31 @@ for item in "${spin_nodes[@]}"; do
   pid=$!
   spinned_pids+=($pid)
 done;
+
+# 4. Start metrics stack (Prometheus + Grafana) if --metrics flag was passed
+if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+  echo -e "\n\nStarting metrics stack (Prometheus + Grafana)..."
+  printf '%*s' $(tput cols) | tr ' ' '-'
+  echo
+
+  metricsDir="$scriptDir/metrics"
+
+  # Generate prometheus.yml from validator-config.yaml
+  "$scriptDir/generate-prometheus-config.sh" "$validator_config_file" "$metricsDir/prometheus"
+
+  # Pull and start metrics containers
+  if [ -n "$dockerWithSudo" ]; then
+    sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  else
+    docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  fi
+
+  echo ""
+  echo "📊 Metrics stack started:"
+  echo "   Prometheus: http://localhost:9090"
+  echo "   Grafana:    http://localhost:3000"
+  echo ""
+fi
 
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
@@ -320,6 +388,17 @@ cleanup() {
   execCmd="kill -9 $process_ids"
   echo "$execCmd"
   eval "$execCmd"
+
+  # Stop metrics stack if it was started
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    fi
+  fi
 }
 
 trap "echo exit signal received;cleanup" SIGINT SIGTERM
