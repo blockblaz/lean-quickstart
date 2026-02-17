@@ -187,10 +187,21 @@ if [ "$deployment_mode" == "ansible" ]; then
   
   echo "✅ Ansible prerequisites validated"
   
+  # Determine node list for Ansible: use restartClient/spin_nodes when restarting, else $node
+  if [[ "$restart_with_checkpoint_sync" == "true" ]]; then
+    ansible_node_arg=$(IFS=','; echo "${spin_nodes[*]}")
+  else
+    ansible_node_arg="$node"
+  fi
+
+  # Determine skip_genesis for Ansible (true when restarting with checkpoint sync)
+  ansible_skip_genesis="false"
+  [[ "$restart_with_checkpoint_sync" == "true" ]] && ansible_skip_genesis="true"
+
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
@@ -199,7 +210,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
