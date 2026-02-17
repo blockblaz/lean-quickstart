@@ -97,9 +97,36 @@ fi
 echo "Detected nodes: ${nodes[@]}"
 # nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
+restart_with_checkpoint_sync=false
 
+# When --restart-client is specified, use it as the node list and enable checkpoint sync mode
+if [[ -n "$restartClient" ]]; then
+  restart_with_checkpoint_sync=true
+  # Skip genesis when restarting with checkpoint sync (we're syncing from remote)
+  generateGenesis=false
+  # Parse comma-separated client names
+  IFS=',' read -r -a requested_nodes <<< "$restartClient"
+  for requested_node in "${requested_nodes[@]}"; do
+    requested_node=$(echo "$requested_node" | xargs)  # trim whitespace
+    node_found=false
+    for available_node in "${nodes[@]}"; do
+      if [[ "$requested_node" == "$available_node" ]]; then
+        spin_nodes+=("$available_node")
+        node_found=true
+        break
+      fi
+    done
+    if [[ "$node_found" == false ]]; then
+      echo "Error: Node '$requested_node' not found in validator config"
+      echo "Available nodes: ${nodes[@]}"
+      exit 1
+    fi
+  done
+  echo "Restarting with checkpoint sync: ${spin_nodes[*]} from $checkpointSyncUrl"
+  cleanData=true  # Clear data when restarting with checkpoint sync
+  node_present=true
 # Parse comma-separated or space-separated node names or handle single node/all
-if [[ "$node" == "all" ]]; then
+elif [[ "$node" == "all" ]]; then
   # Spin all nodes
   spin_nodes=("${nodes[@]}")
   node_present=true
@@ -262,6 +289,16 @@ for item in "${spin_nodes[@]}"; do
   printf '%*s' $(tput cols) | tr ' ' '-'
   echo
 
+  # When restarting with checkpoint sync, stop existing container first
+  if [[ "$restart_with_checkpoint_sync" == "true" ]]; then
+    echo "Stopping existing container $item..."
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker rm -f "$item" 2>/dev/null || true
+    else
+      docker rm -f "$item" 2>/dev/null || true
+    fi
+  fi
+
   # create and/or cleanup datadirs
   itemDataDir="$dataDir/$item"
   mkdir -p $itemDataDir
@@ -276,6 +313,13 @@ for item in "${spin_nodes[@]}"; do
 
   # parse validator-config.yaml for $item to load args values
   source parse-vc.sh
+
+  # export checkpoint_sync_url for client-cmd scripts when restarting with checkpoint sync
+  if [[ "$restart_with_checkpoint_sync" == "true" ]] && [[ -n "$checkpointSyncUrl" ]]; then
+    export checkpoint_sync_url="$checkpointSyncUrl"
+  else
+    unset checkpoint_sync_url 2>/dev/null || true
+  fi
 
   # extract client config
   IFS='_' read -r -a elements <<< "$item"

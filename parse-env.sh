@@ -80,6 +80,16 @@ while [[ $# -gt 0 ]]; do
       stopNodes=true
       shift
       ;;
+    --checkpoint-sync-url)
+      checkpointSyncUrl="$2"
+      shift
+      shift
+      ;;
+    --restart-client)
+      restartClient="$2"
+      shift
+      shift
+      ;;
     --coreDumps)
       coreDumps="$2"
       shift # past argument
@@ -91,11 +101,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# if no node has been assigned assume all nodes to be started
-if [[ ! -n "$node" ]];
+# if no node and no restart-client specified, exit
+if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]];
 then
-  echo "no node specified, exiting..."
+  echo "no node or restart-client specified, exiting..."
   exit
+fi;
+
+# When using --restart-client with checkpoint sync, set default checkpoint URL if not provided
+if [[ -n "$restartClient" ]] && [[ ! -n "$checkpointSyncUrl" ]]; then
+  checkpointSyncUrl="https://leanpoint.leanroadmap.org"
 fi;
 
 if [ ! -n "$validatorConfig" ]
@@ -116,3 +131,5 @@ echo "popupTerminal = $popupTerminal"
 echo "dockerTag = ${dockerTag:-latest}"
 echo "enableMetrics = $enableMetrics"
 echo "coreDumps = ${coreDumps:-disabled}"
+echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
+echo "restartClient = ${restartClient:-<not set>}"
