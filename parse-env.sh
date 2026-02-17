@@ -110,7 +110,7 @@ fi;
 
 # When using --restart-client with checkpoint sync, set default checkpoint URL if not provided
 if [[ -n "$restartClient" ]] && [[ ! -n "$checkpointSyncUrl" ]]; then
-  checkpointSyncUrl="https://leanpoint.leanroadmap.org"
+  checkpointSyncUrl="https://leanpoint.leanroadmap.org/lean/v0/states/finalized"
 fi;
 
 if [ ! -n "$validatorConfig" ]
