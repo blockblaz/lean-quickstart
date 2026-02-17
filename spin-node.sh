@@ -101,6 +101,7 @@ restart_with_checkpoint_sync=false
 
 # When --restart-client is specified, use it as the node list and enable checkpoint sync mode
 if [[ -n "$restartClient" ]]; then
+  echo "Note: --restart-client is only used with --checkpoint-sync-url (default: https://leanpoint.leanroadmap.org)"
   restart_with_checkpoint_sync=true
   # Skip genesis when restarting with checkpoint sync (we're syncing from remote)
   generateGenesis=false
