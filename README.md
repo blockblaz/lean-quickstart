@@ -140,19 +140,41 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
 
     Note: Client metrics endpoints are always enabled regardless of this flag.
 12. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
-13. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified together with `--checkpoint-sync-url`, those clients are stopped, their data cleared, and restarted using checkpoint sync from the given URL. Genesis is skipped. All clients accept `--checkpoint-sync-url`; parameter names may vary per client implementation.
+13. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
 
-### Restart clients with checkpoint sync
+### Checkpoint sync
 
-Restart specific clients by syncing from a remote checkpoint (e.g., leanpoint mainnet):
+Checkpoint sync lets you restart clients by syncing from a remote checkpoint instead of from genesis. This is useful for joining an existing network (e.g., leanpoint mainnet) without replaying the full chain.
+
+**Basic usage:**
 
 ```sh
-# Restart zeam_0 using default checkpoint URL (https://leanpoint.leanroadmap.org/lean/v0/states/finalized)
+# Restart zeam_0 using the default checkpoint URL
 NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0
 
-# Restart multiple clients with custom checkpoint URL
-NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0,ream_0 --checkpoint-sync-url https://leanpoint.leanroadmap.org/lean/v0/states/finalized
+# Restart multiple clients
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0,ream_0
 ```
+
+**Custom checkpoint URL:**
+
+```sh
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0 \
+  --checkpoint-sync-url https://leanpoint.leanroadmap.org/lean/v0/states/finalized
+```
+
+**Default checkpoint URL:** `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`
+
+**What happens:**
+1. Existing containers for the specified clients are stopped (no error if already stopped)
+2. Data directories are cleared
+3. Clients are started with `--checkpoint-sync-url` so they sync from the remote checkpoint instead of genesis
+
+**Deployment modes:**
+- **Local** (`NETWORK_DIR=local-devnet`): Uses Docker directly
+- **Ansible** (`NETWORK_DIR=ansible-devnet`): Uses Ansible to deploy to remote hosts
+
+**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
 
 > **Note:** All clients accept `--checkpoint-sync-url`. Client implementations may use different parameter names internally; update client-cmd scripts if parameters change.
 
