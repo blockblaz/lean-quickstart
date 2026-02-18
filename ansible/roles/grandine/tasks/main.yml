@@ -39,13 +39,15 @@
     - enrFields.quic
     - metricsPort
     - privkey
+    - isAggregator
   when: node_name is defined
 
-- name: Set node ports
+- name: Set node ports and aggregator flag
   set_fact:
     grandine_quic_port: "{{ grandine_node_config.results[0].stdout }}"
     grandine_metrics_port: "{{ grandine_node_config.results[1].stdout }}"
     grandine_privkey: "{{ grandine_node_config.results[2].stdout }}"
+    grandine_is_aggregator: "{{ 'true' if (grandine_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: grandine_node_config is defined
 
 - name: Ensure node key file exists
@@ -103,6 +105,7 @@
         --metrics
         --http-address 0.0.0.0
         --http-port {{ grandine_metrics_port }}
+        {{ '--is-aggregator' if (grandine_is_aggregator | default('false')) == 'true' else '' }}
       register: grandine_container
       changed_when: grandine_container.rc == 0
   when: deployment_mode == 'docker'

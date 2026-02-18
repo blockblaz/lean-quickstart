@@ -45,11 +45,13 @@
   loop:
     - metricsPort
     - privkey
+    - isAggregator
   when: node_name is defined
 
-- name: Set node metrics port
+- name: Set node metrics port and aggregator flag
   set_fact:
     zeam_metrics_port: "{{ node_config.results[0].stdout }}"
+    zeam_is_aggregator: "{{ 'true' if (node_config.results[2].stdout | default('') | trim) == 'true' else 'false' }}"
   when: node_config is defined
 
 - name: Ensure node key file exists
@@ -106,6 +108,7 @@
         --node-key /config/{{ node_name }}.key
         --metrics_enable
         --api-port {{ zeam_metrics_port }}
+        {{ '--is-aggregator' if (zeam_is_aggregator | default('false')) == 'true' else '' }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0
 
