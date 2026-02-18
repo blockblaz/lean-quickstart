@@ -107,6 +107,7 @@
         --node-key /config/{{ node_name }}.key
         --metrics_enable
         --api-port {{ zeam_metrics_port }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0
 

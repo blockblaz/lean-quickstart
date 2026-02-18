@@ -102,6 +102,7 @@
         --metrics
         --metrics-address 0.0.0.0
         --metrics-port {{ lighthouse_metrics_port }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: lighthouse_container
       changed_when: lighthouse_container.rc == 0
   when: deployment_mode == 'docker'

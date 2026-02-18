@@ -98,6 +98,7 @@
         --metrics-port {{ lantern_metrics_port }}
         --http-port 5055
         --hash-sig-key-dir /config/hash-sig-keys
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: lantern_container
       changed_when: lantern_container.rc == 0
   when: deployment_mode == 'docker'

@@ -97,6 +97,7 @@
         --node-key /config/{{ node_name }}.key
         --metrics-address 0.0.0.0
         --metrics-port {{ ethlambda_metrics_port }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ethlambda_container
       changed_when: ethlambda_container.rc == 0
   when: deployment_mode == 'docker'
