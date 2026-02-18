@@ -111,6 +111,7 @@
         --node-key /config/{{ node_name }}.key
         --listen-addr /ip4/0.0.0.0/udp/{{ qlean_quic_port }}/quic-v1
         --prometheus-port {{ qlean_metrics_port }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
         -ldebug
       register: qlean_container
       changed_when: qlean_container.rc == 0
