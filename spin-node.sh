@@ -342,6 +342,34 @@ for item in "${spin_nodes[@]}"; do
   echo "$sourceCmd"
   eval $sourceCmd
 
+  # Apply user-config.yml overrides (run_mode, docker_image) if file exists
+  user_config="$scriptDir/user-config.yml"
+  if [ -f "$user_config" ]; then
+    # Override run_mode if specified for this node (check first since it affects docker_image)
+    user_run_mode=$(yq eval ".$item.run_mode // \"\"" "$user_config" 2>/dev/null)
+    if [ -n "$user_run_mode" ] && [ "$user_run_mode" != "null" ]; then
+      if [ "$user_run_mode" == "docker" ] || [ "$user_run_mode" == "binary" ]; then
+        node_setup="$user_run_mode"
+        echo "  user-config.yml: overriding run_mode for $item: $user_run_mode"
+      else
+        echo "  user-config.yml: ignoring unknown run_mode '$user_run_mode' for $item (expected: docker or binary)"
+      fi
+    fi
+
+    # Override docker image if specified for this node (only applies in docker mode)
+    if [ "$node_setup" == "docker" ]; then
+      user_docker_image=$(yq eval ".$item.docker_image // \"\"" "$user_config" 2>/dev/null)
+      if [ -n "$user_docker_image" ] && [ "$user_docker_image" != "null" ]; then
+        # Replace the image in node_docker string (first word matching image:tag pattern)
+        original_image=$(echo "$node_docker" | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | head -1)
+        if [ -n "$original_image" ]; then
+          node_docker="${node_docker/$original_image/$user_docker_image}"
+          echo "  user-config.yml: overriding docker_image for $item: $user_docker_image"
+        fi
+      fi
+    fi
+  fi
+
   # spin nodes
   if [ "$node_setup" == "binary" ]
   then

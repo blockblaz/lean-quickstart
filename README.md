@@ -413,6 +413,41 @@ node_docker="--platform linux/amd64 qdrvm/qlean-mini:dd67521 \
 node_setup="docker"
 ```
 
+### User Configuration Overrides (`user-config.yml`)
+
+You can override the Docker image or run mode (docker/binary) for individual nodes without modifying any tracked files. This is useful for testing custom builds or switching a node to binary mode for local debugging.
+
+**Setup:**
+```sh
+# Copy the example file
+cp user-config.yml.example user-config.yml
+
+# Edit to override specific nodes
+```
+
+**Format** — specify only the nodes you want to override:
+```yaml
+zeam_0:
+  run_mode: docker
+  docker_image: blockblaz/zeam:custom-tag
+
+ream_0:
+  run_mode: binary
+```
+
+**Fields:**
+| Field | Description |
+|-------|-------------|
+| `run_mode` | `"docker"` or `"binary"` — overrides the default set in the client-cmd script |
+| `docker_image` | Docker image to use (only applies when `run_mode` is `docker`) |
+
+**How it works:**
+- `user-config.yml` is auto-detected from the project root during `spin-node.sh` execution
+- Overrides are applied per-node after sourcing the client-cmd script, right before spinning the node
+- If `run_mode` is set to `binary`, `docker_image` is ignored
+- Nodes not listed in the file use their defaults from `client-cmds/<client>-cmd.sh`
+- The file is gitignored so your local overrides won't affect others
+
 ## Key Management
 
 ### Key Lifetime

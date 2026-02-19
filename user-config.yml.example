@@ -1,0 +1,14 @@
+# User configuration overrides (auto-detected from project root)
+# Copy this file to user-config.yml and customize.
+# Only specify nodes you want to override — others use defaults from client-cmd scripts.
+#
+# Fields:
+#   run_mode: "docker" or "binary" (default: whatever client-cmd.sh sets)
+#   docker_image: Override the Docker image for this node
+
+# zeam_0:
+#   run_mode: docker
+#   docker_image: blockblaz/zeam:custom-tag
+#
+# ream_0:
+#   run_mode: binary
