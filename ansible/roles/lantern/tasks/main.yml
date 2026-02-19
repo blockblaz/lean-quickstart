@@ -2,16 +2,14 @@
 # Lantern role: Deploy and manage Lantern nodes
 # Converts client-cmds/lantern-cmd.sh logic to Ansible tasks
 
-- name: Extract docker image from client-cmd.sh
-  shell: |
-    # Extract the docker image from LANTERN_IMAGE line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
-    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^LANTERN_IMAGE=' "$project_root/client-cmds/lantern-cmd.sh" | head -1 | sed -E 's/.*LANTERN_IMAGE="([^"]+)".*/\1/'
-  register: lantern_docker_image_raw
+- name: Detect target host architecture
+  command: uname -m
+  register: target_arch
   changed_when: false
-  delegate_to: localhost
-  run_once: true
+
+- name: Set lantern docker image based on architecture
+  set_fact:
+    lantern_docker_image: "{{ 'piertwo/lantern:v0.0.3-test-amd64' if target_arch.stdout == 'x86_64' else 'piertwo/lantern:v0.0.3-test-arm64' }}"
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |
@@ -23,9 +21,8 @@
   delegate_to: localhost
   run_once: true
 
-- name: Set docker image and deployment mode from client-cmd.sh
+- name: Set deployment mode from client-cmd.sh
   set_fact:
-    lantern_docker_image: "{{ lantern_docker_image_raw.stdout | trim | default('piertwo/lantern:v0.0.1') }}"
     deployment_mode: "{{ lantern_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml

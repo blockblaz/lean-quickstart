@@ -1,7 +1,16 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.2"
+# Platform-specific lantern image
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+    LANTERN_IMAGE="piertwo/lantern:v0.0.3-test-amd64"
+elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+    LANTERN_IMAGE="piertwo/lantern:v0.0.3-test-arm64"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
