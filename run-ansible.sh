@@ -22,7 +22,7 @@ configDir="$1"
 node="$2"
 cleanData="$3"
 validatorConfig="$4"
-deploy_validator_config_file="$5"  # deploy-validator-config.yaml (with user overrides merged)
+validator_config_file="$5"
 sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
 action="$8"   # Action: "stop" to stop nodes, otherwise deploy
@@ -37,7 +37,7 @@ else
 fi
 
 # Validate required arguments
-if [ -z "$configDir" ] || [ -z "$deploy_validator_config_file" ]; then
+if [ -z "$configDir" ] || [ -z "$validator_config_file" ]; then
   echo "Error: Missing required arguments"
   echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot] [action] [coreDumps]"
   exit 1
@@ -51,10 +51,10 @@ echo "SSH user for remote connections: $sshUser"
 ANSIBLE_DIR="$scriptDir/ansible"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
 
-# Generate inventory if it doesn't exist or if deploy-validator-config.yaml is newer
-if [ ! -f "$INVENTORY_FILE" ] || [ "$deploy_validator_config_file" -nt "$INVENTORY_FILE" ]; then
-  echo "Generating Ansible inventory from deploy-validator-config.yaml..."
-  "$scriptDir/generate-ansible-inventory.sh" "$deploy_validator_config_file" "$INVENTORY_FILE"
+# Generate inventory if it doesn't exist or if validator config is newer
+if [ ! -f "$INVENTORY_FILE" ] || [ "$validator_config_file" -nt "$INVENTORY_FILE" ]; then
+  echo "Generating Ansible inventory from validator-config.yaml..."
+  "$scriptDir/generate-ansible-inventory.sh" "$validator_config_file" "$INVENTORY_FILE"
 fi
 
 # Update inventory with SSH key file and user if provided
@@ -158,31 +158,6 @@ if [ $EXIT_CODE -eq 0 ]; then
   if [ "$action" == "stop" ]; then
     echo "✅ Ansible stop operation completed successfully!"
   else
-    # Display summary of deployed nodes
-    echo ""
-    echo "=================================================="
-    echo "Deployed Nodes Summary:"
-    echo "=================================================="
-    printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
-    echo "--------------------------------------------------"
-
-    # Get node names for summary
-    if [[ "$node" == "all" ]]; then
-      # Expand "all" to actual node names from config
-      deployed_nodes=($(yq eval '.validators[].name' "$deploy_validator_config_file" 2>/dev/null))
-    elif [[ "$node" == *","* ]]; then
-      IFS=',' read -r -a deployed_nodes <<< "$node"
-    else
-      IFS=' ' read -r -a deployed_nodes <<< "$node"
-    fi
-
-    for node_name in "${deployed_nodes[@]}"; do
-      # Get image from deploy-validator-config.yaml (overrides already merged)
-      docker_image=$(yq eval ".validators[] | select(.name == \"$node_name\") | .image" "$deploy_validator_config_file" 2>/dev/null)
-      printf "%-15s | %-10s | %s\n" "$node_name" "docker" "${docker_image:-unknown}"
-    done
-    echo "=================================================="
-    echo ""
     echo "✅ Ansible deployment completed successfully!"
   fi
 else

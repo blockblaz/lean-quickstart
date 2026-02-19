@@ -7,22 +7,22 @@
   connection: local
   gather_facts: yes
   vars:
-    deploy_validator_config_file: "{{ genesis_dir }}/deploy-validator-config.yaml"
+    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
 
   tasks:
-    - name: Validate deploy-validator-config.yaml exists
+    - name: Validate validator-config.yaml exists
       stat:
-        path: "{{ deploy_validator_config_file }}"
-      register: deploy_config_stat
+        path: "{{ validator_config_file }}"
+      register: validator_config_stat
 
-    - name: Fail if deploy-validator-config.yaml missing
+    - name: Fail if validator-config.yaml missing
       fail:
-        msg: "deploy-validator-config.yaml not found at {{ deploy_validator_config_file }}"
-      when: not deploy_config_stat.stat.exists
+        msg: "validator-config.yaml not found at {{ validator_config_file }}"
+      when: not validator_config_stat.stat.exists
 
     - name: Extract all node names
       shell: |
-        yq eval '.validators[].name' {{ deploy_validator_config_file }}
+        yq eval '.validators[].name' {{ validator_config_file }}
       register: all_node_names_raw
       changed_when: false
 

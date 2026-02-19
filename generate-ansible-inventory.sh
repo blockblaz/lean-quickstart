@@ -1,15 +1,15 @@
 #!/bin/bash
-# Generate Ansible inventory from deploy-validator-config.yaml
-# This script reads deploy-validator-config.yaml and generates hosts.yml for Ansible
+# Generate Ansible inventory from validator-config.yaml
+# This script reads validator-config.yaml and generates hosts.yml for Ansible
 
 set -e
 
 if [ $# -lt 2 ]; then
-    echo "Usage: $0 <deploy-validator-config.yaml> <output-hosts.yml>"
+    echo "Usage: $0 <validator-config.yaml> <output-hosts.yml>"
     exit 1
 fi
 
-DEPLOY_VALIDATOR_CONFIG="$1"
+VALIDATOR_CONFIG="$1"
 OUTPUT_FILE="$2"
 
 # Check if yq is installed
@@ -21,8 +21,8 @@ if ! command -v yq &> /dev/null; then
 fi
 
 # Check if validator config exists
-if [ ! -f "$DEPLOY_VALIDATOR_CONFIG" ]; then
-    echo "Error: Deploy config file not found: $DEPLOY_VALIDATOR_CONFIG"
+if [ ! -f "$VALIDATOR_CONFIG" ]; then
+    echo "Error: Validator config file not found: $VALIDATOR_CONFIG"
     exit 1
 fi
 
@@ -34,7 +34,7 @@ mkdir -p "$OUTPUT_DIR"
 cat > "$OUTPUT_FILE" << 'EOF'
 ---
 # Ansible Inventory for Lean Quickstart
-# Auto-generated from deploy-validator-config.yaml
+# Auto-generated from validator-config.yaml
 # DO NOT EDIT MANUALLY - This file is auto-generated
 
 all:
@@ -62,8 +62,8 @@ all:
       hosts: {}
 EOF
 
-# Extract node information from deploy-validator-config.yaml
-nodes=($(yq eval '.validators[].name' "$DEPLOY_VALIDATOR_CONFIG"))
+# Extract node information from validator-config.yaml
+nodes=($(yq eval '.validators[].name' "$VALIDATOR_CONFIG"))
 
 # Process each node and generate inventory entries
 for node_name in "${nodes[@]}"; do
@@ -73,8 +73,8 @@ for node_name in "${nodes[@]}"; do
     group_name="${client_type}_nodes"
     
     # Extract node-specific information
-    node_ip=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.ip // \"127.0.0.1\"" "$DEPLOY_VALIDATOR_CONFIG")
-    node_quic=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.quic // \"9000\"" "$DEPLOY_VALIDATOR_CONFIG")
+    node_ip=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.ip // \"127.0.0.1\"" "$VALIDATOR_CONFIG")
+    node_quic=$(yq eval ".validators[] | select(.name == \"$node_name\") | .enrFields.quic // \"9000\"" "$VALIDATOR_CONFIG")
     
     # Check if this is a remote deployment (IP is not localhost/127.0.0.1)
     is_remote=false

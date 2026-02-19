@@ -68,24 +68,17 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
-# 1. Create deploy-validator-config.yaml (merges user config overrides if provided)
-# This must run BEFORE genesis generation so that generate-genesis.sh can read the merged config
-echo ""
-echo "Creating deploy-validator-config.yaml..."
-"$scriptDir/scripts/merge-config.sh" "$validator_config_file" "$configFile"
-deploy_validator_config_file="$configDir/deploy-validator-config.yaml"
-
-# 2. Setup genesis params and run genesis generator
+#1. setup genesis params and run genesis generator
 source "$(dirname $0)/set-up.sh"
 # ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
 # Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
 
-# 3. collect the nodes that the user has asked us to spin and perform setup
+# 2. collect the nodes that the user has asked us to spin and perform setup
 
-# Load nodes from deploy-validator-config.yaml
-if [ -f "$deploy_validator_config_file" ]; then
-    # Use yq to extract node names from deploy-validator-config.yaml
-    nodes=($(yq eval '.validators[].name' "$deploy_validator_config_file"))
+# Load nodes from validator config file
+if [ -f "$validator_config_file" ]; then
+    # Use yq to extract node names from validator config
+    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
     
     # Validate that we found nodes
     if [ ${#nodes[@]} -eq 0 ]; then
@@ -93,8 +86,10 @@ if [ -f "$deploy_validator_config_file" ]; then
         exit 1
     fi
 else
-    echo "Error: deploy-validator-config.yaml not found at $deploy_validator_config_file"
-    echo "This file should have been created by merge-config.sh"
+    echo "Error: Validator config file not found at $validator_config_file"
+    if [ "$deployment_mode" == "ansible" ]; then
+        echo "Please create ansible-devnet/genesis/validator-config.yaml for Ansible deployments"
+    fi
     nodes=()
     exit 1
 fi
@@ -212,7 +207,7 @@ if [ "$deployment_mode" == "ansible" ]; then
     fi
     exit 0
   fi
-
+  
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
   if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis"; then
@@ -227,12 +222,12 @@ fi
 # Handle stop action for local deployment
 if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
   echo "Stopping local nodes..."
-
-  # Load nodes from deploy-validator-config.yaml
-  if [ -f "$deploy_validator_config_file" ]; then
-    nodes=($(yq eval '.validators[].name' "$deploy_validator_config_file"))
+  
+  # Load nodes from validator config file
+  if [ -f "$validator_config_file" ]; then
+    nodes=($(yq eval '.validators[].name' "$validator_config_file"))
   else
-    echo "Error: deploy-validator-config.yaml not found at $deploy_validator_config_file"
+    echo "Error: Validator config file not found at $validator_config_file"
     exit 1
   fi
   
@@ -301,7 +296,6 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
   done
 fi
 spinned_pids=()
-
 for item in "${spin_nodes[@]}"; do
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
@@ -329,7 +323,7 @@ for item in "${spin_nodes[@]}"; do
     eval "$cmd"
   fi
 
-  # parse deploy-validator-config.yaml for $item to load args values (including docker_image)
+  # parse validator-config.yaml for $item to load args values
   source parse-vc.sh
 
   # export checkpoint_sync_url for client-cmd scripts when restarting with checkpoint sync
@@ -343,37 +337,38 @@ for item in "${spin_nodes[@]}"; do
   IFS='_' read -r -a elements <<< "$item"
   client="${elements[0]}"
 
-  # Export the image variable for this client (will be used by client-cmd.sh)
-  # docker_image is set by parse-vc.sh
-  case "$client" in
-    zeam)
-      export zeamImage="$docker_image"
-      ;;
-    ream)
-      export reamImage="$docker_image"
-      ;;
-    qlean)
-      export qleanImage="$docker_image"
-      ;;
-    lantern)
-      export lanternImage="$docker_image"
-      ;;
-    lighthouse)
-      export lighthouseImage="$docker_image"
-      ;;
-    grandine)
-      export grandineImage="$docker_image"
-      ;;
-    ethlambda)
-      export ethlambdaImage="$docker_image"
-      ;;
-  esac
-
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
   echo "$sourceCmd"
   eval $sourceCmd
 
+  # Apply user-config.yml overrides (run_mode, docker_image) if file exists
+  user_config="$scriptDir/user-config.yml"
+  if [ -f "$user_config" ]; then
+    # Override run_mode if specified for this node (check first since it affects docker_image)
+    user_run_mode=$(yq eval ".$item.run_mode // \"\"" "$user_config" 2>/dev/null)
+    if [ -n "$user_run_mode" ] && [ "$user_run_mode" != "null" ]; then
+      if [ "$user_run_mode" == "docker" ] || [ "$user_run_mode" == "binary" ]; then
+        node_setup="$user_run_mode"
+        echo "  user-config.yml: overriding run_mode for $item: $user_run_mode"
+      else
+        echo "  user-config.yml: ignoring unknown run_mode '$user_run_mode' for $item (expected: docker or binary)"
+      fi
+    fi
+
+    # Override docker image if specified for this node (only applies in docker mode)
+    if [ "$node_setup" == "docker" ]; then
+      user_docker_image=$(yq eval ".$item.docker_image // \"\"" "$user_config" 2>/dev/null)
+      if [ -n "$user_docker_image" ] && [ "$user_docker_image" != "null" ]; then
+        # Replace the image in node_docker string (first word matching image:tag pattern)
+        original_image=$(echo "$node_docker" | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | head -1)
+        if [ -n "$original_image" ]; then
+          node_docker="${node_docker/$original_image/$user_docker_image}"
+          echo "  user-config.yml: overriding docker_image for $item: $user_docker_image"
+        fi
+      fi
+    fi
+  fi
 
   # spin nodes
   if [ "$node_setup" == "binary" ]
@@ -388,25 +383,12 @@ for item in "${spin_nodes[@]}"; do
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
-    # Pull image first
+    # Pull image first 
     if [ -n "$dockerWithSudo" ]; then
       sudo docker pull "$docker_image" || true
     else
       docker pull "$docker_image" || true
     fi
-
-    # Check if the image exists locally (either pulled successfully or was cached)
-    if [ -n "$dockerWithSudo" ]; then
-      image_exists=$(sudo docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
-    else
-      image_exists=$(docker image inspect "$docker_image" > /dev/null 2>&1 && echo "yes" || echo "no")
-    fi
-
-    if [ "$image_exists" == "no" ]; then
-      echo "⚠️  Skipping $item: Docker image '$docker_image' does not exist and could not be pulled"
-      continue
-    fi
-
     execCmd="docker run --rm --pull=never"
     if [ -n "$dockerWithSudo" ]
     then
@@ -452,8 +434,8 @@ if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
 
   metricsDir="$scriptDir/metrics"
 
-  # Generate prometheus.yml from deploy-validator-config.yaml
-  "$scriptDir/generate-prometheus-config.sh" "$deploy_validator_config_file" "$metricsDir/prometheus"
+  # Generate prometheus.yml from validator-config.yaml
+  "$scriptDir/generate-prometheus-config.sh" "$validator_config_file" "$metricsDir/prometheus"
 
   # Pull and start metrics containers
   if [ -n "$dockerWithSudo" ]; then
@@ -471,20 +453,6 @@ fi
 
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
-
-# Display summary table (read directly from deploy-validator-config.yaml like ansible does)
-echo ""
-echo "=================================================="
-echo "Deployed Nodes Summary:"
-echo "=================================================="
-printf "%-15s | %-10s | %s\n" "Node" "Mode" "Docker Image"
-echo "--------------------------------------------------"
-for node in "${spin_nodes[@]}"; do
-  image=$(yq eval ".validators[] | select(.name == \"$node\") | .image" "$deploy_validator_config_file" 2>/dev/null)
-  printf "%-15s | %-10s | %s\n" "$node" "docker" "$image"
-done
-echo "=================================================="
-echo ""
 
 cleanup() {
   echo -e "\n\ncleaning up"

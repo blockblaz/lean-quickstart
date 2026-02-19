@@ -82,44 +82,6 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
 
 > **Note:** The `--metrics` flag only affects local deployments. When using Ansible deployment mode, this flag is ignored. Metrics ports are always exposed by clients regardless of this flag.
 
-### Using custom Docker images
-
-You can override default Docker images using the `--configFile` flag. This is useful for testing custom builds or using specific versions without modifying the codebase.
-
-**Basic usage (without custom images):**
-```sh
-# Uses default images from validator-config.yaml (merged into deploy-validator-config.yaml)
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
-```
-
-**With custom config file:**
-```sh
-# Override specific node images
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --configFile user-config.yml
-```
-
-**Example config file (user-config.yml):**
-```yaml
-validators:
-  - name: "zeam_0"
-    image: blockblaz/zeam:feature-branch
-  - name: "ream_0"
-    image: ghcr.io/reamlabs/ream:v2.0
-```
-
-**Testing a specific client build:**
-```sh
-# Create custom config file for zeam <your-PATH>/my-zeam-config.yml
-validators:
-  - name: "zeam_0"
-    image: blockblaz/zeam:custom-tag
-
-# Run with custom zeam image
-NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --configFile <your-PATH>/my-zeam-config.yml
-```
-
-Only specify validators you want to override - others will use their defaults from `validator-config.yaml`. Overrides are merged into `deploy-validator-config.yaml` which is used during deployment.
-
 ## Args
 
 1. `NETWORK_DIR` is an env to specify the network directory. Should have a `genesis` directory with genesis config. A `data` folder will be created inside this `NETWORK_DIR` if not already there.
@@ -170,11 +132,12 @@ Only specify validators you want to override - others will use their defaults fr
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
 11. `--metrics` starts a Prometheus + Grafana metrics stack alongside the devnet (local deployments only). When specified:
-    - Generates `metrics/prometheus/prometheus.yml` from `deploy-validator-config.yaml` with scrape targets for all configured nodes
+    - Generates `metrics/prometheus/prometheus.yml` from `validator-config.yaml` with scrape targets for all configured nodes
     - Starts Prometheus (http://localhost:9090) and Grafana (http://localhost:3000) via Docker Compose
     - Grafana is pre-provisioned with Lean Ethereum dashboards (no login required)
     - On `--stop --metrics`, the metrics stack is also torn down
     - On Ctrl+C cleanup, the metrics stack is stopped automatically
+
     Note: Client metrics endpoints are always enabled regardless of this flag.
 12. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 13. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
@@ -225,7 +188,6 @@ Current following clients are supported:
 4. Lantern
 5. Lighthouse
 6. Grandine
-7. EthLambda
 
 However adding a lean client to this setup is very easy. Feel free to do the PR or reach out to the maintainers.
 
@@ -245,37 +207,21 @@ The quickstart uses separate directories for local and Ansible deployments:
 
 ```
 lean-quickstart/
-├── client-cmds/                   # Client command scripts
-│   ├── zeam-cmd.sh
-│   ├── ream-cmd.sh
-│   └── ...
-├── user-config.yml.example        # Example custom config (copy to user-config.yml)
-├── user-config.yml                # Your custom image overrides (gitignored)
-├── local-devnet/                  # Local development
+├── local-devnet/              # Local development
 │   ├── genesis/
-│   │   ├── validator-config.yaml        # Source config - Local IPs (127.0.0.1)
-│   │   └── deploy-validator-config.yaml # Generated - merged config for deployment (gitignored)
+│   │   └── validator-config.yaml  # Local IPs (127.0.0.1)
 │   └── data/                      # Node data directories
 │
-└── ansible-devnet/                # Ansible/remote deployment
+└── ansible-devnet/            # Ansible/remote deployment
     ├── genesis/
-    │   ├── validator-config.yaml        # Source config - Remote IPs (your server IPs)
-    │   └── deploy-validator-config.yaml # Generated - merged config for deployment (gitignored)
+    │   └── validator-config.yaml  # Remote IPs (your server IPs)
     └── data/                      # Node data directories
 ```
 
 **Automatic Directory Selection:**
-
 - When `deployment_mode: ansible` is set (in config or via `--deploymentMode ansible`), the script automatically uses `ansible-devnet/genesis/validator-config.yaml`
 - This keeps local and remote configurations completely separate
 - Genesis files are generated in the appropriate directory based on deployment mode
-
-**Config File Flow:**
-
-- `validator-config.yaml` - Default source config file (node IPs, ports, validator counts)
-- `user-config.yml` - Optional overrides (currently custom Docker images)
-- `deploy-validator-config.yaml` - Generated by merging the above two files, recreated on each deployment
-- All deployment operations (local and ansible) read from `deploy-validator-config.yaml`
 
 ### Configuration
 
@@ -429,13 +375,13 @@ Post genesis generation, the quickstarts loads and calls the appropriate node's 
 **Client Integration:**
 Your client implementation should read these environment variables and use the hash-sig keys for validator operations.
 
- - `$item` - the node name for which this cmd is being executed, index into `deploy-validator-config.yaml` for its configuration
+ - `$item` - the node name for which this cmd is being executed, index into `validator-config.yaml` for its configuration
  - `$configDir` - the abs folder housing `genesis` configuration (same as `NETWORK_DIR` env variable provided while executing shell command), already mapped to `/config` in the docker mode
  - A generic data folder is created inside config folder accessible as `$dataDir` with `$dataDir/$item` to be used as the data dir for a particular node to be used for binary format, already mapped to `/data` in the docker mode
- - Variables read and available from `deploy-validator-config.yaml` (use them or directly read configuration from the `deploy-validator-config.yaml` using `$item` as the index into `validators` section)
+ - Variables read and available from `validator-config.yaml` (use them or directly read configuration from the `validator-config.yaml` using `$item` as the index into `validators` section)
    - `$metricsPort`
-   - `$quicPort`
-   - `$item.key` filename of the p2p `privkey` read and dumped into file from `deploy-validator-config.yaml` inside config dir (so `$configDir/$item.key` or `/config/$item.key`)
+   - `$quicPort` 
+   - `$item.key` filename of the p2p `privkey` read and dumped into file from `validator-config.yaml` inside config dir (so `$configDir/$item.key` or `/config/$item.key`)
 
 Here is an example client cmd:
 ```bash
@@ -466,6 +412,41 @@ node_docker="--platform linux/amd64 qdrvm/qlean-mini:dd67521 \
 # choose either binary or docker
 node_setup="docker"
 ```
+
+### User Configuration Overrides (`user-config.yml`)
+
+You can override the Docker image or run mode (docker/binary) for individual nodes without modifying any tracked files. This is useful for testing custom builds or switching a node to binary mode for local debugging.
+
+**Setup:**
+```sh
+# Copy the example file
+cp user-config.yml.example user-config.yml
+
+# Edit to override specific nodes
+```
+
+**Format** — specify only the nodes you want to override:
+```yaml
+zeam_0:
+  run_mode: docker
+  docker_image: blockblaz/zeam:custom-tag
+
+ream_0:
+  run_mode: binary
+```
+
+**Fields:**
+| Field | Description |
+|-------|-------------|
+| `run_mode` | `"docker"` or `"binary"` — overrides the default set in the client-cmd script |
+| `docker_image` | Docker image to use (only applies when `run_mode` is `docker`) |
+
+**How it works:**
+- `user-config.yml` is auto-detected from the project root during `spin-node.sh` execution
+- Overrides are applied per-node after sourcing the client-cmd script, right before spinning the node
+- If `run_mode` is set to `binary`, `docker_image` is ignored
+- Nodes not listed in the file use their defaults from `client-cmds/<client>-cmd.sh`
+- The file is gitignored so your local overrides won't affect others
 
 ## Key Management
 
@@ -591,7 +572,7 @@ This quickstart includes automated configuration parsing:
 
 - **Official Genesis Generation**: Uses PK's `eth-beacon-genesis` docker tool from [PR #36](https://github.com/ethpandaops/eth-beacon-genesis/pull/36)
 - **Complete File Set**: Generates `validators.yaml`, `nodes.yaml`, `genesis.json`, `genesis.ssz`, and `.key` files
-- **QUIC Port Detection**: Automatically extracts QUIC ports from `deploy-validator-config.yaml` using `yq`
+- **QUIC Port Detection**: Automatically extracts QUIC ports from `validator-config.yaml` using `yq`
 - **Node Detection**: Dynamically discovers available nodes from the validator configuration
 - **Private Key Management**: Automatically extracts and creates `.key` files for each node
 - **Error Handling**: Provides clear error messages when nodes or ports are not found
@@ -759,7 +740,7 @@ ansible/
 
 ### Remote Deployment
 
-The Ansible inventory is **automatically generated** from `deploy-validator-config.yaml`. 
+The Ansible inventory is **automatically generated** from `validator-config.yaml`. 
 
 **Configuration Setup:**
 
@@ -868,7 +849,7 @@ Both deployment modes use the same `spin-node.sh` entry point, controlled by `de
 | **Multi-Host** | No | Yes |
 | **Rollback** | Manual | Built-in capabilities |
 | **Entry Point** | `spin-node.sh` | `spin-node.sh` (same command) |
-| **Inventory** | N/A | Auto-generated from deploy-validator-config.yaml |
+| **Inventory** | N/A | Auto-generated from validator-config.yaml |
 
 **Recommendation:** 
 - Use `deployment_mode: local` for local development and quick testing

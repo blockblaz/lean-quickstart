@@ -12,7 +12,7 @@
   hosts: all:!local
   gather_facts: yes
   vars:
-    deploy_validator_config_file: "{{ genesis_dir }}/deploy-validator-config.yaml"
+    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
     # Use remote_genesis_dir from group_vars, or default to standard remote path
     actual_remote_genesis_dir: "{{ remote_genesis_dir | default('/opt/lean-quickstart/genesis') }}"
 
@@ -51,7 +51,7 @@
         - nodes.yaml
         - genesis.json
         - genesis.ssz
-        - deploy-validator-config.yaml
+        - validator-config.yaml
 
     - name: Fail if required genesis files are missing
       fail:
@@ -68,9 +68,9 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Extract all node names from deploy-validator-config.yaml
+    - name: Extract all node names from validator-config.yaml
       shell: |
-        yq eval '.validators[].name' "{{ genesis_dir }}/deploy-validator-config.yaml"
+        yq eval '.validators[].name' "{{ genesis_dir }}/validator-config.yaml"
       register: all_node_names_raw
       delegate_to: localhost
       run_once: true
@@ -141,7 +141,7 @@
         - nodes.yaml
         - genesis.json
         - genesis.ssz
-        - deploy-validator-config.yaml
+        - validator-config.yaml
 
     - name: Copy node private key files to remote host
       copy:

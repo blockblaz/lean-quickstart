@@ -2,9 +2,6 @@
 
 #-----------------------ethlambda setup----------------------
 
-# Docker image (set from deploy-validator-config.yaml, merged from validator-config.yaml + user config)
-# ethlambdaImage is exported by spin-node.sh before sourcing this file
-
 binary_path="$scriptDir/../ethlambda/target/release/ethlambda"
 
 # Set aggregator flag based on isAggregator value
@@ -31,7 +28,7 @@ node_binary="$binary_path \
       $checkpoint_sync_flag"
 
 # Command when running as docker container
-node_docker="$ethlambdaImage \
+node_docker="ghcr.io/lambdaclass/ethlambda:devnet2 \
       --custom-network-config-dir /config \
       --gossipsub-port $quicPort \
       --node-id $item \

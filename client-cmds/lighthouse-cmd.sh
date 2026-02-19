@@ -18,7 +18,7 @@ fi
 node_binary="$lighthouse_bin lean_node \
       --datadir \"$dataDir/$item\" \
       --config \"$configDir/config.yaml\" \
-      --validators \"$configDir/deploy-validator-config.yaml\" \
+      --validators \"$configDir/validator-config.yaml\" \
       --nodes \"$configDir/nodes.yaml\" \
       --node-id \"$item\" \
       --private-key \"$configDir/$privKeyPath\" \
@@ -30,10 +30,10 @@ node_binary="$lighthouse_bin lean_node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_docker="$lighthouseImage lighthouse lean_node \
+node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       --datadir /data \
       --config /config/config.yaml \
-      --validators /config/deploy-validator-config.yaml \
+      --validators /config/validator-config.yaml \
       --nodes /config/nodes.yaml \
       --node-id $item \
       --private-key /config/$privKeyPath \

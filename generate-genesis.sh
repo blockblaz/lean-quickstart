@@ -22,9 +22,8 @@ Generates: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, 
 
 Arguments:
   genesis-directory    Path to the genesis directory containing:
-                       - deploy-validator-config.yaml (preferred, merged config with user overrides)
-                       - validator-config.yaml (fallback if deploy-validator-config.yaml not found)
-                       - config must include key: config.activeEpoch (positive integer)
+                       - validator-config.yaml (with node configurations and individual counts)
+                       - validator-config.yaml must include key: config.activeEpoch (positive integer)
 
 Options:
   --mode <mode>        Deployment mode: 'local' or 'ansible' (default: local)
@@ -48,13 +47,13 @@ Generated Files:
 
 How It Works:
   1. Calculates GENESIS_TIME based on --mode (local: +30s, ansible: +360s) or --offset if provided
-  2. Reads individual validator 'count' fields from deploy-validator-config.yaml (or validator-config.yaml as fallback)
-  3. Reads config.activeEpoch from the validator config file (required)
+  2. Reads individual validator 'count' fields from validator-config.yaml
+  3. Reads config.activeEpoch from validator-config.yaml (required)
   4. Automatically sums them to calculate total VALIDATOR_COUNT
   5. Generates config.yaml from scratch with calculated values including config.activeEpoch
   6. Runs PK's genesis generator with correct parameters
 
-Note: config.yaml is a generated file - only edit validator-config.yaml (or user-config.yml for overrides)
+Note: config.yaml is a generated file - only edit validator-config.yaml
 
 Requirements:
   - Docker (to run PK's eth-beacon-genesis tool)
@@ -84,17 +83,7 @@ fi
 
 GENESIS_DIR="$1"
 CONFIG_FILE="$GENESIS_DIR/config.yaml"
-
-# Prefer deploy-validator-config.yaml (merged config with user overrides) if available,
-# otherwise fall back to validator-config.yaml for standalone usage
-DEPLOY_CONFIG="$GENESIS_DIR/deploy-validator-config.yaml"
-BASE_CONFIG="$GENESIS_DIR/validator-config.yaml"
-if [ -f "$DEPLOY_CONFIG" ]; then
-    VALIDATOR_CONFIG_FILE="$DEPLOY_CONFIG"
-else
-    echo "   deploy-validator-config.yaml not found, falling back to validator-config.yaml"
-    VALIDATOR_CONFIG_FILE="$BASE_CONFIG"
-fi
+VALIDATOR_CONFIG_FILE="$GENESIS_DIR/validator-config.yaml"
 
 # Parse optional flags
 SKIP_KEY_GEN="true"
@@ -436,7 +425,7 @@ docker run --rm --pull=never \
   "$PK_DOCKER_IMAGE" \
   leanchain \
   --config "/data/genesis/config.yaml" \
-  --mass-validators "/data/genesis/$(basename "$VALIDATOR_CONFIG_FILE")" \
+  --mass-validators "/data/genesis/validator-config.yaml" \
   --state-output "/data/genesis/genesis.ssz" \
   --json-output "/data/genesis/genesis.json" \
   --nodes-output "/data/genesis/nodes.yaml" \

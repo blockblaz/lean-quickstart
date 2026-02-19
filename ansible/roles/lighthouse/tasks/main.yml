@@ -1,25 +1,50 @@
 ---
 # Lighthouse role: Deploy and manage Lighthouse nodes
 # Converts client-cmds/lighthouse-cmd.sh logic to Ansible tasks
-# Note: deploy-validator-config.yaml has user overrides merged (from merge-config.sh)
 
-- name: Extract node configuration from deploy-validator-config.yaml
+- name: Extract docker image from client-cmd.sh
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/deploy-validator-config.yaml"
+    # Extract the first word (docker image) from node_docker line
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_docker=' "$project_root/client-cmds/lighthouse-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+  register: lighthouse_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    # Extract the value from node_setup line
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/lighthouse-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: lighthouse_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    lighthouse_docker_image: "{{ lighthouse_docker_image_raw.stdout | trim | default('hopinheimer/lighthouse:latest') }}"
+    deployment_mode: "{{ lighthouse_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
   register: lighthouse_node_config
   changed_when: false
+  delegate_to: localhost
   loop:
-    - image
     - enrFields.quic
     - metricsPort
+    - privkey
   when: node_name is defined
 
-- name: Set node configuration
+- name: Set node ports
   set_fact:
-    lighthouse_docker_image: "{{ lighthouse_node_config.results[0].stdout | trim | default('hopinheimer/lighthouse:latest') }}"
-    lighthouse_quic_port: "{{ lighthouse_node_config.results[1].stdout | trim }}"
-    lighthouse_metrics_port: "{{ lighthouse_node_config.results[2].stdout | trim }}"
-    deployment_mode: "{{ deployment_mode | default('docker') }}"
+    lighthouse_quic_port: "{{ lighthouse_node_config.results[0].stdout }}"
+    lighthouse_metrics_port: "{{ lighthouse_node_config.results[1].stdout }}"
+    lighthouse_privkey: "{{ lighthouse_node_config.results[2].stdout }}"
   when: lighthouse_node_config is defined
 
 - name: Ensure node key file exists
@@ -68,7 +93,7 @@
         lighthouse lean_node
         --datadir /data
         --config /config/config.yaml
-        --validators /config/deploy-validator-config.yaml
+        --validators /config/validator-config.yaml
         --nodes /config/nodes.yaml
         --node-id {{ node_name }}
         --private-key /config/{{ node_name }}.key

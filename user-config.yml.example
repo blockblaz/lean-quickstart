@@ -1,31 +1,14 @@
-# User Configuration Example
-# Copy this file to user-config.yml or <your-custom-name>.yml and customize
-# Usage: ./spin-node.sh --configFile <your-config-file>.yml
+# User configuration overrides (auto-detected from project root)
+# Copy this file to user-config.yml and customize.
+# Only specify nodes you want to override — others use defaults from client-cmd scripts.
 #
-# Only specify validators and fields you want to override - others will use defaults
-# from validator-config.yaml in your network directory.
+# Fields:
+#   run_mode: "docker" or "binary" (default: whatever client-cmd.sh sets)
+#   docker_image: Override the Docker image for this node
+
+# zeam_0:
+#   run_mode: docker
+#   docker_image: blockblaz/zeam:custom-tag
 #
-# Overrides are merged into deploy-validator-config.yaml before deployment.
-
-validators:
-  - name: "zeam_0"
-    image: blockblaz/zeam:custom-tag
-
-  - name: "ream_0"
-    image: ghcr.io/reamlabs/ream:my-branch
-
-  # Add more validators as needed:
-  # - name: "qlean_0"
-  #   image: qdrvm/qlean-mini:custom-tag
-  #
-  # - name: "lantern_0"
-  #   image: piertwo/lantern:custom-tag
-  #
-  # - name: "lighthouse_0"
-  #   image: hopinheimer/lighthouse:custom-tag
-  #
-  # - name: "grandine_0"
-  #   image: sifrai/lean:custom-tag
-  #
-  # - name: "ethlambda_0"
-  #   image: ghcr.io/lambdaclass/ethlambda:custom-tag
+# ream_0:
+#   run_mode: binary

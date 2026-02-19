@@ -76,11 +76,6 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    --configFile)
-      configFile="$2"
-      shift # past argument
-      shift # past value
-      ;;
     --stop)
       stopNodes=true
       shift
@@ -134,7 +129,6 @@ echo "generateGenesis = $generateGenesis"
 echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
 echo "dockerTag = ${dockerTag:-latest}"
-echo "configFile = ${configFile:-none}"
 echo "enableMetrics = $enableMetrics"
 echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"

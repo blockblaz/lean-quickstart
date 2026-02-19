@@ -33,7 +33,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       -ldebug \
       -ltrace"
       
-node_docker="$qleanImage \
+node_docker="qdrvm/qlean-mini:devnet-2 \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \

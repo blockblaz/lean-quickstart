@@ -28,7 +28,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_docker="--security-opt seccomp=unconfined $zeamImage node \
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet2 node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \

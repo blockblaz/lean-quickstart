@@ -1,25 +1,50 @@
 ---
 # Lantern role: Deploy and manage Lantern nodes
 # Converts client-cmds/lantern-cmd.sh logic to Ansible tasks
-# Note: deploy-validator-config.yaml has user overrides merged (from merge-config.sh)
 
-- name: Extract node configuration from deploy-validator-config.yaml
+- name: Extract docker image from client-cmd.sh
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/deploy-validator-config.yaml"
+    # Extract the docker image from LANTERN_IMAGE line
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^LANTERN_IMAGE=' "$project_root/client-cmds/lantern-cmd.sh" | head -1 | sed -E 's/.*LANTERN_IMAGE="([^"]+)".*/\1/'
+  register: lantern_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    # Extract the value from node_setup line
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/lantern-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: lantern_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    lantern_docker_image: "{{ lantern_docker_image_raw.stdout | trim | default('piertwo/lantern:v0.0.1') }}"
+    deployment_mode: "{{ lantern_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
   register: lantern_node_config
   changed_when: false
+  delegate_to: localhost
   loop:
-    - image
     - enrFields.quic
     - metricsPort
+    - privkey
   when: node_name is defined
 
-- name: Set node configuration
+- name: Set node ports
   set_fact:
-    lantern_docker_image: "{{ lantern_node_config.results[0].stdout | trim | default('piertwo/lantern:latest') }}"
-    lantern_quic_port: "{{ lantern_node_config.results[1].stdout | trim }}"
-    lantern_metrics_port: "{{ lantern_node_config.results[2].stdout | trim }}"
-    deployment_mode: "{{ deployment_mode | default('docker') }}"
+    lantern_quic_port: "{{ lantern_node_config.results[0].stdout }}"
+    lantern_metrics_port: "{{ lantern_node_config.results[1].stdout }}"
+    lantern_privkey: "{{ lantern_node_config.results[2].stdout }}"
   when: lantern_node_config is defined
 
 - name: Ensure node key file exists
@@ -65,7 +90,7 @@
         --genesis-config /config/config.yaml
         --validator-registry-path /config/validators.yaml
         --genesis-state /config/genesis.ssz
-        --validator-config /config/deploy-validator-config.yaml
+        --validator-config /config/validator-config.yaml
         --nodes-path /config/nodes.yaml
         --node-id {{ node_name }}
         --node-key-path /config/{{ node_name }}.key

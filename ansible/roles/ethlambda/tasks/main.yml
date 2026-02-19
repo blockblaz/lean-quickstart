@@ -1,25 +1,49 @@
 ---
 # Ethlambda role: Deploy and manage Ethlambda nodes
 # Converts client-cmds/ethlambda-cmd.sh logic to Ansible tasks
-# Note: deploy-validator-config.yaml has user overrides merged (from merge-config.sh)
 
-- name: Extract node configuration from deploy-validator-config.yaml
+- name: Extract docker image from client-cmd.sh
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/deploy-validator-config.yaml"
+    # Extract the first word (docker image) from node_docker line
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_docker=' "$project_root/client-cmds/ethlambda-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+  register: ethlambda_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    # Extract the value from node_setup line
+    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/ethlambda-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: ethlambda_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:devnet1') }}"
+    deployment_mode: "{{ ethlambda_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
   register: ethlambda_node_config
   changed_when: false
+  delegate_to: localhost
   loop:
-    - image
     - enrFields.quic
     - metricsPort
   when: node_name is defined
 
-- name: Set node configuration
+- name: Set node ports
   set_fact:
-    ethlambda_docker_image: "{{ ethlambda_node_config.results[0].stdout | trim | default('ghcr.io/lambdaclass/ethlambda:latest') }}"
-    ethlambda_quic_port: "{{ ethlambda_node_config.results[1].stdout | trim }}"
-    ethlambda_metrics_port: "{{ ethlambda_node_config.results[2].stdout | trim }}"
-    deployment_mode: "{{ deployment_mode | default('docker') }}"
+    ethlambda_quic_port: "{{ ethlambda_node_config.results[0].stdout }}"
+    ethlambda_metrics_port: "{{ ethlambda_node_config.results[1].stdout }}"
   when: ethlambda_node_config is defined
 
 - name: Ensure node key file exists

@@ -409,11 +409,11 @@ Or use sudo (not recommended):
 ./ansible-deploy.sh --node zeam_0 --network-dir local-devnet --docker-with-sudo
 ```
 
-#### 5. "Node not found in deploy-validator-config.yaml"
+#### 5. "Node not found in validator-config.yaml"
 
-Ensure node name matches exactly in `deploy-validator-config.yaml`:
+Ensure node name matches exactly in `validator-config.yaml`:
 ```sh
-yq eval '.validators[].name' local-devnet/genesis/deploy-validator-config.yaml
+yq eval '.validators[].name' local-devnet/genesis/validator-config.yaml
 ```
 
 #### 6. Container starts but immediately exits
