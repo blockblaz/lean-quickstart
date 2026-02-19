@@ -45,6 +45,12 @@ if [ -z "$metricsPort" ] || [ "$metricsPort" == "null" ]; then
     exit 1
 fi
 
+# Automatically extract HTTP port using yq (optional - only some clients use it)
+httpPort=$(yq eval ".validators[] | select(.name == \"$item\") | .httpPort" "$validator_config_file")
+if [ -z "$httpPort" ] || [ "$httpPort" == "null" ]; then
+    httpPort=""
+fi
+
 # Automatically extract devnet using yq (optional - only ream uses it)
 devnet=$(yq eval ".validators[] | select(.name == \"$item\") | .devnet" "$validator_config_file")
 if [ -z "$devnet" ] || [ "$devnet" == "null" ]; then

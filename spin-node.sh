@@ -278,6 +278,10 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
 fi
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
+  # extract client config FIRST before printing
+  IFS='_' read -r -a elements <<< "$item"
+  client="${elements[0]}"
+
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
   echo
@@ -296,10 +300,6 @@ for item in "${spin_nodes[@]}"; do
 
   # parse validator-config.yaml for $item to load args values
   source parse-vc.sh
-
-  # extract client config
-  IFS='_' read -r -a elements <<< "$item"
-  client="${elements[0]}"
 
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
