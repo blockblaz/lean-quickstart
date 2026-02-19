@@ -3,6 +3,19 @@
 #-----------------------qlean setup----------------------
 # expects "qlean" submodule or symlink inside "lean-quickstart" root directory
 # https://github.com/qdrvm/qlean-mini
+
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
+
 node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --modules-dir $scriptDir/qlean/build/src/modules \
       --genesis $configDir/config.yaml \
@@ -15,6 +28,8 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --node-id $item --node-key $configDir/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --prometheus-port $metricsPort \
+      $aggregator_flag \
+      $checkpoint_sync_flag \
       -ldebug \
       -ltrace"
       
@@ -29,6 +44,8 @@ node_docker="qdrvm/qlean-mini:devnet-2 \
       --node-id $item --node-key /config/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --prometheus-port $metricsPort \
+      $aggregator_flag \
+      $checkpoint_sync_flag \
       -ldebug \
       -ltrace"
 
