@@ -15,6 +15,7 @@ validators:
       ip: "46.224.123.223"
       quic: 9001
     metricsPort: 9095
+    isAggregator: false
     count: 1 # number of indices for this node
 
   - name: "ream_0"
@@ -27,6 +28,7 @@ validators:
       ip: "77.42.27.219"
       quic: 9001
     metricsPort: 9095
+    isAggregator: false
     devnet: 1
     count: 1
 
@@ -39,6 +41,7 @@ validators:
       ip: "46.224.123.220"
       quic: 9001
     metricsPort: 9095
+    isAggregator: false
     count: 1
 
   - name: "lantern_0"
@@ -51,6 +54,7 @@ validators:
       ip: "46.224.135.177"
       quic: 9001
     metricsPort: 9095
+    isAggregator: false
     count: 1
 
   - name: "lighthouse_0"
@@ -63,6 +67,7 @@ validators:
       ip: "46.224.135.169"
       quic: 9001
     metricsPort: 9095
+    isAggregator: false
     count: 1
 
   - name: "grandine_0"
@@ -72,6 +77,7 @@ validators:
       ip: "37.27.250.20"
       quic: 9001
     metricsPort: 9095
+    isAggregator: false
     count: 1
 
   - name: "ethlambda_0"
@@ -81,4 +87,5 @@ validators:
       ip: "78.47.44.215"
       quic: 9001
     metricsPort: 9095
+    isAggregator: false
     count: 1

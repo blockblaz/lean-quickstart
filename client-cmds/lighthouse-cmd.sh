@@ -3,8 +3,17 @@
 # Metrics enabled by default
 metrics_flag="--metrics"
 
-# Docker image (set from deploy-validator-config.yaml or user config via --configFile)
-# lighthouseImage is exported by spin-node.sh before sourcing this file
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
 
 node_binary="$lighthouse_bin lean_node \
       --datadir \"$dataDir/$item\" \
@@ -17,7 +26,9 @@ node_binary="$lighthouse_bin lean_node \
       --socket-port $quicPort\
       $metrics_flag \
       --metrics-address 0.0.0.0 \
-      --metrics-port $metricsPort"
+      --metrics-port $metricsPort \
+      $aggregator_flag \
+      $checkpoint_sync_flag"
 
 node_docker="$lighthouseImage lighthouse lean_node \
       --datadir /data \
@@ -30,6 +41,8 @@ node_docker="$lighthouseImage lighthouse lean_node \
       --socket-port $quicPort\
       $metrics_flag \
       --metrics-address 0.0.0.0 \
-      --metrics-port $metricsPort"
+      --metrics-port $metricsPort \
+      $aggregator_flag \
+      $checkpoint_sync_flag"
 
 node_setup="docker"

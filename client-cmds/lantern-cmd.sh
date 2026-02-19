@@ -9,6 +9,18 @@ if [ -n "$devnet" ]; then
         devnet_flag="--devnet $devnet"
 fi
 
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
+
 # Lantern's repo: https://github.com/Pier-Two/lantern
 node_binary="$scriptDir/lantern/build/lantern_cli \
         --data-dir $dataDir/$item \
@@ -23,7 +35,9 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --metrics-port $metricsPort \
         --http-port 5055 \
         --log-level debug \
-        --hash-sig-key-dir $configDir/hash-sig-keys"
+        --hash-sig-key-dir $configDir/hash-sig-keys \
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 node_docker="$lanternImage --data-dir /data \
         --genesis-config /config/config.yaml \
@@ -37,7 +51,9 @@ node_docker="$lanternImage --data-dir /data \
         --metrics-port $metricsPort \
         --http-port 5055 \
         --log-level debug \
-        --hash-sig-key-dir /config/hash-sig-keys"
+        --hash-sig-key-dir /config/hash-sig-keys \
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 # choose either binary or docker
 node_setup="docker"

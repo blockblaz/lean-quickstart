@@ -1,7 +1,16 @@
 #!/bin/bash
 
-# Docker image (set from deploy-validator-config.yaml, merged from validator-config.yaml + user config)
-# grandineImage is exported by spin-node.sh before sourcing this file
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
 
 node_binary="$grandine_bin \
         --genesis $configDir/config.yaml \
@@ -14,7 +23,9 @@ node_binary="$grandine_bin \
         --metrics \
         --http-address 0.0.0.0 \
         --http-port $metricsPort \
-        --hash-sig-key-dir $configDir/hash-sig-keys"
+        --hash-sig-key-dir $configDir/hash-sig-keys \
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 node_docker="$grandineImage \
         --genesis /config/config.yaml \
@@ -27,7 +38,9 @@ node_docker="$grandineImage \
         --metrics \
         --http-address 0.0.0.0 \
         --http-port $metricsPort \
-        --hash-sig-key-dir /config/hash-sig-keys"
+        --hash-sig-key-dir /config/hash-sig-keys \
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 # choose either binary or docker
 node_setup="docker"

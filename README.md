@@ -176,11 +176,44 @@ Only specify validators you want to override - others will use their defaults fr
     - On `--stop --metrics`, the metrics stack is also torn down
     - On Ctrl+C cleanup, the metrics stack is stopped automatically
     Note: Client metrics endpoints are always enabled regardless of this flag.
-12. `--configFile` specifies a custom configuration file to override default Docker images for specific nodes.
-   - Path to a YAML file containing node image overrides (e.g., `user-config.yml` or `/path/to/my-config.yml`)
-   - Only nodes specified in the config file are overridden; others use defaults from `validator-config.yaml`
-   - See [Using custom Docker images](#using-custom-docker-images) scenario for usage examples
-   - Example: `--configFile user-config.yml` or `--configFile /path/to/custom-config.yml`
+12. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
+13. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
+
+### Checkpoint sync
+
+Checkpoint sync lets you restart clients by syncing from a remote checkpoint instead of from genesis. This is useful for joining an existing network (e.g., leanpoint mainnet) without replaying the full chain.
+
+**Basic usage:**
+
+```sh
+# Restart zeam_0 using the default checkpoint URL
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0
+
+# Restart multiple clients
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0,ream_0
+```
+
+**Custom checkpoint URL:**
+
+```sh
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0 \
+  --checkpoint-sync-url https://leanpoint.leanroadmap.org/lean/v0/states/finalized
+```
+
+**Default checkpoint URL:** `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`
+
+**What happens:**
+1. Existing containers for the specified clients are stopped (no error if already stopped)
+2. Data directories are cleared
+3. Clients are started with `--checkpoint-sync-url` so they sync from the remote checkpoint instead of genesis
+
+**Deployment modes:**
+- **Local** (`NETWORK_DIR=local-devnet`): Uses Docker directly
+- **Ansible** (`NETWORK_DIR=ansible-devnet`): Uses Ansible to deploy to remote hosts
+
+**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
+
+> **Note:** All clients accept `--checkpoint-sync-url`. Client implementations may use different parameter names internally; update client-cmd scripts if parameters change.
 
 ### Clients supported
 
