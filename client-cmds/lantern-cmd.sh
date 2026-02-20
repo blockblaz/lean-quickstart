@@ -38,7 +38,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
         --http-port $httpPort \
-        --log-level debug \
+        --log-level info \
         --hash-sig-key-dir $configDir/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag"
@@ -54,7 +54,7 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
         --http-port $httpPort \
-        --log-level debug \
+        --log-level info \
         --hash-sig-key-dir /config/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag"
