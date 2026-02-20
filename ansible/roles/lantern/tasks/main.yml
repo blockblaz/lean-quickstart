@@ -25,7 +25,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    lantern_docker_image: "{{ lantern_docker_image_raw.stdout | trim | default('piertwo/lantern:v0.0.1') }}"
+    lantern_docker_image: "{{ lantern_docker_image_raw.stdout | trim | default('piertwo/lantern:latest') }}"
     deployment_mode: "{{ lantern_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml

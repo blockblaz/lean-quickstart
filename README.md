@@ -400,7 +400,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --metrics-port $metricsPort"
 
-node_docker="--platform linux/amd64 qdrvm/qlean-mini:dd67521 \
+node_docker="--platform linux/amd64 qdrvm/qlean-mini:latest \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --bootnodes /config/nodes.yaml \
