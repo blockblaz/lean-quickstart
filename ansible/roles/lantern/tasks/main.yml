@@ -2,14 +2,9 @@
 # Lantern role: Deploy and manage Lantern nodes
 # Converts client-cmds/lantern-cmd.sh logic to Ansible tasks
 
-- name: Detect target host architecture
-  command: uname -m
-  register: target_arch
-  changed_when: false
-
-- name: Set lantern docker image based on architecture
+- name: Set lantern docker image
   set_fact:
-    lantern_docker_image: "{{ 'piertwo/lantern:v0.0.3-test-amd64' if target_arch.stdout == 'x86_64' else 'piertwo/lantern:v0.0.3-test-arm64' }}"
+    lantern_docker_image: "piertwo/lantern:v0.0.3-test"
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |

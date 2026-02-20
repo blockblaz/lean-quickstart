@@ -1,26 +1,18 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-# Platform-specific lantern image
-ARCH=$(uname -m)
-if [ "$ARCH" = "x86_64" ]; then
-    LANTERN_IMAGE="piertwo/lantern:v0.0.3-test-amd64"
-elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    LANTERN_IMAGE="piertwo/lantern:v0.0.3-test-arm64"
-else
-    echo "Unsupported architecture: $ARCH"
-    exit 1
-fi
+LANTERN_IMAGE="piertwo/lantern:v0.0.3-test"
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
         devnet_flag="--devnet $devnet"
 fi
 
-# Lantern does not support --is-aggregator flag (unlike zeam)
-# The aggregator role is determined by the validator-config.yaml isAggregator field
-# which lantern reads directly from the config file
+# Set aggregator flag based on isAggregator value
 aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
 
 # Set attestation committee count flag if explicitly configured
 attestation_committee_flag=""
@@ -48,7 +40,8 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --http-port $httpPort \
         --log-level debug \
         --hash-sig-key-dir $configDir/hash-sig-keys \
-        $attestation_committee_flag"
+        $attestation_committee_flag \
+        $aggregator_flag"
 
 node_docker="$LANTERN_IMAGE --data-dir /data \
         --genesis-config /config/config.yaml \
@@ -63,7 +56,8 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --http-port $httpPort \
         --log-level debug \
         --hash-sig-key-dir /config/hash-sig-keys \
-        $attestation_committee_flag"
+        $attestation_committee_flag \
+        $aggregator_flag"
 
 # choose either binary or docker
 node_setup="docker"
