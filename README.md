@@ -65,10 +65,22 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --popupT
 
 ### Enabling metrics
 
+The `--metrics` flag starts a **Prometheus + Grafana** monitoring stack alongside the devnet nodes. Prometheus scrapes all node metrics endpoints and Grafana provides pre-built dashboards for monitoring consensus health.
+
 ```sh
-# Start all nodes with metrics enabled
+# Start all nodes with metrics stack
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
 ```
+
+Once running, services are available at:
+- **Grafana:** http://localhost:3000 (no login required)
+- **Prometheus:** http://localhost:9090
+
+Grafana is started with the two pre-provisioned dashboards from [leanMetrics](https://github.com/leanEthereum/leanMetrics):
+- **Lean Ethereum Client Interop Dashboard**: for seeing a general overview of all clients
+- **Lean Ethereum Client Dashboard**: for viewing metrics for a single client
+
+> **Note:** The `--metrics` flag only affects local deployments. When using Ansible deployment mode, this flag is ignored. Metrics ports are always exposed by clients regardless of this flag.
 
 ## Args
 
@@ -119,7 +131,52 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --metrics
    - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
-11. `--metrics` enables metrics collection on all nodes. When specified, each client will activate its metrics endpoint according to its implementation. Metrics ports are configured per node in `validator-config.yaml`.
+11. `--metrics` starts a Prometheus + Grafana metrics stack alongside the devnet (local deployments only). When specified:
+    - Generates `metrics/prometheus/prometheus.yml` from `validator-config.yaml` with scrape targets for all configured nodes
+    - Starts Prometheus (http://localhost:9090) and Grafana (http://localhost:3000) via Docker Compose
+    - Grafana is pre-provisioned with Lean Ethereum dashboards (no login required)
+    - On `--stop --metrics`, the metrics stack is also torn down
+    - On Ctrl+C cleanup, the metrics stack is stopped automatically
+
+    Note: Client metrics endpoints are always enabled regardless of this flag.
+12. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
+13. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
+
+### Checkpoint sync
+
+Checkpoint sync lets you restart clients by syncing from a remote checkpoint instead of from genesis. This is useful for joining an existing network (e.g., leanpoint mainnet) without replaying the full chain.
+
+**Basic usage:**
+
+```sh
+# Restart zeam_0 using the default checkpoint URL
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0
+
+# Restart multiple clients
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0,ream_0
+```
+
+**Custom checkpoint URL:**
+
+```sh
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0 \
+  --checkpoint-sync-url https://leanpoint.leanroadmap.org/lean/v0/states/finalized
+```
+
+**Default checkpoint URL:** `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`
+
+**What happens:**
+1. Existing containers for the specified clients are stopped (no error if already stopped)
+2. Data directories are cleared
+3. Clients are started with `--checkpoint-sync-url` so they sync from the remote checkpoint instead of genesis
+
+**Deployment modes:**
+- **Local** (`NETWORK_DIR=local-devnet`): Uses Docker directly
+- **Ansible** (`NETWORK_DIR=ansible-devnet`): Uses Ansible to deploy to remote hosts
+
+**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
+
+> **Note:** All clients accept `--checkpoint-sync-url`. Client implementations may use different parameter names internally; update client-cmd scripts if parameters change.
 
 ### Clients supported
 

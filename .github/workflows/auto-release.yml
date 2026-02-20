@@ -1,17 +1,17 @@
-name: Auto Release on Release Branch
+name: Auto Release on Main Branch
 
 on:
   pull_request:
     types: [ closed ]
-    branches: [ release ]
+    branches: [ main ]
 
 permissions:
   contents: write
 
 jobs:
   auto-release:
-    # Only run if PR was merged to release branch (not just closed)
-    if: github.event.pull_request.merged == true
+    # Only run if PR was merged from release branch to main and contains release label
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'release' && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
 
     steps:
@@ -20,96 +20,179 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Extract tags from PR labels
-      id: get_tags_labels
+    - name: Extract and validate required labels
+      id: get_labels
       run: |
-        # Get PR labels and extract version
+        # Get PR labels
         LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
         echo "PR Labels: $LABELS"
 
-        # Look for version label (e.g., "v1.0.0", "version:1.0.0", etc.)
-        VERSION=$(echo $LABELS | jq -r '.[] | select(test("^(v|version:)?[0-9]+\\.[0-9]+\\.[0-9]+")) | gsub("^(v|version:)"; "")')
+        # Look for version label in x.x.x format (e.g., "1.0.0", "2.1.3") - MANDATORY
+        VERSION=$(echo $LABELS | jq -r '.[] | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))')
 
-        # Look for zeam network tags (devnet0, devnet1, testnet, mainnet)
-        ZEAM_TAG=$(echo $LABELS | jq -r '.[] | select(test("^(devnet[0-9]+|testnet[0-9]*|mainnet)$"))')
+        # Look for devnet labels (devnet0, devnet1, devnet2, etc.) - MANDATORY
+        DEVNET_LABEL=$(echo $LABELS | jq -r '.[] | select(test("^devnet[0-9]+$"))')
+
+        # Check for mandatory labels - both version and devnet are required
+        MISSING_LABELS=""
 
         if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-          echo "ℹ️ No version label found"
-        else
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "git_tag=v$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Version found: $VERSION"
+          MISSING_LABELS="version label (e.g., 1.0.0)"
         fi
 
-        if [ -n "$ZEAM_TAG" ] && [ "$ZEAM_TAG" != "null" ]; then
-          echo "zeam_tag=$ZEAM_TAG" >> $GITHUB_OUTPUT
-          echo "has_network_tag=true" >> $GITHUB_OUTPUT
-          echo "✅ Found network tag: $ZEAM_TAG"
-        else
-          echo "has_network_tag=false" >> $GITHUB_OUTPUT
-          echo "ℹ️ No network tag found (optional)"
+        if [ -z "$DEVNET_LABEL" ] || [ "$DEVNET_LABEL" = "null" ]; then
+          if [ -n "$MISSING_LABELS" ]; then
+            MISSING_LABELS="$MISSING_LABELS and devnet label (devnet0, devnet1, devnet2, etc.)"
+          else
+            MISSING_LABELS="devnet label (devnet0, devnet1, devnet2, etc.)"
+          fi
         fi
 
-        # Require at least one label (version or network)
-        if { [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; } && { [ -z "$ZEAM_TAG" ] || [ "$ZEAM_TAG" = "null" ]; }; then
-          echo "❌ No usable label found! Please add a version (e.g. v1.0.0) or network tag (e.g. devnet0, testnet, mainnet)"
+        # Exit if any required labels are missing
+        if [ -n "$MISSING_LABELS" ]; then
+          echo "❌ Missing required labels: $MISSING_LABELS"
+          echo "Please add all required labels to proceed with the release."
           exit 1
         fi
 
-    - name: Create and push git tags
+        # Check if version tag already exists (add 'v' prefix for git tag)
+        VERSION_TAG="v$VERSION"
+        if git rev-parse "$VERSION_TAG" >/dev/null 2>&1; then
+          echo "❌ Version tag $VERSION_TAG already exists. Please use a new version."
+          exit 1
+        fi
+
+        # Create proper naming to avoid branch/tag conflicts
+        DEVNET_TAG="$(echo $DEVNET_LABEL | sed 's/^d/D/')"  # devnet1 -> Devnet1
+        DEVNET_BRANCH="$DEVNET_LABEL"                        # devnet1
+
+        # Set outputs only after validation passes
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "git_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+        echo "devnet_label=$DEVNET_LABEL" >> $GITHUB_OUTPUT
+        echo "devnet_tag=$DEVNET_TAG" >> $GITHUB_OUTPUT
+        echo "devnet_branch=$DEVNET_BRANCH" >> $GITHUB_OUTPUT
+        echo "✅ Found version: $VERSION and devnet label: $DEVNET_LABEL"
+        echo "✅ Will create branch: $DEVNET_BRANCH and tag: $DEVNET_TAG"
+
+        echo "✅ All required labels validated"
+
+    - name: Delete existing devnet tag and release if present
+      run: |
+        DEVNET_TAG="${{ steps.get_labels.outputs.devnet_tag }}"
+
+        # Check if tag exists and delete it
+        if git rev-parse "$DEVNET_TAG" >/dev/null 2>&1; then
+          echo "🗑️ Deleting existing tag $DEVNET_TAG"
+          git tag -d "$DEVNET_TAG" 2>/dev/null || true
+          git push origin --delete "$DEVNET_TAG" 2>/dev/null || true
+          echo "✅ Deleted existing tag $DEVNET_TAG"
+        else
+          echo "ℹ️ Tag $DEVNET_TAG does not exist"
+        fi
+
+        # Delete GitHub release if it exists
+        echo "🗑️ Attempting to delete existing GitHub release $DEVNET_TAG"
+        gh release delete "$DEVNET_TAG" --yes 2>/dev/null || echo "ℹ️ Release $DEVNET_TAG does not exist or already deleted"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create/Update devnet branch
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        DEVNET_BRANCH="${{ steps.get_labels.outputs.devnet_branch }}"
+
+        # Check if devnet branch already exists remotely
+        if git ls-remote --heads origin "$DEVNET_BRANCH" | grep -q "$DEVNET_BRANCH"; then
+          echo "ℹ️ Branch $DEVNET_BRANCH already exists remotely"
+          git checkout "$DEVNET_BRANCH"
+          git pull origin "$DEVNET_BRANCH"
+        else
+          echo "✅ Creating new branch $DEVNET_BRANCH from main"
+          git checkout -b "$DEVNET_BRANCH"
+        fi
+
+        # Merge latest main changes into devnet branch
+        git merge main --no-ff -m "Merge main into $DEVNET_BRANCH for deployment"
+        git push -u origin "$DEVNET_BRANCH"
+        echo "✅ Updated branch $DEVNET_BRANCH with latest main changes"
+
+        # Switch back to main for tagging
+        git checkout main
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the last devnet tag for changelog comparison
+        CURRENT_DEVNET_TAG="${{ steps.get_labels.outputs.devnet_tag }}"
+        DEVNET_TAG_PREFIX="$(echo ${{ steps.get_labels.outputs.devnet_label }} | sed 's/^d/D/')"
+        LAST_DEVNET_TAG=$(git tag -l "${DEVNET_TAG_PREFIX}*" --sort=-version:refname | grep -v "^$CURRENT_DEVNET_TAG$" | head -n 1)
+
+        if [ -z "$LAST_DEVNET_TAG" ]; then
+          echo "ℹ️ No previous devnet tag found, generating changelog from last 20 commits"
+          # Get commits with author and PR info for GitHub-style format
+          CHANGELOG=$(git log --oneline --pretty=format:"- %s by @%an in %h" | head -20 | sed 's/ by @/ by @/g' | sed 's/ in / in #/g')
+        else
+          echo "ℹ️ Generating changelog from $LAST_DEVNET_TAG to current"
+          # Get commits between tags with author and PR info
+          CHANGELOG=$(git log --oneline --pretty=format:"- %s by @%an in %h" $LAST_DEVNET_TAG..HEAD | sed 's/ by @/ by @/g' | sed 's/ in / in #/g')
+        fi
+
+        # If no commits found, add a default message
+        if [ -z "$CHANGELOG" ]; then
+          CHANGELOG="- No changes found in this release"
+        fi
+
+        # Create release notes with GitHub-style changelog
+        cat > release_notes.md << EOF
+        # Release Notes
+
+        **Network:** ${{ steps.get_labels.outputs.devnet_label }}
+        **Version:** ${{ steps.get_labels.outputs.version }}
+        **Tag:** ${{ steps.get_labels.outputs.devnet_tag }}
+        **Branch:** ${{ steps.get_labels.outputs.devnet_branch }}
+        **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+        ## What's Changed
+
+        ${CHANGELOG}
+
+        **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ steps.get_labels.outputs.devnet_tag }}
+
+        EOF
+
+        echo "✅ Generated changelog with $(echo "$CHANGELOG" | wc -l) commits"
+        echo "changelog_file=release_notes.md" >> $GITHUB_OUTPUT
+
+    - name: Create and push tags on main
       id: create_tags
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        CREATE_VERSION_TAG=false
-        CREATE_NETWORK_TAG=false
+        VERSION_TAG="${{ steps.get_labels.outputs.git_tag }}"
+        DEVNET_TAG="${{ steps.get_labels.outputs.devnet_tag }}"
 
-        # Check if version tag should be created
-        if [ -n "${{ steps.get_tags_labels.outputs.version }}" ] && [ "${{ steps.get_tags_labels.outputs.version }}" != "null" ]; then
-          if git rev-parse "${{ steps.get_tags_labels.outputs.git_tag }}" >/dev/null 2>&1; then
-            echo "❌ Version tag ${{ steps.get_tags_labels.outputs.git_tag }} already exists. Please create a new tag."
-            exit 1
-          else
-            CREATE_VERSION_TAG=true
-          fi
-        fi
+        # Create version tag on main
+        git tag -a "$VERSION_TAG" -m "Release version ${{ steps.get_labels.outputs.version }}"
+        git push origin "$VERSION_TAG"
+        echo "✅ Created version tag $VERSION_TAG on main branch"
 
-        # Check if network tag should be created
-        if [ "${{ steps.get_tags_labels.outputs.has_network_tag }}" = "true" ]; then
-          ZEAM_GIT_TAG="${{ steps.get_tags_labels.outputs.zeam_tag }}"
-          if git rev-parse "$ZEAM_GIT_TAG" >/dev/null 2>&1; then
-            echo "❌ Network tag $ZEAM_GIT_TAG already exists. Please create a new tag."
-            exit 1
-          else
-            CREATE_NETWORK_TAG=true
-          fi
-        fi
-
-        # Create version tag if needed
-        if [ "$CREATE_VERSION_TAG" = "true" ]; then
-          git tag -a "${{ steps.get_tags_labels.outputs.git_tag }}" -m "Release version ${{ steps.get_tags_labels.outputs.version }}"
-          git push origin "${{ steps.get_tags_labels.outputs.git_tag }}"
-          echo "✅ Created version tag ${{ steps.get_tags_labels.outputs.git_tag }}"
-        fi
-
-        # Create network tag if needed
-        if [ "$CREATE_NETWORK_TAG" = "true" ]; then
-          git tag -a "$ZEAM_GIT_TAG" -m "Zeam network tag for $ZEAM_GIT_TAG"
-          git push origin "$ZEAM_GIT_TAG"
-          echo "✅ Created zeam tag $ZEAM_GIT_TAG"
-        fi
-        echo "create_version_tag=$CREATE_VERSION_TAG" >> $GITHUB_OUTPUT
-        echo "create_network_tag=$CREATE_NETWORK_TAG" >> $GITHUB_OUTPUT
+        # Create devnet tag on main (already deleted if existed)
+        git tag -a "$DEVNET_TAG" -m "Devnet deployment tag for $DEVNET_TAG"
+        git push origin "$DEVNET_TAG"
+        echo "✅ Created devnet tag $DEVNET_TAG on main branch"
 
     - name: Create GitHub Release
-      if: ${{ steps.create_tags.outputs.create_version_tag == 'true' || steps.create_tags.outputs.create_network_tag == 'true' }}
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
-        name: Release ${{ steps.get_tags_labels.outputs.git_tag != '' && steps.get_tags_labels.outputs.git_tag != 'null' && steps.get_tags_labels.outputs.git_tag || steps.get_tags_labels.outputs.zeam_tag }}
-        body_path: ./README.md
+        tag_name: ${{ steps.get_labels.outputs.devnet_tag }}
+        name: Release ${{ steps.get_labels.outputs.version }} - ${{ steps.get_labels.outputs.devnet_tag }}
+        body_path: ${{ steps.changelog.outputs.changelog_file }}
         draft: false
-        prerelease: false
+        prerelease: true
+        target_commitish: main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

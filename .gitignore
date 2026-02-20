@@ -22,3 +22,6 @@ hosts.yml
 tmp/
 
 ansible-deployment*.log
+
+# Generated Prometheus config (created by generate-prometheus-config.sh)
+metrics/prometheus/prometheus.yml
