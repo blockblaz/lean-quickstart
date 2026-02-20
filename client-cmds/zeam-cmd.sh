@@ -3,6 +3,14 @@
 #-----------------------zeam setup----------------------
 # setup where lean-quickstart is a submodule folder in zeam repo
 # update the path to your binary here if you want to use binary
+#
+# Zeam runs two HTTP servers:
+#   - API server (default port 9667): health, SSE events, forkchoice graph, checkpoint state
+#   - Metrics server (--metrics-port): Prometheus /metrics endpoint
+#
+# The metricsPort from validator-config.yaml is used for the metrics server.
+# API server uses the default port 9667 (override with --api-port if needed).
+#
 # Metrics enabled by default
 metrics_flag="--metrics_enable"
 
@@ -24,7 +32,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
-      --api-port $metricsPort \
+      --metrics-port $metricsPort \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
@@ -34,7 +42,7 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet2 node \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
       $metrics_flag \
-      --api-port $metricsPort \
+      --metrics-port $metricsPort \
       $aggregator_flag \
       $checkpoint_sync_flag"
 

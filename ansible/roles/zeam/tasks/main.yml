@@ -87,6 +87,9 @@
     - name: Start Zeam container
       # TODO: Remove --platform linux/amd64 when blockblaz/zeam:latest multi-platform image is available on Docker Hub
       # Multi-platform support is being added in zeam CI (see .github/workflows/ci.yml docker-build-multiarch job)
+      # Zeam runs two HTTP servers:
+      #   - API server (default 9667): health, SSE events, forkchoice graph, checkpoint state
+      #   - Metrics server (--metrics-port): Prometheus /metrics endpoint
       command: >-
         docker run -d
         --pull=always
@@ -106,7 +109,7 @@
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
         --metrics_enable
-        --api-port {{ zeam_metrics_port }}
+        --metrics-port {{ zeam_metrics_port }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0
 
