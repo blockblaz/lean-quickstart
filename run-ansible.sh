@@ -27,6 +27,7 @@ sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
 action="$8"   # Action: "stop" to stop nodes, otherwise deploy
 coreDumps="$9"  # Core dump configuration: "all", node names, or client types
+skipGenesis="${10}"  # Set to "true" to skip genesis generation (e.g. when restarting with checkpoint sync)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -110,6 +111,10 @@ fi
 
 if [ -n "$coreDumps" ]; then
   EXTRA_VARS="$EXTRA_VARS enable_core_dumps=$coreDumps"
+fi
+
+if [ "$skipGenesis" == "true" ]; then
+  EXTRA_VARS="$EXTRA_VARS skip_genesis=true"
 fi
 
 # Determine deployment mode (docker/binary) - read default from group_vars/all.yml
