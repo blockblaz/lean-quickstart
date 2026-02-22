@@ -18,6 +18,12 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
 node_binary="$scriptDir/../zig-out/bin/zeam node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig \
@@ -25,16 +31,18 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
       --api-port $metricsPort \
+      $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet2 node \
+node_docker="--security-opt seccomp=unconfined 0xpartha/zeam:devnet3 node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
       $metrics_flag \
       --api-port $metricsPort \
+      $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
