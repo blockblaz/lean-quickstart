@@ -22,7 +22,6 @@
   import_playbook: clean-node-data.yml
   vars:
     genesis_dir: "{{ network_dir }}/genesis"
-    node_names: "{{ node_names }}"
   when: clean_data | default(false) | bool
 
 - name: Generate Genesis Files
@@ -40,5 +39,4 @@
 - name: Deploy Nodes
   import_playbook: deploy-nodes.yml
   vars:
-    node_names: "{{ node_names }}"
     skip_role_cleaning: "{{ clean_data | default(false) | bool }}"

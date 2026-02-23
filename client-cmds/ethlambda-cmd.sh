@@ -16,6 +16,12 @@ if [ -n "$attestationCommitteeCount" ]; then
     attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
 fi
 
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
+
 # Command when running as binary
 node_binary="$binary_path \
       --custom-network-config-dir $configDir \
@@ -25,7 +31,8 @@ node_binary="$binary_path \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
       $attestation_committee_flag \
-      $aggregator_flag"
+      $aggregator_flag \
+      $checkpoint_sync_flag"
 
 # Command when running as docker container
 node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
@@ -36,6 +43,7 @@ node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
       $attestation_committee_flag \
-      $aggregator_flag"
+      $aggregator_flag \
+      $checkpoint_sync_flag"
 
 node_setup="docker"

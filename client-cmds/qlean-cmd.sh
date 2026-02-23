@@ -27,6 +27,12 @@ if [ -n "$attestationCommitteeCount" ]; then
     attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
 fi
 
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
+
 node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --modules-dir $scriptDir/qlean/build/src/modules \
       --genesis $configDir/config.yaml \
@@ -41,6 +47,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --prometheus-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
+      $checkpoint_sync_flag \
       -ldebug \
       -ltrace"
       
@@ -57,6 +64,7 @@ node_docker="$QLEAN_IMAGE \
       --prometheus-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
+      $checkpoint_sync_flag \
       -ldebug \
       -ltrace"
 

@@ -25,6 +25,12 @@ if [ -z "$httpPort" ]; then
     httpPort="5055"
 fi
 
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
+
 # Lantern's repo: https://github.com/Pier-Two/lantern
 node_binary="$scriptDir/lantern/build/lantern_cli \
         --data-dir $dataDir/$item \
@@ -41,7 +47,8 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --log-level info \
         --hash-sig-key-dir $configDir/hash-sig-keys \
         $attestation_committee_flag \
-        $aggregator_flag"
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 node_docker="$LANTERN_IMAGE --data-dir /data \
         --genesis-config /config/config.yaml \
@@ -57,7 +64,8 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --log-level info \
         --hash-sig-key-dir /config/hash-sig-keys \
         $attestation_committee_flag \
-        $aggregator_flag"
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 # choose either binary or docker
 node_setup="docker"
