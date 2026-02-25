@@ -28,17 +28,17 @@ node_binary="$gean_bin \
       $metrics_flag"
 
 # Docker command (assumes image entrypoint handles the binary)
-node_docker="gean:13bd063-dirty \
+node_docker="ghcr.io/geanlabs/gean:devnet1 \
       --data-dir /data \
       --genesis /config/config.yaml \
       --bootnodes /config/nodes.yaml \
       --validator-registry-path /config/validators.yaml \
       --node-id $item \
       --node-key /config/$privKeyPath \
-      --validator-keys /config/keys \
+      --validator-keys /config/hash-sig-keys \
       --listen-addr /ip4/0.0.0.0/tcp/$quicPort \
       --discovery-port $quicPort \
-      --devnet-id $devnetId \
+      --devnet-id ${devnet:-devnet0} \
       $metrics_flag"
 
-node_setup="binary" # Default to binary for now as per user workflow
+node_setup="docker" # Default to binary for now as per user workflow
