@@ -51,6 +51,12 @@ if [ -z "$devnet" ] || [ "$devnet" == "null" ]; then
     devnet=""
 fi
 
+# Automatically extract isAggregator flag using yq (defaults to false if not set)
+isAggregator=$(yq eval ".validators[] | select(.name == \"$item\") | .isAggregator // false" "$validator_config_file")
+if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
+    isAggregator="false"
+fi
+
 # Automatically extract private key using yq
 privKey=$(yq eval ".validators[] | select(.name == \"$item\") | .privkey" "$validator_config_file")
 
@@ -99,10 +105,12 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Hash-Sig Key Index: $hashSigKeyIndex"
     echo "Hash-Sig Public Key: $hashSigPkPath"
     echo "Hash-Sig Secret Key: $hashSigSkPath"
+    echo "Is Aggregator: $isAggregator"
 else
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
     echo "Metrics Port: $metricsPort"
     echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
+    echo "Is Aggregator: $isAggregator"
 fi

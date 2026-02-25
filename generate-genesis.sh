@@ -153,7 +153,7 @@ fi
 echo "  ✅ docker found: $(which docker)"
 
 # Hash-sig-cli Docker image
-HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet1"
+HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet2"
 echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
 
 echo ""

@@ -26,6 +26,8 @@ validator_config_file="$5"
 sshKeyFile="$6"
 useRoot="$7"  # Flag to use root user (defaults to current user)
 action="$8"   # Action: "stop" to stop nodes, otherwise deploy
+coreDumps="$9"  # Core dump configuration: "all", node names, or client types
+skipGenesis="${10}"  # Set to "true" to skip genesis generation (e.g. when restarting with checkpoint sync)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -37,7 +39,7 @@ fi
 # Validate required arguments
 if [ -z "$configDir" ] || [ -z "$validator_config_file" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot]"
+  echo "Usage: $0 <configDir> <node> <cleanData> <validatorConfig> <validator_config_file> [sshKeyFile] [useRoot] [action] [coreDumps]"
   exit 1
 fi
 
@@ -58,7 +60,7 @@ fi
 # Update inventory with SSH key file and user if provided
 if command -v yq &> /dev/null; then
   # Get all remote host groups (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes, lighthouse_nodes)
-  for group in zeam_nodes ream_nodes qlean_nodes lantern_nodes lighthouse_nodes grandine_nodes; do
+  for group in zeam_nodes ream_nodes qlean_nodes lantern_nodes lighthouse_nodes grandine_nodes ethlambda_nodes; do
     # Get all hosts in this group
     hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$INVENTORY_FILE" 2>/dev/null || echo "")
     for host in $hosts; do
@@ -105,6 +107,14 @@ fi
 
 if [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ]; then
   EXTRA_VARS="$EXTRA_VARS validator_config=$validatorConfig"
+fi
+
+if [ -n "$coreDumps" ]; then
+  EXTRA_VARS="$EXTRA_VARS enable_core_dumps=$coreDumps"
+fi
+
+if [ "$skipGenesis" == "true" ]; then
+  EXTRA_VARS="$EXTRA_VARS skip_genesis=true"
 fi
 
 # Determine deployment mode (docker/binary) - read default from group_vars/all.yml

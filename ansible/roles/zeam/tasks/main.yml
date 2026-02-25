@@ -38,9 +38,10 @@
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
   register: node_config
   changed_when: false
+  delegate_to: localhost
   loop:
     - metricsPort
     - privkey
@@ -64,12 +65,6 @@
   fail:
     msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
   when: not (node_key_stat.stat.exists | default(false))
-
-- name: Clean node data directory
-  file:
-    path: "{{ data_dir }}/{{ node_name }}"
-    state: absent
-  when: clean_data | default(false) | bool
 
 - name: Create node data directory
   file:
@@ -100,6 +95,7 @@
         --restart unless-stopped
         --network host
         --security-opt seccomp=unconfined
+        {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ zeam_docker_image }}
@@ -110,7 +106,7 @@
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
         --metrics_enable
-        --metrics_port {{ zeam_metrics_port }}
+        --api-port {{ zeam_metrics_port }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0
 
