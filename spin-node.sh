@@ -108,7 +108,9 @@ if [[ -n "$restartClient" ]]; then
   # Parse comma-separated client names
   IFS=',' read -r -a requested_nodes <<< "$restartClient"
   for requested_node in "${requested_nodes[@]}"; do
-    requested_node=$(echo "$requested_node" | xargs)  # trim whitespace
+    requested_node="${requested_node#"${requested_node%%[![:space:]]*}"}"
+    requested_node="${requested_node%"${requested_node##*[![:space:]]}"}"
+    [ -z "$requested_node" ] && continue
     node_found=false
     for available_node in "${nodes[@]}"; do
       if [[ "$requested_node" == "$available_node" ]]; then
@@ -381,7 +383,7 @@ for item in "${spin_nodes[@]}"; do
       echo "Core dumps enabled for $item (dumps will be written to $dataDir/$item/)"
     fi
 
-    execCmd="$execCmd --name $item --network host \
+    execCmd="$execCmd --name $item --hostname $item --network host \
           -v $configDir:/config \
           -v $dataDir/$item:/data \
           $node_docker"

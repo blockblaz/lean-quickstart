@@ -28,7 +28,7 @@ node_binary="$binary_path \
       $checkpoint_sync_flag"
 
 # Command when running as docker container
-node_docker="ghcr.io/lambdaclass/ethlambda:devnet2 \
+node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
       --custom-network-config-dir /config \
       --gossipsub-port $quicPort \
       --node-id $item \
