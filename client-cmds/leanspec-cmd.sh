@@ -5,7 +5,7 @@
 # Build the image from leanSpec repo: docker build --target node -t lean-spec:node .
 # Or use a published image and set LEAN_SPEC_IMAGE env var.
 
-LEAN_SPEC_IMAGE="${LEAN_SPEC_IMAGE:-0xpartha/leanSpec-node:latest}"
+LEAN_SPEC_IMAGE="${LEAN_SPEC_IMAGE:-ghcr.io/leanethereum/leanspec-node:latest}"
 
 # Set aggregator flag based on isAggregator value
 aggregator_flag=""
