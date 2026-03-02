@@ -35,7 +35,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_docker="--security-opt seccomp=unconfined 0xpartha/zeam:devnet3 node \
+node_docker="--security-opt seccomp=unconfined 0xpartha/zeam:checkpoint node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \

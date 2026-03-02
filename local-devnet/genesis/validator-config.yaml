@@ -17,21 +17,21 @@ validators:
     isAggregator: false
     count: 1 # number of indices for this node
 
-  # - name: "zeam_1"
-  #   privkey: "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
-  #   enrFields:
-  #     ip: "127.0.0.1"
-  #     quic: 9002
-  #   metricsPort: 8082
-  #   isAggregator: false
-  #   count: 1
+  - name: "zeam_1"
+    privkey: "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9002
+    metricsPort: 8082
+    isAggregator: false
+    count: 1
 
-  # - name: "zeam_2"
-  #   privkey: "b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1"
+  # - name: "ethlambda_0"
+  #   privkey: "e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4"
   #   enrFields:
   #     ip: "127.0.0.1"
-  #     quic: 9003
-  #   metricsPort: 8083
+  #     quic: 9006
+  #   metricsPort: 8086
   #   isAggregator: false
   #   count: 1
 
