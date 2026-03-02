@@ -61,7 +61,10 @@ node_docker="$QLEAN_IMAGE \
       --data-dir /data \
       --node-id $item --node-key /config/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
-      --prometheus-port $metricsPort \
+      --metrics-host 0.0.0.0 \
+      --metrics-port $metricsPort \
+      --api-host 0.0.0.0 \
+      --api-port 5053 \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag \
