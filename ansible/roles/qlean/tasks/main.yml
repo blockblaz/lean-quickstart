@@ -4,10 +4,9 @@
 
 - name: Extract docker image from client-cmd.sh
   shell: |
-    # Extract the first word (docker image) from node_docker line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    # Extract the docker image from QLEAN_IMAGE line (may be indented inside if/else)
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_docker=' "$project_root/client-cmds/qlean-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+    grep -E '^\s*QLEAN_IMAGE=' "$project_root/client-cmds/qlean-cmd.sh" | head -1 | sed -E 's/.*QLEAN_IMAGE="([^"]+)".*/\1/'
   register: qlean_docker_image_raw
   changed_when: false
   delegate_to: localhost
@@ -112,7 +111,10 @@
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
         --listen-addr /ip4/0.0.0.0/udp/{{ qlean_quic_port }}/quic-v1
-        --prometheus-port {{ qlean_metrics_port }}
+        --metrics-host 0.0.0.0
+        --metrics-port {{ qlean_metrics_port }}
+        --api-host 0.0.0.0
+        --api-port 5053
         {{ '--is-aggregator' if (qlean_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
         -ldebug
