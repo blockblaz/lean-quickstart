@@ -419,7 +419,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --metrics-port $metricsPort"
 
-node_docker="--platform linux/amd64 qdrvm/qlean-mini:dd67521 \
+node_docker="--platform linux/amd64 qdrvm/qlean-mini:latest \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --bootnodes /config/nodes.yaml \
@@ -549,6 +549,21 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --forceKeyG
 # Or using generate-genesis.sh directly
 ./generate-genesis.sh local-devnet/genesis --forceKeyGen
 ```
+
+---
+
+**Problem**: Grafana dashboards show "No data"
+
+On macOS, this is typically caused by Docker's **host network mode** (`--network host`) not working out of the box. lean-quickstart uses host networking so Prometheus can scrape node metrics endpoints on `localhost`. Without host networking enabled in Docker Desktop, Prometheus cannot reach the node metrics ports, resulting in empty dashboards.
+
+**Solution**: Enable the "Enable host networking" option in Docker Desktop:
+
+1. Open **Docker Desktop** → **Settings** (gear icon)
+2. Go to **Resources** → **Network**
+3. Enable **"Enable host networking"**
+4. Click **Apply & Restart**
+
+For more details, see the [Docker Desktop host networking documentation](https://docs.docker.com/engine/network/drivers/host/#docker-desktop).
 
 ## Automation Features
 

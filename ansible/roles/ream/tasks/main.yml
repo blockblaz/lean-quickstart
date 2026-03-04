@@ -101,6 +101,7 @@
         --metrics-port {{ ream_metrics_port }}
         --http-address 0.0.0.0
         {{ '--is-aggregator' if (ream_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ream_container
       changed_when: ream_container.rc == 0
   when: deployment_mode == 'docker'

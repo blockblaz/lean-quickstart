@@ -25,7 +25,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:dd67521') }}"
+    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:latest') }}"
     deployment_mode: "{{ qlean_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -114,6 +114,7 @@
         --listen-addr /ip4/0.0.0.0/udp/{{ qlean_quic_port }}/quic-v1
         --prometheus-port {{ qlean_metrics_port }}
         {{ '--is-aggregator' if (qlean_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
         -ldebug
       register: qlean_container
       changed_when: qlean_container.rc == 0

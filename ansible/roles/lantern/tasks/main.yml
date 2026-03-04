@@ -4,7 +4,7 @@
 
 - name: Set lantern docker image
   set_fact:
-    lantern_docker_image: "piertwo/lantern:v0.0.3-test"
+    lantern_docker_image: "piertwo/lantern:v0.0.3"
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |
@@ -93,6 +93,7 @@
         --http-port 5055
         --hash-sig-key-dir /config/hash-sig-keys
         {{ '--is-aggregator' if (lantern_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: lantern_container
       changed_when: lantern_container.rc == 0
   when: deployment_mode == 'docker'

@@ -26,7 +26,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    grandine_docker_image: "{{ grandine_docker_image_raw.stdout | trim | default('sifrai/lean:unstable') }}"
+    grandine_docker_image: "{{ grandine_docker_image_raw.stdout | trim | default('sifrai/lean:latest') }}"
     deployment_mode: "{{ grandine_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -107,6 +107,7 @@
         --http-address 0.0.0.0
         --http-port {{ grandine_metrics_port }}
         {{ '--is-aggregator' if (grandine_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: grandine_container
       changed_when: grandine_container.rc == 0
   when: deployment_mode == 'docker'
