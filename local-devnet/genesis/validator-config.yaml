@@ -4,10 +4,10 @@ deployment_mode: local
 config:
   activeEpoch: 18
   keyType: "hash-sig"
+  # Optional: Override client's hardcoded attestation_committee_count
+  # attestation_committee_count: 1
 validators:
   - name: "zeam_0"
-    # node id 7d0904dc6d8d7130e0e68d5d3175d0c3cf470f8725f67bd8320882f5b9753cc0
-    # peer id 16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
       # verify /ip4/127.0.0.1/udp/9001/quic-v1/p2p/16Uiu2HAkvi2sxT75Bpq1c7yV2FjnSQJJ432d6jeshbmfdJss1i6f
@@ -15,11 +15,8 @@ validators:
       quic: 9001
     metricsPort: 8081
     isAggregator: false
-    count: 1 # number of indices for this node
-
+    count: 1
   - name: "ream_0"
-    # node id bc531fc1a99a896acb45603f28a32f81ae607480af46435009de4609370cb7bb
-    # peer id 16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
     privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
     enrFields:
       #verify /ip4/127.0.0.1/udp/9002/quic-v1/p2p/16Uiu2HAmPQhkD6Zg5Co2ee8ShshkiY4tDePKFARPpCS2oKSLj1E1
@@ -28,7 +25,6 @@ validators:
     metricsPort: 8082
     isAggregator: false
     count: 1
-
   - name: "qlean_0"
     # node id f0af4dcd8864372ca01ae984b9a386f86e5cb582331394db3434fea59ad78bde
     # peer id 16Uiu2HAmQj1RDNAxopeeeCFPRr3zhJYmH6DEPHYKmxLViLahWcFE
@@ -40,16 +36,15 @@ validators:
     metricsPort: 8083
     isAggregator: false
     count: 1
-
   - name: "lantern_0"
     # node id 974c5fd0a680f5e576189123d5808cefd6c748c75effde28c5c3aacbb8d4c652
     # peer id 16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
     privkey: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5"
-    # verify /ip4/127.0.0.1/udp/9004/quic-v1/p2p/16Uiu2HAm7TYVs6qvDKnrovd9m4vvRikc4HPXm1WyLumKSe5fHxBv
     enrFields:
       ip: "127.0.0.1"
       quic: 9004
     metricsPort: 8084
+    httpPort: 5054
     isAggregator: false
     count: 1
 

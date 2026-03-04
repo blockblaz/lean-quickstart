@@ -80,6 +80,11 @@ while [[ $# -gt 0 ]]; do
       stopNodes=true
       shift
       ;;
+    --aggregator)
+      aggregatorNode="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --checkpoint-sync-url)
       checkpointSyncUrl="$2"
       shift
@@ -130,6 +135,7 @@ echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
 echo "dockerTag = ${dockerTag:-latest}"
 echo "enableMetrics = $enableMetrics"
+echo "aggregatorNode = ${aggregatorNode:-<auto-select>}"
 echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"
