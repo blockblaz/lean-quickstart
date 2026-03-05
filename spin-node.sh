@@ -237,9 +237,13 @@ for item in "${spin_nodes[@]}"; do
   # create and/or cleanup datadirs
   itemDataDir="$dataDir/$item"
   mkdir -p $itemDataDir
-  cmd="sudo rm -rf $itemDataDir/*"
-  echo $cmd
-  eval $cmd
+  if [ "$cleanData" == "true" ]; then
+    cmd="sudo rm -rf $itemDataDir/*"
+    echo $cmd
+    eval $cmd
+  else
+    echo "preserving existing data in $itemDataDir"
+  fi
 
   # parse validator-config.yaml for $item to load args values
   source parse-vc.sh
