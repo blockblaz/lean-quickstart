@@ -135,15 +135,10 @@
     - "{{ data_dir }}"
   when: network_dir is defined
 
-- name: Ensure common_node_names is a list
-  set_fact:
-    common_node_names_list: "{{ (common_node_names | default([]) | type_debug == 'list' and common_node_names) or (common_node_names | default([]) | type_debug == 'str' and [common_node_names]) or [] }}"
-
-- name: Create data directories for each node
+- name: Create data directory for node
   file:
-    path: "{{ data_dir }}/{{ item }}"
+    path: "{{ data_dir }}/{{ node_name }}"
     state: directory
     mode: '0755'
-  loop: "{{ common_node_names_list }}"
-  when: common_node_names_list | length > 0
+  when: node_name is defined
 
