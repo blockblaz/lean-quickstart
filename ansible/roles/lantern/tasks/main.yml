@@ -2,16 +2,9 @@
 # Lantern role: Deploy and manage Lantern nodes
 # Converts client-cmds/lantern-cmd.sh logic to Ansible tasks
 
-- name: Extract docker image from client-cmd.sh
-  shell: |
-    # Extract the docker image from LANTERN_IMAGE line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
-    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^LANTERN_IMAGE=' "$project_root/client-cmds/lantern-cmd.sh" | head -1 | sed -E 's/.*LANTERN_IMAGE="([^"]+)".*/\1/'
-  register: lantern_docker_image_raw
-  changed_when: false
-  delegate_to: localhost
-  run_once: true
+- name: Set lantern docker image
+  set_fact:
+    lantern_docker_image: "piertwo/lantern:v0.0.3"
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |
@@ -23,9 +16,8 @@
   delegate_to: localhost
   run_once: true
 
-- name: Set docker image and deployment mode from client-cmd.sh
+- name: Set deployment mode from client-cmd.sh
   set_fact:
-    lantern_docker_image: "{{ lantern_docker_image_raw.stdout | trim | default('piertwo/lantern:latest') }}"
     deployment_mode: "{{ lantern_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -37,12 +29,16 @@
   loop:
     - enrFields.quic
     - metricsPort
+    - privkey
+    - isAggregator
   when: node_name is defined
 
-- name: Set node ports
+- name: Set node ports and aggregator flag
   set_fact:
     lantern_quic_port: "{{ lantern_node_config.results[0].stdout }}"
     lantern_metrics_port: "{{ lantern_node_config.results[1].stdout }}"
+    lantern_privkey: "{{ lantern_node_config.results[2].stdout }}"
+    lantern_is_aggregator: "{{ 'true' if (lantern_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: lantern_node_config is defined
 
 - name: Ensure node key file exists
@@ -96,6 +92,7 @@
         --metrics-port {{ lantern_metrics_port }}
         --http-port 5055
         --hash-sig-key-dir /config/hash-sig-keys
+        {{ '--is-aggregator' if (lantern_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: lantern_container
       changed_when: lantern_container.rc == 0
