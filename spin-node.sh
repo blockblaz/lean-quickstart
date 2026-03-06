@@ -255,7 +255,10 @@ if [ "$deployment_mode" == "ansible" ]; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
-  
+
+  # Sync leanpoint upstreams to tooling server and restart leanpoint container
+  "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" || true
+
   # Ansible deployment succeeded, exit normally
   exit 0
 fi
@@ -463,6 +466,9 @@ if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
   echo "   Grafana:    http://localhost:3000"
   echo ""
 fi
+
+# Sync leanpoint upstreams to tooling server and restart leanpoint container
+"$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" || true
 
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"

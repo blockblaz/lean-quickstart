@@ -24,6 +24,7 @@ A single command line quickstart to spin up lean node(s)
 3. **yq**: YAML processor for automated configuration parsing
    - Install on macOS: `brew install yq`
    - Install on Linux: See [yq installation guide](https://github.com/mikefarah/yq#install)
+4. **Python 3 + PyYAML** (optional, for leanpoint upstreams sync): Required only if you use the automatic leanpoint upstreams sync (tooling server). Install with `pip install pyyaml` or `uv add pyyaml`.
 
 ## Quick Start
 
@@ -94,6 +95,29 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
 # The aggregator selection is applied automatically and the isAggregator flag
 # is updated in validator-config.yaml before nodes are started
 ```
+
+### Leanpoint upstreams sync (tooling server)
+
+After all validator nodes are spun up (local or Ansible), the quickstart can sync leanpoint upstreams to a tooling server so [leanpoint](https://github.com/leanEthereum/leanpoint) monitors the current set of nodes. This runs automatically at the end of `spin-node.sh` unless disabled.
+
+**What runs:**
+1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
+2. `sync-leanpoint-upstreams.sh` rsyncs `upstreams.json` to the tooling server and restarts the leanpoint Docker container.
+
+**Defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/opt/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+
+**Disable sync:** Set `LEANPOINT_SYNC_DISABLED=1` before running `spin-node.sh`, or when the convert script or validator config is missing the sync is skipped without failing the run.
+
+**Standalone use of convert script:** You can generate `upstreams.json` for local leanpoint without the tooling server:
+
+```sh
+# From lean-quickstart root
+python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml upstreams.json
+# With --docker for leanpoint in Docker reaching a host devnet:
+python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml upstreams-local-docker.json --docker
+```
+
+Requires Python 3 and PyYAML (`pip install pyyaml`).
 
 ## Args
 
@@ -570,6 +594,7 @@ For more details, see the [Docker Desktop host networking documentation](https:/
 This quickstart includes automated configuration parsing:
 
 - **Official Genesis Generation**: Uses PK's `eth-beacon-genesis` docker tool from [PR #36](https://github.com/ethpandaops/eth-beacon-genesis/pull/36)
+- **Leanpoint upstreams sync**: After nodes are spun up, `convert-validator-config.py` and `sync-leanpoint-upstreams.sh` generate `upstreams.json` from `validator-config.yaml`, rsync it to the tooling server, and restart the leanpoint container (see [Leanpoint upstreams sync](#leanpoint-upstreams-sync-tooling-server))
 - **Complete File Set**: Generates `validators.yaml`, `nodes.yaml`, `genesis.json`, `genesis.ssz`, and `.key` files
 - **QUIC Port Detection**: Automatically extracts QUIC ports from `validator-config.yaml` using `yq`
 - **Node Detection**: Dynamically discovers available nodes from the validator configuration
