@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.3-test"
+LANTERN_IMAGE="piertwo/lantern:v0.0.3"
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
@@ -12,6 +12,17 @@ fi
 aggregator_flag=""
 if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
+fi
+
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
+# Set HTTP port (default to 5055 if not specified in validator-config.yaml)
+if [ -z "$httpPort" ]; then
+    httpPort="5055"
 fi
 
 # Set checkpoint sync URL when restarting with checkpoint sync
@@ -44,7 +55,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
         --http-port $httpPort \
-        --log-level debug \
+        --log-level info \
         --hash-sig-key-dir $configDir/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \
@@ -61,7 +72,7 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
         --http-port $httpPort \
-        --log-level debug \
+        --log-level info \
         --hash-sig-key-dir /config/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \

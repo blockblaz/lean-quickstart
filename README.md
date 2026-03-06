@@ -82,6 +82,19 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
 
 > **Note:** The `--metrics` flag only affects local deployments. When using Ansible deployment mode, this flag is ignored. Metrics ports are always exposed by clients regardless of this flag.
 
+### Aggregator Selection
+
+```sh
+# Let the system randomly select an aggregator (default behavior)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
+
+# Manually specify which node should be the aggregator
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregator zeam_0
+
+# The aggregator selection is applied automatically and the isAggregator flag
+# is updated in validator-config.yaml before nodes are started
+```
+
 ## Args
 
 1. `NETWORK_DIR` is an env to specify the network directory. Should have a `genesis` directory with genesis config. A `data` folder will be created inside this `NETWORK_DIR` if not already there.
@@ -139,8 +152,14 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
     - On Ctrl+C cleanup, the metrics stack is stopped automatically
 
     Note: Client metrics endpoints are always enabled regardless of this flag.
-12. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
-13. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
+12. `--aggregator` specifies which node should act as the aggregator (1 aggregator per subnet).
+   - If not provided, one node will be randomly selected as the aggregator
+   - If provided, the specified node will be set as the aggregator
+   - The aggregator selection updates the `isAggregator` flag in `validator-config.yaml`
+   - Example: `--aggregator zeam_0` to make zeam_0 the aggregator
+   - Example: Without flag, a random node will be selected automatically
+13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
+14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
 
 ### Checkpoint sync
 
@@ -400,7 +419,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --metrics-port $metricsPort"
 
-node_docker="--platform linux/amd64 qdrvm/qlean-mini:dd67521 \
+node_docker="--platform linux/amd64 qdrvm/qlean-mini:latest \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --bootnodes /config/nodes.yaml \
@@ -530,6 +549,21 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --forceKeyG
 # Or using generate-genesis.sh directly
 ./generate-genesis.sh local-devnet/genesis --forceKeyGen
 ```
+
+---
+
+**Problem**: Grafana dashboards show "No data"
+
+On macOS, this is typically caused by Docker's **host network mode** (`--network host`) not working out of the box. lean-quickstart uses host networking so Prometheus can scrape node metrics endpoints on `localhost`. Without host networking enabled in Docker Desktop, Prometheus cannot reach the node metrics ports, resulting in empty dashboards.
+
+**Solution**: Enable the "Enable host networking" option in Docker Desktop:
+
+1. Open **Docker Desktop** → **Settings** (gear icon)
+2. Go to **Resources** → **Network**
+3. Enable **"Enable host networking"**
+4. Click **Apply & Restart**
+
+For more details, see the [Docker Desktop host networking documentation](https://docs.docker.com/engine/network/drivers/host/#docker-desktop).
 
 ## Automation Features
 
