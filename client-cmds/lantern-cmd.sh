@@ -1,11 +1,34 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.1"
+LANTERN_IMAGE="piertwo/lantern:v0.0.3"
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
         devnet_flag="--devnet $devnet"
+fi
+
+# Set aggregator flag based on isAggregator value
+aggregator_flag=""
+if [ "$isAggregator" == "true" ]; then
+    aggregator_flag="--is-aggregator"
+fi
+
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
+# Set HTTP port (default to 5055 if not specified in validator-config.yaml)
+if [ -z "$httpPort" ]; then
+    httpPort="5055"
+fi
+
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
 # Lantern's repo: https://github.com/Pier-Two/lantern
@@ -20,9 +43,12 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --node-id $item --node-key-path $configDir/$privKeyPath \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
-        --http-port 5055 \
-        --log-level debug \
-        --hash-sig-key-dir $configDir/hash-sig-keys"
+        --http-port $httpPort \
+        --log-level info \
+        --hash-sig-key-dir $configDir/hash-sig-keys \
+        $attestation_committee_flag \
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 node_docker="$LANTERN_IMAGE --data-dir /data \
         --genesis-config /config/config.yaml \
@@ -34,9 +60,12 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --node-id $item --node-key-path /config/$privKeyPath \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
-        --http-port 5055 \
-        --log-level debug \
-        --hash-sig-key-dir /config/hash-sig-keys"
+        --http-port $httpPort \
+        --log-level info \
+        --hash-sig-key-dir /config/hash-sig-keys \
+        $attestation_committee_flag \
+        $aggregator_flag \
+        $checkpoint_sync_flag"
 
 # choose either binary or docker
 node_setup="docker"

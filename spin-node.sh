@@ -10,6 +10,23 @@ fi
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
+# Helper function to check if core dumps should be enabled for a node
+# Accepts: "all", exact node names (zeam_0), or client types (zeam)
+should_enable_core_dumps() {
+  local node_name="$1"
+  local client_type="${node_name%%_*}"  # Extract client type (e.g., "zeam" from "zeam_0")
+
+  [ -z "$coreDumps" ] && return 1
+  [ "$coreDumps" = "all" ] && return 0
+
+  IFS=',' read -r -a dump_targets <<< "$coreDumps"
+  for target in "${dump_targets[@]}"; do
+    # Exact node name match or client type match
+    [ "$target" = "$node_name" ] || [ "$target" = "$client_type" ] && return 0
+  done
+  return 1
+}
+
 # Check if yq is installed (needed for deployment mode detection)
 if ! command -v yq &> /dev/null; then
     echo "Error: yq is required but not installed. Please install yq first."
@@ -80,9 +97,74 @@ fi
 echo "Detected nodes: ${nodes[@]}"
 # nodes=("zeam_0" "ream_0" "qlean_0")
 spin_nodes=()
+restart_with_checkpoint_sync=false
 
+# Aggregator selection logic (1 aggregator per subnet)
+# If user specified --aggregator, use that; otherwise randomly select one
+if [ -n "$aggregatorNode" ]; then
+  # Validate that the specified aggregator exists in the validator list
+  aggregator_found=false
+  for available_node in "${nodes[@]}"; do
+    if [[ "$aggregatorNode" == "$available_node" ]]; then
+      selected_aggregator="$aggregatorNode"
+      aggregator_found=true
+      echo "Using user-specified aggregator: $selected_aggregator"
+      break
+    fi
+  done
+  
+  if [[ "$aggregator_found" == false ]]; then
+    echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
+    echo "Available nodes: ${nodes[@]}"
+    exit 1
+  fi
+else
+  # Randomly select one node as aggregator
+  # Get the number of nodes
+  num_nodes=${#nodes[@]}
+  # Generate random index (0 to num_nodes-1)
+  random_index=$((RANDOM % num_nodes))
+  selected_aggregator="${nodes[$random_index]}"
+  echo "Randomly selected aggregator: $selected_aggregator (index $random_index out of $num_nodes nodes)"
+fi
+
+# Update the validator-config.yaml to set isAggregator flag
+# First, reset all nodes to isAggregator: false
+yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
+
+# Then set the selected aggregator to isAggregator: true
+yq eval -i "(.validators[] | select(.name == \"$selected_aggregator\") | .isAggregator) = true" "$validator_config_file"
+echo "Set $selected_aggregator as aggregator in $validator_config_file"
+
+# When --restart-client is specified, use it as the node list and enable checkpoint sync mode
+if [[ -n "$restartClient" ]]; then
+  echo "Note: --restart-client is only used with --checkpoint-sync-url (default: https://leanpoint.leanroadmap.org/lean/v0/states/finalized)"
+  restart_with_checkpoint_sync=true
+  # Skip genesis when restarting with checkpoint sync (we're syncing from remote)
+  generateGenesis=false
+  # Parse comma-separated client names
+  IFS=',' read -r -a requested_nodes <<< "$restartClient"
+  for requested_node in "${requested_nodes[@]}"; do
+    requested_node=$(echo "$requested_node" | xargs)  # trim whitespace
+    node_found=false
+    for available_node in "${nodes[@]}"; do
+      if [[ "$requested_node" == "$available_node" ]]; then
+        spin_nodes+=("$available_node")
+        node_found=true
+        break
+      fi
+    done
+    if [[ "$node_found" == false ]]; then
+      echo "Error: Node '$requested_node' not found in validator config"
+      echo "Available nodes: ${nodes[@]}"
+      exit 1
+    fi
+  done
+  echo "Restarting with checkpoint sync: ${spin_nodes[*]} from $checkpointSyncUrl"
+  cleanData=true  # Clear data when restarting with checkpoint sync
+  node_present=true
 # Parse comma-separated or space-separated node names or handle single node/all
-if [[ "$node" == "all" ]]; then
+elif [[ "$node" == "all" ]]; then
   # Spin all nodes
   spin_nodes=("${nodes[@]}")
   node_present=true
@@ -142,10 +224,25 @@ if [ "$deployment_mode" == "ansible" ]; then
   
   echo "✅ Ansible prerequisites validated"
   
+  # Determine node list for Ansible: use restartClient/spin_nodes when restarting, else $node
+  if [[ "$restart_with_checkpoint_sync" == "true" ]]; then
+    ansible_node_arg=$(IFS=','; echo "${spin_nodes[*]}")
+  else
+    ansible_node_arg="$node"
+  fi
+
+  # Determine skip_genesis for Ansible (true when restarting with checkpoint sync)
+  ansible_skip_genesis="false"
+  [[ "$restart_with_checkpoint_sync" == "true" ]] && ansible_skip_genesis="true"
+
+  # Determine checkpoint_sync_url for Ansible (when restarting with checkpoint sync)
+  ansible_checkpoint_url=""
+  [[ "$restart_with_checkpoint_sync" == "true" ]] && [[ -n "$checkpointSyncUrl" ]] && ansible_checkpoint_url="$checkpointSyncUrl"
+
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis" ""; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
@@ -154,7 +251,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$node" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -197,6 +294,17 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     fi
   done
   
+  # Stop metrics stack if --metrics flag was passed
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
+    fi
+  fi
+
   echo "✅ Local nodes stopped successfully!"
   exit 0
 fi
@@ -230,17 +338,34 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
 fi
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
+  # extract client config FIRST before printing
+  IFS='_' read -r -a elements <<< "$item"
+  client="${elements[0]}"
+
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
   echo
 
+  # When restarting with checkpoint sync, stop existing container first
+  if [[ "$restart_with_checkpoint_sync" == "true" ]]; then
+    echo "Stopping existing container $item..."
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker rm -f "$item" 2>/dev/null || true
+    else
+      docker rm -f "$item" 2>/dev/null || true
+    fi
+  fi
+
   # create and/or cleanup datadirs
   itemDataDir="$dataDir/$item"
   mkdir -p $itemDataDir
-  if [ "$cleanData" == "true" ]; then
-    cmd="sudo rm -rf $itemDataDir/*"
-    echo $cmd
-    eval $cmd
+  if [ -n "$cleanData" ]; then
+    cmd="rm -rf \"$itemDataDir\"/*"
+    if [ -n "$dockerWithSudo" ]; then
+      cmd="sudo $cmd"
+    fi
+    echo "$cmd"
+    eval "$cmd"
   else
     echo "preserving existing data in $itemDataDir"
   fi
@@ -248,9 +373,12 @@ for item in "${spin_nodes[@]}"; do
   # parse validator-config.yaml for $item to load args values
   source parse-vc.sh
 
-  # extract client config
-  IFS='_' read -r -a elements <<< "$item"
-  client="${elements[0]}"
+  # export checkpoint_sync_url for client-cmd scripts when restarting with checkpoint sync
+  if [[ "$restart_with_checkpoint_sync" == "true" ]] && [[ -n "$checkpointSyncUrl" ]]; then
+    export checkpoint_sync_url="$checkpointSyncUrl"
+  else
+    unset checkpoint_sync_url 2>/dev/null || true
+  fi
 
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
@@ -260,7 +388,13 @@ for item in "${spin_nodes[@]}"; do
   # spin nodes
   if [ "$node_setup" == "binary" ]
   then
-    execCmd="$node_binary"
+    # Add core dump support if enabled for this node
+    if should_enable_core_dumps "$item"; then
+      execCmd="ulimit -c unlimited && $node_binary"
+      echo "Core dumps enabled for $item (binary mode)"
+    else
+      execCmd="$node_binary"
+    fi
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
@@ -275,6 +409,20 @@ for item in "${spin_nodes[@]}"; do
     then
       execCmd="sudo $execCmd"
     fi;
+
+    # Use --network host for peer-to-peer communication to work
+    # On macOS Docker Desktop, containers share the VM's network stack, allowing them
+    # to reach each other via 127.0.0.1 (as configured in nodes.yaml ENR records).
+    # Note: Port mapping (-p) doesn't work with --network host, so metrics endpoints
+    # are not directly accessible from the macOS host. Use 'docker exec' to access them.
+
+    # Add core dump support if enabled for this node
+    # --init: forwards signals and reaps zombies (required for core dumps)
+    # --workdir /data: dumps land in the mounted volume
+    if should_enable_core_dumps "$item"; then
+      execCmd="$execCmd --init --ulimit core=-1 --workdir /data"
+      echo "Core dumps enabled for $item (dumps will be written to $dataDir/$item/)"
+    fi
 
     execCmd="$execCmd --name $item --network host \
           -v $configDir:/config \
@@ -292,6 +440,31 @@ for item in "${spin_nodes[@]}"; do
   pid=$!
   spinned_pids+=($pid)
 done;
+
+# 4. Start metrics stack (Prometheus + Grafana) if --metrics flag was passed
+if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+  echo -e "\n\nStarting metrics stack (Prometheus + Grafana)..."
+  printf '%*s' $(tput cols) | tr ' ' '-'
+  echo
+
+  metricsDir="$scriptDir/metrics"
+
+  # Generate prometheus.yml from validator-config.yaml
+  "$scriptDir/generate-prometheus-config.sh" "$validator_config_file" "$metricsDir/prometheus"
+
+  # Pull and start metrics containers
+  if [ -n "$dockerWithSudo" ]; then
+    sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  else
+    docker compose -f "$metricsDir/docker-compose-metrics.yaml" up -d
+  fi
+
+  echo ""
+  echo "📊 Metrics stack started:"
+  echo "   Prometheus: http://localhost:9090"
+  echo "   Grafana:    http://localhost:3000"
+  echo ""
+fi
 
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
@@ -314,6 +487,17 @@ cleanup() {
   execCmd="kill -9 $process_ids"
   echo "$execCmd"
   eval "$execCmd"
+
+  # Stop metrics stack if it was started
+  if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
+    echo "Stopping metrics stack..."
+    metricsDir="$scriptDir/metrics"
+    if [ -n "$dockerWithSudo" ]; then
+      sudo docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    else
+      docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || true
+    fi
+  fi
 }
 
 trap "echo exit signal received;cleanup" SIGINT SIGTERM

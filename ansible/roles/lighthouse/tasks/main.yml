@@ -30,20 +30,23 @@
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ genesis_dir }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
   register: lighthouse_node_config
   changed_when: false
+  delegate_to: localhost
   loop:
     - enrFields.quic
     - metricsPort
     - privkey
+    - isAggregator
   when: node_name is defined
 
-- name: Set node ports
+- name: Set node ports and aggregator flag
   set_fact:
     lighthouse_quic_port: "{{ lighthouse_node_config.results[0].stdout }}"
     lighthouse_metrics_port: "{{ lighthouse_node_config.results[1].stdout }}"
     lighthouse_privkey: "{{ lighthouse_node_config.results[2].stdout }}"
+    lighthouse_is_aggregator: "{{ 'true' if (lighthouse_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: lighthouse_node_config is defined
 
 - name: Ensure node key file exists
@@ -59,12 +62,6 @@
   fail:
     msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
   when: not (node_key_stat.stat.exists | default(false))
-
-- name: Clean node data directory
-  file:
-    path: "{{ data_dir }}/{{ node_name }}"
-    state: absent
-  when: clean_data | default(false) | bool
 
 - name: Create node data directory
   file:
@@ -91,6 +88,7 @@
         --name {{ node_name }}
         --restart unless-stopped
         --network host
+        {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ lighthouse_docker_image }}
@@ -106,6 +104,8 @@
         --metrics
         --metrics-address 0.0.0.0
         --metrics-port {{ lighthouse_metrics_port }}
+        {{ '--is-aggregator' if (lighthouse_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: lighthouse_container
       changed_when: lighthouse_container.rc == 0
   when: deployment_mode == 'docker'

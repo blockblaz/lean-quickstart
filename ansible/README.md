@@ -83,7 +83,7 @@ docker ps | grep zeam_0
 - `ansible.cfg` - Ansible configuration
 - `inventory/` - Host inventory and variables
 - `playbooks/` - Main playbooks
-- `roles/` - Reusable role modules (zeam, ream, qlean, lantern, genesis, common)
+- `roles/` - Reusable role modules (zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, genesis, common)
 - `requirements.yml` - Ansible Galaxy dependencies
 
 ## Configuration Source
@@ -121,6 +121,10 @@ This guide covers comprehensive testing strategies for the Ansible deployment in
 
 ### 1. Install Ansible
 
+**Minimum Required Version:** Ansible 2.13+
+
+The configuration uses `result_format = yaml` (introduced in Ansible 2.13). Earlier versions will fail with an error about the removed `community.general.yaml` callback plugin.
+
 **macOS:**
 ```sh
 brew install ansible
@@ -132,7 +136,7 @@ sudo apt-get update
 sudo apt-get install ansible
 ```
 
-**Verify installation:**
+**Verify installation (must be 2.13+):**
 ```sh
 ansible --version
 ansible-playbook --version
@@ -177,8 +181,11 @@ cd ansible
 
 # Check all playbooks
 ansible-playbook --syntax-check playbooks/site.yml
+ansible-playbook --syntax-check playbooks/clean-node-data.yml
+ansible-playbook --syntax-check playbooks/generate-genesis.yml
 ansible-playbook --syntax-check playbooks/copy-genesis.yml
 ansible-playbook --syntax-check playbooks/deploy-nodes.yml
+ansible-playbook --syntax-check playbooks/stop-nodes.yml
 ```
 
 ### Phase 3: Test Genesis File Copying
@@ -511,7 +518,7 @@ This section covers how to test the latest changes that extract docker images an
 
 - Docker images and deployment modes are now automatically extracted from `client-cmds/*-cmd.sh` files
 - This ensures consistency between `spin-node.sh` (local) and Ansible (remote) deployments
-- All client roles (zeam, ream, qlean, lantern) now use this extraction mechanism
+- All client roles (zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda) now use this extraction mechanism
 
 ### Quick Test
 

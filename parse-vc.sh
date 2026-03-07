@@ -45,10 +45,28 @@ if [ -z "$metricsPort" ] || [ "$metricsPort" == "null" ]; then
     exit 1
 fi
 
+# Automatically extract HTTP port using yq (optional - only some clients use it)
+httpPort=$(yq eval ".validators[] | select(.name == \"$item\") | .httpPort" "$validator_config_file")
+if [ -z "$httpPort" ] || [ "$httpPort" == "null" ]; then
+    httpPort=""
+fi
+
 # Automatically extract devnet using yq (optional - only ream uses it)
 devnet=$(yq eval ".validators[] | select(.name == \"$item\") | .devnet" "$validator_config_file")
 if [ -z "$devnet" ] || [ "$devnet" == "null" ]; then
     devnet=""
+fi
+
+# Automatically extract isAggregator flag using yq (defaults to false if not set)
+isAggregator=$(yq eval ".validators[] | select(.name == \"$item\") | .isAggregator // false" "$validator_config_file")
+if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
+    isAggregator="false"
+fi
+
+# Extract attestation_committee_count from config section (optional - only if explicitly set)
+attestationCommitteeCount=$(yq eval ".config.attestation_committee_count" "$validator_config_file")
+if [ -z "$attestationCommitteeCount" ] || [ "$attestationCommitteeCount" == "null" ]; then
+    attestationCommitteeCount=""
 fi
 
 # Automatically extract private key using yq
@@ -99,10 +117,18 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Hash-Sig Key Index: $hashSigKeyIndex"
     echo "Hash-Sig Public Key: $hashSigPkPath"
     echo "Hash-Sig Secret Key: $hashSigSkPath"
+    echo "Is Aggregator: $isAggregator"
+    if [ -n "$attestationCommitteeCount" ]; then
+        echo "Attestation Committee Count: $attestationCommitteeCount"
+    fi
 else
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
     echo "Metrics Port: $metricsPort"
     echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
+    echo "Is Aggregator: $isAggregator"
+    if [ -n "$attestationCommitteeCount" ]; then
+        echo "Attestation Committee Count: $attestationCommitteeCount"
+    fi
 fi
