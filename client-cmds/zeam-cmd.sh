@@ -47,4 +47,4 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 node \
       $checkpoint_sync_flag"
 
 # choose either binary or docker
-node_setup="binary"
+node_setup="docker"
