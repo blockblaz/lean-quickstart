@@ -160,6 +160,13 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
    - Example: Without flag, a random node will be selected automatically
 13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
+15. `--coreDumps` enables core dump capture for crashed nodes.
+    - Accepts: `"all"`, specific node names (`zeam_0,ream_0`), or client types (`zeam,qlean`)
+    - **Docker mode**: Adds `--init --ulimit core=-1 --workdir /data` to containers
+    - **Binary mode**: Sets `ulimit -c unlimited` before running the binary
+    - Core dumps are written to `<data_dir>/<node_name>/` (Docker) or current directory (binary, depends on system `core_pattern`)
+    - Works for both local and Ansible deployments
+    - Example: `--coreDumps all` or `--coreDumps zeam_0,ream_0`
 
 ### Checkpoint sync
 
