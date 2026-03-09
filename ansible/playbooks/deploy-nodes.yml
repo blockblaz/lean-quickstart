@@ -207,6 +207,13 @@
         - setup
         - deploy
 
+    - name: Deploy observability stack
+      include_role:
+        name: observability
+      tags:
+        - observability
+        - deploy
+
     - name: Deploy this node
       include_tasks: helpers/deploy-single-node.yml
       vars:
