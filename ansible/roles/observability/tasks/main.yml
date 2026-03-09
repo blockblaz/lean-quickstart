@@ -1,5 +1,5 @@
 ---
-# Observability role: Deploy cadvisor, node-exporter, prometheus, and promtail
+# Observability role: Deploy cadvisor, node_exporter, prometheus, and promtail
 # alongside each lean node on remote hosts.
 
 - name: Extract metricsPort from validator-config.yaml
@@ -24,14 +24,12 @@
     src: prometheus.yml.j2
     dest: "{{ observability_dir }}/prometheus.yml"
     mode: '0644'
-  register: prometheus_config
 
 - name: Template promtail config
   template:
     src: promtail.yml.j2
     dest: "{{ observability_dir }}/promtail.yml"
     mode: '0644'
-  register: promtail_config
 
 # --- cadvisor (no config, only start if not running) ---
 
@@ -64,28 +62,28 @@
     {{ cadvisor_image }}
   when: cadvisor_exists.stdout == ""
 
-# --- node-exporter (no config, only start if not running) ---
+# --- node_exporter (no config, only start if not running) ---
 
-- name: Check if node-exporter exists
-  command: docker ps -a --filter name=^node-exporter$ -q
+- name: Check if node_exporter exists
+  command: docker ps -a --filter name=^node_exporter$ -q
   register: node_exporter_exists
   changed_when: false
   failed_when: false
 
-- name: Check if node-exporter is running
-  command: docker ps --filter name=^node-exporter$ -q
+- name: Check if node_exporter is running
+  command: docker ps --filter name=^node_exporter$ -q
   register: node_exporter_running
   changed_when: false
   failed_when: false
 
-- name: Start stopped node-exporter container
-  command: docker start node-exporter
+- name: Start stopped node_exporter container
+  command: docker start node_exporter
   when: node_exporter_exists.stdout != "" and node_exporter_running.stdout == ""
 
-- name: Create node-exporter container
+- name: Create node_exporter container
   command: >-
     docker run -d
-    --name node-exporter
+    --name node_exporter
     --restart unless-stopped
     --network host
     --pid host
@@ -98,7 +96,7 @@
     --path.rootfs=/rootfs
   when: node_exporter_exists.stdout == ""
 
-# --- prometheus (restart only when config changes) ---
+# --- prometheus (always update config, restart if exists, create if not) ---
 
 - name: Check if prometheus exists
   command: docker ps -a --filter name=^prometheus$ -q
@@ -106,19 +104,9 @@
   changed_when: false
   failed_when: false
 
-- name: Check if prometheus is running
-  command: docker ps --filter name=^prometheus$ -q
-  register: prometheus_running
-  changed_when: false
-  failed_when: false
-
-- name: Restart prometheus container (config changed)
+- name: Restart prometheus container
   command: docker restart prometheus
-  when: prometheus_exists.stdout != "" and prometheus_config.changed
-
-- name: Start stopped prometheus container
-  command: docker start prometheus
-  when: prometheus_exists.stdout != "" and prometheus_running.stdout == "" and not prometheus_config.changed
+  when: prometheus_exists.stdout != ""
 
 - name: Create prometheus container
   command: >-
@@ -129,11 +117,11 @@
     -v {{ observability_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     {{ prometheus_image }}
     --config.file=/etc/prometheus/prometheus.yml
-    --storage.tsdb.retention.time=2d
+    --storage.tsdb.retention.time=15d
     --web.listen-address=0.0.0.0:{{ prometheus_port }}
   when: prometheus_exists.stdout == ""
 
-# --- promtail (restart only when config changes) ---
+# --- promtail (always update config, restart if exists, create if not) ---
 
 - name: Check if promtail exists
   command: docker ps -a --filter name=^promtail$ -q
@@ -141,19 +129,9 @@
   changed_when: false
   failed_when: false
 
-- name: Check if promtail is running
-  command: docker ps --filter name=^promtail$ -q
-  register: promtail_running
-  changed_when: false
-  failed_when: false
-
-- name: Restart promtail container (config changed)
+- name: Restart promtail container
   command: docker restart promtail
-  when: promtail_exists.stdout != "" and promtail_config.changed
-
-- name: Start stopped promtail container
-  command: docker start promtail
-  when: promtail_exists.stdout != "" and promtail_running.stdout == "" and not promtail_config.changed
+  when: promtail_exists.stdout != ""
 
 - name: Create promtail container
   command: >-
