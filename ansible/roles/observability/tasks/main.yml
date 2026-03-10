@@ -103,6 +103,7 @@
     path: "{{ observability_dir }}/prometheus-data"
     state: directory
     mode: '0777'
+    recurse: yes
 
 - name: Remove existing prometheus container
   command: docker rm -f prometheus
@@ -121,19 +122,13 @@
     --storage.tsdb.retention.time=15d
     --web.listen-address=0.0.0.0:{{ prometheus_port }}
 
-# --- promtail (always update config, restart if exists, create if not) ---
+# --- promtail (always recreate to pick up config/mount changes) ---
 
-- name: Check if promtail exists
-  command: docker ps -a --filter name=^promtail$ -q
-  register: promtail_exists
-  changed_when: false
+- name: Remove existing promtail container
+  command: docker rm -f promtail
   failed_when: false
 
-- name: Restart promtail container
-  command: docker restart promtail
-  when: promtail_exists.stdout != ""
-
-- name: Create promtail container
+- name: Start promtail container
   command: >-
     docker run -d
     --name promtail
@@ -144,4 +139,3 @@
     -v /var/lib/docker/containers:/var/lib/docker/containers:ro
     {{ promtail_image }}
     -config.file=/etc/promtail/config.yml
-  when: promtail_exists.stdout == ""
