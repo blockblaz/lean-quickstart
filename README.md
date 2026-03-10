@@ -119,6 +119,26 @@ python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml u
 
 Requires Python 3 and PyYAML (`pip install pyyaml`).
 
+### Remote Observability Stack
+
+Every Ansible deployment automatically deploys an observability stack alongside each lean node on remote hosts. No additional flags are needed.
+
+**What gets deployed on each remote host:**
+- **cadvisor** - Container metrics
+- **node-exporter** - System metrics
+- **prometheus** - Scrape local targets, remote_write to central
+- **promtail** - Collect lean node container logs, push to Loki
+
+**How it works:**
+- The local prometheus on each host scrapes the lean node (at its `metricsPort`), cadvisor, node-exporter, and itself, then forwards all data to central prometheus via `remote_write`
+- Promtail discovers the lean node container via Docker socket and pushes logs to central Loki
+
+**Key properties:**
+- **Idempotent**: cadvisor and node-exporter are only started if not already running; prometheus and promtail only restart when their config files change
+- **Persistent**: observability containers are not stopped when lean nodes are stopped — they run independently
+- **Configurable**: central endpoints, images, and ports can be overridden in `ansible/roles/observability/defaults/main.yml`
+- **Remote config path**: `/opt/lean-quickstart/observability/` on each host
+
 ## Args
 
 1. `NETWORK_DIR` is an env to specify the network directory. Should have a `genesis` directory with genesis config. A `data` folder will be created inside this `NETWORK_DIR` if not already there.
