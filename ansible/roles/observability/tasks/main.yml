@@ -96,30 +96,30 @@
     --path.rootfs=/rootfs
   when: node_exporter_exists.stdout == ""
 
-# --- prometheus (always update config, restart if exists, create if not) ---
+# --- prometheus (always recreate to pick up config/mount changes, data persists on host) ---
 
-- name: Check if prometheus exists
-  command: docker ps -a --filter name=^prometheus$ -q
-  register: prometheus_exists
-  changed_when: false
+- name: Create prometheus data directory
+  file:
+    path: "{{ observability_dir }}/prometheus-data"
+    state: directory
+    mode: '0777'
+
+- name: Remove existing prometheus container
+  command: docker rm -f prometheus
   failed_when: false
 
-- name: Restart prometheus container
-  command: docker restart prometheus
-  when: prometheus_exists.stdout != ""
-
-- name: Create prometheus container
+- name: Start prometheus container
   command: >-
     docker run -d
     --name prometheus
     --restart unless-stopped
     --network host
     -v {{ observability_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    -v {{ observability_dir }}/prometheus-data:/prometheus
     {{ prometheus_image }}
     --config.file=/etc/prometheus/prometheus.yml
     --storage.tsdb.retention.time=15d
     --web.listen-address=0.0.0.0:{{ prometheus_port }}
-  when: prometheus_exists.stdout == ""
 
 # --- promtail (always update config, restart if exists, create if not) ---
 
