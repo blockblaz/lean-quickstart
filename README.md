@@ -96,17 +96,22 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
 # is updated in validator-config.yaml before nodes are started
 ```
 
-### Leanpoint upstreams sync (tooling server)
+### Leanpoint deployment
 
-After all validator nodes are spun up (local or Ansible), the quickstart can sync leanpoint upstreams to a tooling server so [leanpoint](https://github.com/leanEthereum/leanpoint) monitors the current set of nodes. This runs automatically at the end of `spin-node.sh` unless disabled.
+After validator nodes are spun up, leanpoint is deployed so it can monitor them. Behavior depends on deployment mode:
+
+- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at http://localhost:5555. The container is removed on Ctrl+C cleanup or when you run with `--stop`.
+- **Ansible/remote deployment**: Leanpoint is updated on the **tooling server**. The script rsyncs `upstreams.json` to the server, pulls the latest image there, and recreates the remote container.
 
 **What runs:**
 1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
-2. `sync-leanpoint-upstreams.sh` rsyncs `upstreams.json` to the tooling server, pulls the latest leanpoint image, and recreates the container so it always runs the current image.
+2. `sync-leanpoint-upstreams.sh` either deploys leanpoint locally (local devnet) or syncs to the tooling server and recreates the remote container (Ansible).
 
-**Defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
 
-**Disable sync:** Set `LEANPOINT_SYNC_DISABLED=1` before running `spin-node.sh`, or when the convert script or validator config is missing the sync is skipped without failing the run.
+**SSH key for remote sync:** When using Ansible deployment, the tooling server may require a specific SSH key. Pass `--sshKey ~/.ssh/id_ed25519_github` (or `--private-key`) so the sync can succeed.
+
+**Skip via flag:** Pass `--skip-leanpoint` to `spin-node.sh` to skip leanpoint deployment (local and remote). Alternatively set `LEANPOINT_SYNC_DISABLED=1`, or the step is skipped when the convert script or validator config is missing.
 
 **Standalone use of convert script:** You can generate `upstreams.json` for local leanpoint without the tooling server:
 
