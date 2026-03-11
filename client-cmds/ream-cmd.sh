@@ -34,6 +34,7 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         --metrics-address 0.0.0.0 \
         --metrics-port $metricsPort \
         --http-address 0.0.0.0 \
+        --http-port $apiPort \
         $attestation_committee_flag \
         $aggregator_flag \
         $checkpoint_sync_flag"
@@ -49,6 +50,7 @@ node_docker="ghcr.io/reamlabs/ream:latest-devnet3 --data-dir /data \
         --metrics-address 0.0.0.0 \
         --metrics-port $metricsPort \
         --http-address 0.0.0.0 \
+        --http-port $apiPort \
         $attestation_committee_flag \
         $aggregator_flag \
         $checkpoint_sync_flag"

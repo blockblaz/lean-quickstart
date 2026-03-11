@@ -38,6 +38,7 @@
   loop:
     - enrFields.quic
     - metricsPort
+    - apiPort
     - isAggregator
   when: node_name is defined
 
@@ -45,7 +46,8 @@
   set_fact:
     ethlambda_quic_port: "{{ ethlambda_node_config.results[0].stdout }}"
     ethlambda_metrics_port: "{{ ethlambda_node_config.results[1].stdout }}"
-    ethlambda_is_aggregator: "{{ 'true' if (ethlambda_node_config.results[2].stdout | default('') | trim) == 'true' else 'false' }}"
+    ethlambda_api_port: "{{ ethlambda_node_config.results[2].stdout }}"
+    ethlambda_is_aggregator: "{{ 'true' if (ethlambda_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: ethlambda_node_config is defined
 
 - name: Ensure node key file exists
@@ -99,6 +101,7 @@
         --node-key /config/{{ node_name }}.key
         --metrics-address 0.0.0.0
         --metrics-port {{ ethlambda_metrics_port }}
+        --api-port {{ ethlambda_api_port }}
         {{ '--is-aggregator' if (ethlambda_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ethlambda_container

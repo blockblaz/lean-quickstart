@@ -29,6 +29,7 @@
   loop:
     - enrFields.quic
     - metricsPort
+    - httpPort
     - privkey
     - isAggregator
   when: node_name is defined
@@ -37,8 +38,9 @@
   set_fact:
     lantern_quic_port: "{{ lantern_node_config.results[0].stdout }}"
     lantern_metrics_port: "{{ lantern_node_config.results[1].stdout }}"
-    lantern_privkey: "{{ lantern_node_config.results[2].stdout }}"
-    lantern_is_aggregator: "{{ 'true' if (lantern_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
+    lantern_http_port: "{{ lantern_node_config.results[2].stdout }}"
+    lantern_privkey: "{{ lantern_node_config.results[3].stdout }}"
+    lantern_is_aggregator: "{{ 'true' if (lantern_node_config.results[4].stdout | default('') | trim) == 'true' else 'false' }}"
   when: lantern_node_config is defined
 
 - name: Ensure node key file exists
@@ -90,7 +92,7 @@
         --node-key-path /config/{{ node_name }}.key
         --listen-address /ip4/0.0.0.0/udp/{{ lantern_quic_port }}/quic-v1
         --metrics-port {{ lantern_metrics_port }}
-        --http-port 5055
+        --http-port {{ lantern_http_port }}
         --hash-sig-key-dir /config/hash-sig-keys
         {{ '--is-aggregator' if (lantern_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}

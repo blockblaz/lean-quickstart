@@ -64,7 +64,7 @@ node_docker="$QLEAN_IMAGE \
       --metrics-host 0.0.0.0 \
       --metrics-port $metricsPort \
       --api-host 0.0.0.0 \
-      --api-port 5053 \
+      --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag \

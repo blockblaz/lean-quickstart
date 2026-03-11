@@ -14,6 +14,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9001
     metricsPort: 8081
+    apiPort: 5051
     isAggregator: false
     count: 1
   - name: "ream_0"
@@ -23,6 +24,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9002
     metricsPort: 8082
+    apiPort: 5052
     isAggregator: false
     count: 1
   - name: "qlean_0"
@@ -34,6 +36,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9003
     metricsPort: 8083
+    apiPort: 5053
     isAggregator: false
     count: 1
   - name: "lantern_0"
@@ -45,6 +48,7 @@ validators:
       quic: 9004
     metricsPort: 8084
     httpPort: 5054
+    apiPort: 5054
     isAggregator: false
     count: 1
 
@@ -57,6 +61,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9005
     metricsPort: 8085
+    apiPort: 5055
     isAggregator: false
     count: 1
 
@@ -69,6 +74,7 @@ validators:
       ip: "127.0.0.1"
       quic: 9006
     metricsPort: 8086
+    apiPort: 5056
     isAggregator: false
     count: 1
 
@@ -81,5 +87,6 @@ validators:
       ip: "127.0.0.1"
       quic: 9007
     metricsPort: 8087
+    apiPort: 5057
     isAggregator: false
     count: 1
