@@ -102,9 +102,9 @@ After all validator nodes are spun up (local or Ansible), the quickstart can syn
 
 **What runs:**
 1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
-2. `sync-leanpoint-upstreams.sh` rsyncs `upstreams.json` to the tooling server and restarts the leanpoint Docker container.
+2. `sync-leanpoint-upstreams.sh` rsyncs `upstreams.json` to the tooling server, pulls the latest leanpoint image, and recreates the container so it always runs the current image.
 
-**Defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/opt/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+**Defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
 
 **Disable sync:** Set `LEANPOINT_SYNC_DISABLED=1` before running `spin-node.sh`, or when the convert script or validator config is missing the sync is skipped without failing the run.
 

@@ -12,8 +12,9 @@
 #   TOOLING_SERVER          Tooling server host (default: 46.225.10.32)
 #   TOOLING_SERVER_USER     SSH user on tooling server (default: root)
 #   LEANPOINT_DIR           Path containing convert-validator-config.py (default: script_dir)
-#   REMOTE_UPSTREAMS_PATH   Remote path for upstreams.json (default: /opt/leanpoint/upstreams.json)
+#   REMOTE_UPSTREAMS_PATH   Remote path for upstreams.json (default: /etc/leanpoint/upstreams.json)
 #   LEANPOINT_CONTAINER     Docker container name on tooling server (default: leanpoint)
+#   LEANPOINT_IMAGE         Docker image to pull and run (default: 0xpartha/leanpoint:latest)
 #   LEANPOINT_SYNC_DISABLED Set to 1 to skip sync (e.g. when tooling server is not used)
 
 set -e
@@ -26,8 +27,9 @@ useRoot="${4:-false}"
 TOOLING_SERVER="${TOOLING_SERVER:-46.225.10.32}"
 TOOLING_SERVER_USER="${TOOLING_SERVER_USER:-root}"
 LEANPOINT_DIR="${LEANPOINT_DIR:-$scriptDir}"
-REMOTE_UPSTREAMS_PATH="${REMOTE_UPSTREAMS_PATH:-/opt/leanpoint/upstreams.json}"
+REMOTE_UPSTREAMS_PATH="${REMOTE_UPSTREAMS_PATH:-/etc/leanpoint/upstreams.json}"
 LEANPOINT_CONTAINER="${LEANPOINT_CONTAINER:-leanpoint}"
+LEANPOINT_IMAGE="${LEANPOINT_IMAGE:-0xpartha/leanpoint:latest}"
 
 if [ "${LEANPOINT_SYNC_DISABLED:-0}" = "1" ]; then
   echo "Leanpoint sync disabled (LEANPOINT_SYNC_DISABLED=1), skipping."
@@ -69,7 +71,7 @@ remote_dir=$(dirname "$REMOTE_UPSTREAMS_PATH")
 $ssh_cmd "$remote_target" "mkdir -p $remote_dir"
 rsync -e "$ssh_cmd" "$out_file" "${remote_target}:${REMOTE_UPSTREAMS_PATH}"
 
-# Restart leanpoint container on tooling server
-$ssh_cmd "$remote_target" "docker restart $LEANPOINT_CONTAINER"
+# Pull latest image, recreate container so it runs the new image
+$ssh_cmd "$remote_target" "docker pull $LEANPOINT_IMAGE && docker stop $LEANPOINT_CONTAINER 2>/dev/null || true; docker rm $LEANPOINT_CONTAINER 2>/dev/null || true; docker run -d --name $LEANPOINT_CONTAINER --restart unless-stopped -p 5555:5555 -v $REMOTE_UPSTREAMS_PATH:/etc/leanpoint/upstreams.json:ro $LEANPOINT_IMAGE"
 
-echo "Leanpoint upstreams synced to $TOOLING_SERVER and container '$LEANPOINT_CONTAINER' restarted."
+echo "Leanpoint upstreams synced to $TOOLING_SERVER, image $LEANPOINT_IMAGE pulled, container '$LEANPOINT_CONTAINER' recreated."
