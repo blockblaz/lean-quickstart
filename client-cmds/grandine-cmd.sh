@@ -28,7 +28,7 @@ node_binary="$grandine_bin \
         --address 0.0.0.0 \
         --metrics \
         --http-address 0.0.0.0 \
-        --http-port $apiPort \
+        --http-port $metricsPort \
         --hash-sig-key-dir $configDir/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \
@@ -44,7 +44,7 @@ node_docker="sifrai/lean:devnet-3 \
         --address 0.0.0.0 \
         --metrics \
         --http-address 0.0.0.0 \
-        --http-port $apiPort \
+        --http-port $metricsPort \
         --hash-sig-key-dir /config/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \

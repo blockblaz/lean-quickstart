@@ -80,7 +80,7 @@ validators:
       ip: "37.27.250.20"
       quic: 9001
     metricsPort: 9095
-    apiPort: 5055
+    apiPort: 9095
     isAggregator: false
     count: 1
 
@@ -93,6 +93,6 @@ validators:
       ip: "78.47.44.215"
       quic: 9001
     metricsPort: 9095
-    apiPort: 5055
+    apiPort: 9095
     isAggregator: false
     count: 1

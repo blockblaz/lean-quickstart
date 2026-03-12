@@ -30,7 +30,6 @@ node_binary="$binary_path \
       --node-key $configDir/$item.key \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
-      --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"
@@ -43,7 +42,6 @@ node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
       --node-key /config/$item.key \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
-      --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"

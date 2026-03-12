@@ -67,8 +67,8 @@ def convert_validator_config(
         if docker_host:
             ip = "host.docker.internal"
 
-        # Use metricsPort from config when present (validator-config uses it for API)
-        http_port = validator.get('metricsPort', base_port + idx)
+        # Use apiPort from config
+        http_port = validator.get('apiPort', base_port + idx)
 
         upstream = {
             "name": name,

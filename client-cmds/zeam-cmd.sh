@@ -31,6 +31,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
       --api-port $apiPort \
+      --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"
