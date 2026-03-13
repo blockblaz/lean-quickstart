@@ -26,9 +26,11 @@ node_binary="$grandine_bin \
         --node-key $configDir/$privKeyPath \
         --port $quicPort \
         --address 0.0.0.0 \
-        --metrics \
         --http-address 0.0.0.0 \
-        --http-port $metricsPort \
+        --http-port $apiPort \
+        --metrics \
+        --metrics-address 0.0.0.0 \
+        --metrics-port $metricsPort \
         --hash-sig-key-dir $configDir/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \
@@ -41,10 +43,11 @@ node_docker="sifrai/lean:devnet-3 \
         --node-id $item \
         --node-key /config/$privKeyPath \
         --port $quicPort \
-        --address 0.0.0.0 \
-        --metrics \
         --http-address 0.0.0.0 \
-        --http-port $metricsPort \
+        --http-port $apiPort \
+        --metrics \
+        --metrics-address 0.0.0.0 \
+        --metrics-port $metricsPort \
         --hash-sig-key-dir /config/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \
