@@ -2,6 +2,9 @@
 
 #-----------------------ream setup----------------------
 # Metrics enabled by default
+if [ -z "$docker_image" ]; then
+    docker_image="ghcr.io/reamlabs/ream:latest-devnet3"
+fi
 metrics_flag="--metrics"
 
 # Set aggregator flag based on isAggregator value
@@ -38,7 +41,7 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-node_docker="ghcr.io/reamlabs/ream:latest-devnet3 --data-dir /data \
+node_docker="$docker_image --data-dir /data \
         lean_node \
         --network /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
@@ -53,5 +56,6 @@ node_docker="ghcr.io/reamlabs/ream:latest-devnet3 --data-dir /data \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-# choose either binary or docker
-node_setup="docker"
+if [ -z "$node_setup" ]; then
+    node_setup="docker"
+fi

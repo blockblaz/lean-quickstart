@@ -2,6 +2,9 @@
 
 #-----------------------ethlambda setup----------------------
 
+if [ -z "$docker_image" ]; then
+    docker_image="ghcr.io/lambdaclass/ethlambda:devnet3"
+fi
 binary_path="$scriptDir/../ethlambda/target/release/ethlambda"
 
 # Set aggregator flag based on isAggregator value
@@ -35,7 +38,7 @@ node_binary="$binary_path \
       $checkpoint_sync_flag"
 
 # Command when running as docker container
-node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
+node_docker="$docker_image \
       --custom-network-config-dir /config \
       --gossipsub-port $quicPort \
       --node-id $item \
@@ -46,4 +49,6 @@ node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_setup="docker"
+if [ -z "$node_setup" ]; then
+    node_setup="docker"
+fi

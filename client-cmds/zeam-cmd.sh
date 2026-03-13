@@ -4,6 +4,10 @@
 # setup where lean-quickstart is a submodule folder in zeam repo
 # update the path to your binary here if you want to use binary
 # Metrics enabled by default
+# Default docker image (can be overridden via user-config.yml)
+if [ -z "$docker_image" ]; then
+    docker_image="blockblaz/zeam:devnet3"
+fi
 metrics_flag="--metrics_enable"
 
 # Set aggregator flag based on isAggregator value
@@ -35,7 +39,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 node \
+node_docker="--security-opt seccomp=unconfined $docker_image node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \
@@ -46,5 +50,7 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-# choose either binary or docker
-node_setup="docker"
+# Default run mode (can be overridden via user-config.yml)
+if [ -z "$node_setup" ]; then
+    node_setup="docker"
+fi

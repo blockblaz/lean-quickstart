@@ -4,15 +4,17 @@
 # expects "qlean" submodule or symlink inside "lean-quickstart" root directory
 # https://github.com/qdrvm/qlean-mini
 
-# Platform-specific qlean image
-ARCH=$(uname -m)
-if [ "$ARCH" = "x86_64" ]; then
-    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-3-amd64"
-elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-3-arm64"
-else
-    echo "Unsupported architecture: $ARCH"
-    exit 1
+# Platform-specific qlean image (user-config.yml can override via docker_image)
+if [ -z "$docker_image" ]; then
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then
+        docker_image="qdrvm/qlean-mini:devnet-3-amd64"
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        docker_image="qdrvm/qlean-mini:devnet-3-arm64"
+    else
+        echo "Unsupported architecture: $ARCH"
+        exit 1
+    fi
 fi
 
 # Set aggregator flag based on isAggregator value
@@ -51,7 +53,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       -ldebug \
       -ltrace"
       
-node_docker="$QLEAN_IMAGE \
+node_docker="$docker_image \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \
@@ -71,5 +73,6 @@ node_docker="$QLEAN_IMAGE \
       -ldebug \
       -ltrace"
 
-# choose either binary or docker
-node_setup="docker"
+if [ -z "$node_setup" ]; then
+    node_setup="docker"
+fi

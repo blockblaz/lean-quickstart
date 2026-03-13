@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # Metrics enabled by default
+if [ -z "$docker_image" ]; then
+    docker_image="hopinheimer/lighthouse:latest"
+fi
 metrics_flag="--metrics"
 
 # Set aggregator flag based on isAggregator value
@@ -37,7 +40,7 @@ node_binary="$lighthouse_bin lean_node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
+node_docker="$docker_image lighthouse lean_node \
       --datadir /data \
       --config /config/config.yaml \
       --validators /config/validator-config.yaml \
@@ -53,4 +56,6 @@ node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_setup="docker"
+if [ -z "$node_setup" ]; then
+    node_setup="docker"
+fi

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -z "$docker_image" ]; then
+    docker_image="sifrai/lean:devnet-3"
+fi
+
 # Set aggregator flag based on isAggregator value
 aggregator_flag=""
 if [ "$isAggregator" == "true" ]; then
@@ -34,7 +38,7 @@ node_binary="$grandine_bin \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-node_docker="sifrai/lean:devnet-3 \
+node_docker="$docker_image \
         --genesis /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --bootnodes /config/nodes.yaml \
@@ -50,5 +54,6 @@ node_docker="sifrai/lean:devnet-3 \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-# choose either binary or docker
-node_setup="docker"
+if [ -z "$node_setup" ]; then
+    node_setup="docker"
+fi

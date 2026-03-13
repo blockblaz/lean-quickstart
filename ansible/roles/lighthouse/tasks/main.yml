@@ -4,29 +4,29 @@
 
 - name: Extract docker image from client-cmd.sh
   shell: |
-    # Extract the first word (docker image) from node_docker line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_docker=' "$project_root/client-cmds/lighthouse-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+    grep -E '^\s*docker_image=' "$project_root/client-cmds/lighthouse-cmd.sh" | head -1 | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | head -1
   register: lighthouse_docker_image_raw
   changed_when: false
   delegate_to: localhost
   run_once: true
 
-- name: Extract deployment mode from client-cmd.sh
+- name: Check user-config.yml for docker image override
   shell: |
-    # Extract the value from node_setup line
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_setup=' "$project_root/client-cmds/lighthouse-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
-  register: lighthouse_deployment_mode_raw
+    user_config="$project_root/user-config.yml"
+    if [ -f "$user_config" ]; then
+      yq eval ".{{ node_name }}.docker_image // \"\"" "$user_config"
+    fi
+  register: lighthouse_user_image_raw
   changed_when: false
   delegate_to: localhost
-  run_once: true
+  when: node_name is defined
 
-- name: Set docker image and deployment mode from client-cmd.sh
+- name: Set docker image (user-config.yml override or default from client-cmd.sh)
   set_fact:
-    lighthouse_docker_image: "{{ lighthouse_docker_image_raw.stdout | trim | default('hopinheimer/lighthouse:latest') }}"
-    deployment_mode: "{{ lighthouse_deployment_mode_raw.stdout | trim | default('docker') }}"
+    lighthouse_docker_image: "{{ lighthouse_user_image_raw.stdout | trim if (lighthouse_user_image_raw.stdout | default('') | trim) not in ['', 'null'] else lighthouse_docker_image_raw.stdout | trim | default('hopinheimer/lighthouse:latest') }}"
+    deployment_mode: "docker"
 
 - name: Extract node configuration from validator-config.yaml
   shell: |

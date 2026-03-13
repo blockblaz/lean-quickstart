@@ -4,35 +4,35 @@
 
 - name: Extract docker image from client-cmd.sh
   shell: |
-    # Extract the docker image from node_docker line (find word containing / and :)
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
+    # Extract the default docker image from docker_image= line
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
     script_path="$project_root/client-cmds/zeam-cmd.sh"
     if [ ! -f "$script_path" ]; then
       echo "ERROR: Script not found at $script_path (project_root=$project_root, playbook_dir={{ playbook_dir }})" >&2
       exit 1
     fi
-    grep -E '^node_docker=' "$script_path" | head -1 | grep -oE '[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+' | head -1
+    grep -E '^\s*docker_image=' "$script_path" | head -1 | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | head -1
   register: zeam_docker_image_raw
   changed_when: false
   delegate_to: localhost
   run_once: true
 
-- name: Extract deployment mode from client-cmd.sh
+- name: Check user-config.yml for docker image override
   shell: |
-    # Extract the value from node_setup line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_setup=' "$project_root/client-cmds/zeam-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
-  register: zeam_deployment_mode_raw
+    user_config="$project_root/user-config.yml"
+    if [ -f "$user_config" ]; then
+      yq eval ".{{ node_name }}.docker_image // \"\"" "$user_config"
+    fi
+  register: zeam_user_image_raw
   changed_when: false
   delegate_to: localhost
-  run_once: true
+  when: node_name is defined
 
-- name: Set docker image and deployment mode from client-cmd.sh
+- name: Set docker image (user-config.yml override or default from client-cmd.sh)
   set_fact:
-    zeam_docker_image: "{{ zeam_docker_image_raw.stdout | trim | default('blockblaz/zeam:latest') }}"
-    deployment_mode: "{{ zeam_deployment_mode_raw.stdout | trim | default('docker') }}"
+    zeam_docker_image: "{{ zeam_user_image_raw.stdout | trim if (zeam_user_image_raw.stdout | default('') | trim) not in ['', 'null'] else zeam_docker_image_raw.stdout | trim | default('blockblaz/zeam:latest') }}"
+    deployment_mode: "docker"
   delegate_to: localhost
   run_once: true
 
