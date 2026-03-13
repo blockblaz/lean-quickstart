@@ -6,6 +6,12 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
 # Set checkpoint sync URL when restarting with checkpoint sync
 checkpoint_sync_flag=""
 if [ -n "${checkpoint_sync_url:-}" ]; then
@@ -24,10 +30,11 @@ node_binary="$grandine_bin \
         --http-address 0.0.0.0 \
         --http-port $metricsPort \
         --hash-sig-key-dir $configDir/hash-sig-keys \
+        $attestation_committee_flag \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-node_docker="sifrai/lean:devnet-2 \
+node_docker="sifrai/lean:devnet-3 \
         --genesis /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --bootnodes /config/nodes.yaml \
@@ -39,6 +46,7 @@ node_docker="sifrai/lean:devnet-2 \
         --http-address 0.0.0.0 \
         --http-port $metricsPort \
         --hash-sig-key-dir /config/hash-sig-keys \
+        $attestation_committee_flag \
         $aggregator_flag \
         $checkpoint_sync_flag"
 

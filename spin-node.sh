@@ -99,6 +99,43 @@ echo "Detected nodes: ${nodes[@]}"
 spin_nodes=()
 restart_with_checkpoint_sync=false
 
+# Aggregator selection logic (1 aggregator per subnet)
+# If user specified --aggregator, use that; otherwise randomly select one
+if [ -n "$aggregatorNode" ]; then
+  # Validate that the specified aggregator exists in the validator list
+  aggregator_found=false
+  for available_node in "${nodes[@]}"; do
+    if [[ "$aggregatorNode" == "$available_node" ]]; then
+      selected_aggregator="$aggregatorNode"
+      aggregator_found=true
+      echo "Using user-specified aggregator: $selected_aggregator"
+      break
+    fi
+  done
+  
+  if [[ "$aggregator_found" == false ]]; then
+    echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
+    echo "Available nodes: ${nodes[@]}"
+    exit 1
+  fi
+else
+  # Randomly select one node as aggregator
+  # Get the number of nodes
+  num_nodes=${#nodes[@]}
+  # Generate random index (0 to num_nodes-1)
+  random_index=$((RANDOM % num_nodes))
+  selected_aggregator="${nodes[$random_index]}"
+  echo "Randomly selected aggregator: $selected_aggregator (index $random_index out of $num_nodes nodes)"
+fi
+
+# Update the validator-config.yaml to set isAggregator flag
+# First, reset all nodes to isAggregator: false
+yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
+
+# Then set the selected aggregator to isAggregator: true
+yq eval -i "(.validators[] | select(.name == \"$selected_aggregator\") | .isAggregator) = true" "$validator_config_file"
+echo "Set $selected_aggregator as aggregator in $validator_config_file"
+
 # When --restart-client is specified, use it as the node list and enable checkpoint sync mode
 if [[ -n "$restartClient" ]]; then
   echo "Note: --restart-client is only used with --checkpoint-sync-url (default: https://leanpoint.leanroadmap.org/lean/v0/states/finalized)"
@@ -198,10 +235,14 @@ if [ "$deployment_mode" == "ansible" ]; then
   ansible_skip_genesis="false"
   [[ "$restart_with_checkpoint_sync" == "true" ]] && ansible_skip_genesis="true"
 
+  # Determine checkpoint_sync_url for Ansible (when restarting with checkpoint sync)
+  ansible_checkpoint_url=""
+  [[ "$restart_with_checkpoint_sync" == "true" ]] && [[ -n "$checkpointSyncUrl" ]] && ansible_checkpoint_url="$checkpointSyncUrl"
+
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis" ""; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
@@ -210,7 +251,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -297,6 +338,10 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
 fi
 spinned_pids=()
 for item in "${spin_nodes[@]}"; do
+  # extract client config FIRST before printing
+  IFS='_' read -r -a elements <<< "$item"
+  client="${elements[0]}"
+
   echo -e "\n\nspining $item: client=$client (mode=$node_setup)"
   printf '%*s' $(tput cols) | tr ' ' '-'
   echo
@@ -332,10 +377,6 @@ for item in "${spin_nodes[@]}"; do
   else
     unset checkpoint_sync_url 2>/dev/null || true
   fi
-
-  # extract client config
-  IFS='_' read -r -a elements <<< "$item"
-  client="${elements[0]}"
 
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"

@@ -26,7 +26,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    grandine_docker_image: "{{ grandine_docker_image_raw.stdout | trim | default('sifrai/lean:unstable') }}"
+    grandine_docker_image: "{{ grandine_docker_image_raw.stdout | trim | default('sifrai/lean:latest') }}"
     deployment_mode: "{{ grandine_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -39,13 +39,15 @@
     - enrFields.quic
     - metricsPort
     - privkey
+    - isAggregator
   when: node_name is defined
 
-- name: Set node ports
+- name: Set node ports and aggregator flag
   set_fact:
     grandine_quic_port: "{{ grandine_node_config.results[0].stdout }}"
     grandine_metrics_port: "{{ grandine_node_config.results[1].stdout }}"
     grandine_privkey: "{{ grandine_node_config.results[2].stdout }}"
+    grandine_is_aggregator: "{{ 'true' if (grandine_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: grandine_node_config is defined
 
 - name: Ensure node key file exists
@@ -104,6 +106,8 @@
         --metrics
         --http-address 0.0.0.0
         --http-port {{ grandine_metrics_port }}
+        {{ '--is-aggregator' if (grandine_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: grandine_container
       changed_when: grandine_container.rc == 0
   when: deployment_mode == 'docker'
