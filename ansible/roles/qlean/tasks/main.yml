@@ -120,6 +120,7 @@
         {{ '--is-aggregator' if (qlean_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
         -ldebug
+        -ltrace
       register: qlean_container
       changed_when: qlean_container.rc == 0
   when: deployment_mode == 'docker'

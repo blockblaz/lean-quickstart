@@ -204,8 +204,6 @@
     - name: Include common role
       include_role:
         name: common
-      vars:
-        node_names: "{{ [inventory_hostname] }}"
       tags:
         - setup
         - deploy
@@ -223,8 +221,6 @@
 
     - name: Deploy this node
       include_tasks: helpers/deploy-single-node.yml
-      vars:
-        node_name: "{{ inventory_hostname }}"
       tags:
         - deploy
 
