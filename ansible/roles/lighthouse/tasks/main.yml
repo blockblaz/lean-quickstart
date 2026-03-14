@@ -37,6 +37,7 @@
   loop:
     - enrFields.quic
     - metricsPort
+    - apiPort
     - privkey
     - isAggregator
   when: node_name is defined
@@ -45,8 +46,9 @@
   set_fact:
     lighthouse_quic_port: "{{ lighthouse_node_config.results[0].stdout }}"
     lighthouse_metrics_port: "{{ lighthouse_node_config.results[1].stdout }}"
-    lighthouse_privkey: "{{ lighthouse_node_config.results[2].stdout }}"
-    lighthouse_is_aggregator: "{{ 'true' if (lighthouse_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
+    lighthouse_api_port: "{{ lighthouse_node_config.results[2].stdout }}"
+    lighthouse_privkey: "{{ lighthouse_node_config.results[3].stdout }}"
+    lighthouse_is_aggregator: "{{ 'true' if (lighthouse_node_config.results[4].stdout | default('') | trim) == 'true' else 'false' }}"
   when: lighthouse_node_config is defined
 
 - name: Ensure node key file exists
@@ -104,6 +106,7 @@
         --metrics
         --metrics-address 0.0.0.0
         --metrics-port {{ lighthouse_metrics_port }}
+        --api-port {{ lighthouse_api_port }}
         {{ '--is-aggregator' if (lighthouse_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: lighthouse_container

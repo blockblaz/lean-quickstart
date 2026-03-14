@@ -1,0 +1,141 @@
+---
+# Observability role: Deploy cadvisor, node_exporter, prometheus, and promtail
+# alongside each lean node on remote hosts.
+
+- name: Extract metricsPort from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .metricsPort" "{{ local_genesis_dir }}/validator-config.yaml"
+  register: obs_metrics_port_raw
+  changed_when: false
+  delegate_to: localhost
+
+- name: Set metricsPort fact
+  set_fact:
+    obs_metrics_port: "{{ obs_metrics_port_raw.stdout | trim }}"
+
+- name: Create observability config directory
+  file:
+    path: "{{ observability_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Template prometheus config
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ observability_dir }}/prometheus.yml"
+    mode: '0644'
+
+- name: Template promtail config
+  template:
+    src: promtail.yml.j2
+    dest: "{{ observability_dir }}/promtail.yml"
+    mode: '0644'
+
+# --- cadvisor (no config, only start if not running) ---
+
+- name: Check if cadvisor exists
+  command: docker ps -a --filter name=^cadvisor$ -q
+  register: cadvisor_exists
+  changed_when: false
+  failed_when: false
+
+- name: Check if cadvisor is running
+  command: docker ps --filter name=^cadvisor$ -q
+  register: cadvisor_running
+  changed_when: false
+  failed_when: false
+
+- name: Start stopped cadvisor container
+  command: docker start cadvisor
+  when: cadvisor_exists.stdout != "" and cadvisor_running.stdout == ""
+
+- name: Create cadvisor container
+  command: >-
+    docker run -d
+    --name cadvisor
+    --restart unless-stopped
+    --network host
+    -v /:/rootfs:ro
+    -v /var/run:/var/run:ro
+    -v /sys:/sys:ro
+    -v /var/lib/docker/:/var/lib/docker:ro
+    {{ cadvisor_image }}
+  when: cadvisor_exists.stdout == ""
+
+# --- node_exporter (no config, only start if not running) ---
+
+- name: Check if node_exporter exists
+  command: docker ps -a --filter name=^node_exporter$ -q
+  register: node_exporter_exists
+  changed_when: false
+  failed_when: false
+
+- name: Check if node_exporter is running
+  command: docker ps --filter name=^node_exporter$ -q
+  register: node_exporter_running
+  changed_when: false
+  failed_when: false
+
+- name: Start stopped node_exporter container
+  command: docker start node_exporter
+  when: node_exporter_exists.stdout != "" and node_exporter_running.stdout == ""
+
+- name: Create node_exporter container
+  command: >-
+    docker run -d
+    --name node_exporter
+    --restart unless-stopped
+    --network host
+    --pid host
+    -v /proc:/host/proc:ro
+    -v /sys:/host/sys:ro
+    -v /:/rootfs:ro
+    {{ node_exporter_image }}
+    --path.procfs=/host/proc
+    --path.sysfs=/host/sys
+    --path.rootfs=/rootfs
+  when: node_exporter_exists.stdout == ""
+
+# --- prometheus (always recreate to pick up config/mount changes, data persists on host) ---
+
+- name: Create prometheus data directory
+  file:
+    path: "{{ observability_dir }}/prometheus-data"
+    state: directory
+    mode: '0777'
+    recurse: yes
+
+- name: Remove existing prometheus container
+  command: docker rm -f prometheus
+  failed_when: false
+
+- name: Start prometheus container
+  command: >-
+    docker run -d
+    --name prometheus
+    --restart unless-stopped
+    --network host
+    -v {{ observability_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    -v {{ observability_dir }}/prometheus-data:/prometheus
+    {{ prometheus_image }}
+    --config.file=/etc/prometheus/prometheus.yml
+    --storage.tsdb.retention.time=15d
+    --web.listen-address=0.0.0.0:{{ prometheus_port }}
+
+# --- promtail (always recreate to pick up config/mount changes) ---
+
+- name: Remove existing promtail container
+  command: docker rm -f promtail
+  failed_when: false
+
+- name: Start promtail container
+  command: >-
+    docker run -d
+    --name promtail
+    --restart unless-stopped
+    --network host
+    -v {{ observability_dir }}/promtail.yml:/etc/promtail/config.yml:ro
+    -v /var/run/docker.sock:/var/run/docker.sock:ro
+    -v /var/lib/docker/containers:/var/lib/docker/containers:ro
+    {{ promtail_image }}
+    -config.file=/etc/promtail/config.yml

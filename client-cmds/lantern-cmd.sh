@@ -20,11 +20,6 @@ if [ -n "$attestationCommitteeCount" ]; then
     attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
 fi
 
-# Set HTTP port (default to 5055 if not specified in validator-config.yaml)
-if [ -z "$httpPort" ]; then
-    httpPort="5055"
-fi
-
 # Set checkpoint sync URL when restarting with checkpoint sync
 checkpoint_sync_flag=""
 if [ -n "${checkpoint_sync_url:-}" ]; then
@@ -43,7 +38,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         --node-id $item --node-key-path $configDir/$privKeyPath \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
-        --http-port $httpPort \
+        --http-port $apiPort \
         --log-level info \
         --hash-sig-key-dir $configDir/hash-sig-keys \
         $attestation_committee_flag \
@@ -60,7 +55,7 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         --node-id $item --node-key-path /config/$privKeyPath \
         --listen-address /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
         --metrics-port $metricsPort \
-        --http-port $httpPort \
+        --http-port $apiPort \
         --log-level info \
         --hash-sig-key-dir /config/hash-sig-keys \
         $attestation_committee_flag \
