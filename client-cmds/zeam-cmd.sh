@@ -30,7 +30,8 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
-      --api-port $metricsPort \
+      --api-port $apiPort \
+      --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"
@@ -41,7 +42,8 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 node \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
       $metrics_flag \
-      --api-port $metricsPort \
+      --api-port $apiPort \
+      --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"

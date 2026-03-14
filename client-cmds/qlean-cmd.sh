@@ -44,7 +44,10 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
-      --prometheus-port $metricsPort \
+      --metrics-host 0.0.0.0 \
+      --metrics-port $metricsPort \
+      --api-host 0.0.0.0 \
+      --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag \
@@ -64,7 +67,7 @@ node_docker="$QLEAN_IMAGE \
       --metrics-host 0.0.0.0 \
       --metrics-port $metricsPort \
       --api-host 0.0.0.0 \
-      --api-port 5053 \
+      --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag \
