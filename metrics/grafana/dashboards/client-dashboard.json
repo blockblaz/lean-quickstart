@@ -1,4 +1,14 @@
 {
+  "__inputs": [
+    {
+      "name": "datasource",
+      "label": "prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
   "__elements": {},
   "__requires": [
     {
@@ -5465,7 +5475,11 @@
       },
       {
         "allowCustomValue": false,
-        "current": {},
+        "current": {
+          "text": "",
+          "value": "${datasource}",
+          "selected": true
+        },
         "name": "datasource",
         "options": [],
         "query": "prometheus",
