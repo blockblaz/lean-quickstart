@@ -33,7 +33,6 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true
     volumes:
-      - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
@@ -44,8 +43,6 @@ services:
 
 volumes:
   prometheus-data:
-    driver: local
-  grafana-data:
     driver: local
 
 networks:
