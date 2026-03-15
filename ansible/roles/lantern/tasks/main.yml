@@ -2,23 +2,31 @@
 # Lantern role: Deploy and manage Lantern nodes
 # Converts client-cmds/lantern-cmd.sh logic to Ansible tasks
 
-- name: Set lantern docker image
-  set_fact:
-    lantern_docker_image: "piertwo/lantern:v0.0.3"
-
-- name: Extract deployment mode from client-cmd.sh
+- name: Extract docker image from client-cmd.sh
   shell: |
-    # Extract the value from node_setup line
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_setup=' "$project_root/client-cmds/lantern-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
-  register: lantern_deployment_mode_raw
+    grep -E '^\s*docker_image=' "$project_root/client-cmds/lantern-cmd.sh" | head -1 | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | head -1
+  register: lantern_docker_image_raw
   changed_when: false
   delegate_to: localhost
   run_once: true
 
-- name: Set deployment mode from client-cmd.sh
+- name: Check user-config.yml for docker image override
+  shell: |
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    user_config="$project_root/user-config.yml"
+    if [ -f "$user_config" ]; then
+      yq eval ".{{ node_name }}.docker_image // \"\"" "$user_config"
+    fi
+  register: lantern_user_image_raw
+  changed_when: false
+  delegate_to: localhost
+  when: node_name is defined
+
+- name: Set docker image (user-config.yml override or default from client-cmd.sh)
   set_fact:
-    deployment_mode: "{{ lantern_deployment_mode_raw.stdout | trim | default('docker') }}"
+    lantern_docker_image: "{{ lantern_user_image_raw.stdout | trim if (lantern_user_image_raw.stdout | default('') | trim) not in ['', 'null'] else lantern_docker_image_raw.stdout | trim | default('piertwo/lantern:v0.0.3') }}"
+    deployment_mode: "docker"
 
 - name: Extract node configuration from validator-config.yaml
   shell: |

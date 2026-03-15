@@ -1,7 +1,9 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.3"
+if [ -z "$docker_image" ]; then
+    docker_image="piertwo/lantern:v0.0.3"
+fi
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
@@ -45,7 +47,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-node_docker="$LANTERN_IMAGE --data-dir /data \
+node_docker="$docker_image --data-dir /data \
         --genesis-config /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --genesis-state /config/genesis.ssz \
@@ -62,5 +64,6 @@ node_docker="$LANTERN_IMAGE --data-dir /data \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-# choose either binary or docker
-node_setup="docker"
+if [ -z "$node_setup" ]; then
+    node_setup="docker"
+fi

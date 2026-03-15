@@ -4,6 +4,9 @@ data
 *.old
 .DS_Store
 
+# User configuration files
+user-config.yml
+
 # Generated genesis files (created by generate-genesis.sh)
 config.yaml
 validators.yaml
