@@ -485,7 +485,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "lean_node_info{job=~\"$job\"}",
+          "expr": "last_over_time(lean_node_info{job=~\"$job\"}[1m])",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
