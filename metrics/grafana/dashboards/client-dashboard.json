@@ -8,6 +8,12 @@
       "version": "12.3.2"
     },
     {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
       "type": "datasource",
       "id": "prometheus",
       "name": "Prometheus",
@@ -17,6 +23,12 @@
       "type": "panel",
       "id": "stat",
       "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
       "version": ""
     },
     {
@@ -51,7 +63,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 0,
   "links": [],
   "panels": [
     {
@@ -70,7 +81,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -126,6 +137,10 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasourse}"
+          },
           "editorMode": "code",
           "exemplar": false,
           "expr": "max (lean_node_start_time_seconds{job=~\"$job\"} * 1000)",
@@ -141,7 +156,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -192,7 +207,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -209,7 +224,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -230,8 +245,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "dateTimeAsIso"
+          }
         },
         "overrides": []
       },
@@ -245,30 +259,34 @@
       "options": {
         "colorMode": "none",
         "graphMode": "none",
-        "justifyMode": "center",
+        "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": [],
           "fields": "",
           "values": false
         },
         "showPercentChange": false,
-        "text": {},
-        "textMode": "value",
+        "text": {
+          "valueSize": 30
+        },
+        "textMode": "name",
         "wideLayout": true
       },
       "pluginVersion": "12.3.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasourse}"
+          },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(lean_is_aggregator{job=~\"$job\"})",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
+          "expr": "max by(job) (lean_is_aggregator{job=~\"$job\"}) > 0",
+          "instant": true,
+          "legendFormat": "{{job}}",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -278,7 +296,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Number of validators attached to each node",
       "fieldConfig": {
@@ -351,7 +369,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -365,7 +383,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -388,7 +406,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -461,6 +479,10 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasourse}"
+          },
           "editorMode": "code",
           "exemplar": false,
           "expr": "lean_node_info{job=~\"$job\"}",
@@ -504,7 +526,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -555,7 +577,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -572,7 +594,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -623,7 +645,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -640,7 +662,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -691,7 +713,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -708,7 +730,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -794,7 +816,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "sum by (job)(lean_latest_finalized_slot{job=~\"$job\"})",
@@ -810,7 +832,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -896,7 +918,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": " sum by (job) (lean_latest_justified_slot{job=~\"$job\"})",
@@ -911,7 +933,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -997,7 +1019,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": " sum by (job) (lean_head_slot{job=~\"$job\"})",
@@ -1012,7 +1034,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1098,7 +1120,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": " sum by (job) (lean_current_slot{job=~\"$job\"})",
@@ -1113,7 +1135,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Total number of processed slots in state transition function",
       "fieldConfig": {
@@ -1175,7 +1197,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 23
       },
@@ -1198,7 +1220,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1216,7 +1238,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -1288,8 +1310,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 12,
+        "w": 8,
+        "x": 8,
         "y": 23
       },
       "id": 44,
@@ -1311,7 +1333,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1333,7 +1355,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -1403,8 +1425,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 18,
+        "w": 8,
+        "x": 16,
         "y": 23
       },
       "id": 90,
@@ -1426,7 +1448,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1462,7 +1484,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1550,7 +1572,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "avg_over_time(lean_head_slot{job=~\"$job\"}[5m]) - avg_over_time(lean_latest_finalized_slot{job=~\"$job\"}[5m])",
@@ -1566,7 +1588,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1654,7 +1676,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "avg_over_time(lean_head_slot{job=~\"$job\"}[5m]) - avg_over_time(lean_latest_justified_slot{job=~\"$job\"}[5m])",
@@ -1670,7 +1692,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1758,7 +1780,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "avg_over_time(lean_latest_justified_slot{job=~\"$job\"}[5m]) - avg_over_time(lean_latest_finalized_slot{job=~\"$job\"}[5m])",
@@ -1787,7 +1809,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1870,7 +1892,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": " sum by (job) (lean_connected_peers{job=~\"$job\"})",
@@ -1886,7 +1908,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1969,7 +1991,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1987,7 +2009,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -2071,7 +2093,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "sum by (job) (\n    increase(lean_peer_connection_events_total{job=~\"$job\"}[$__rate_interval])\n  )",
@@ -2087,7 +2109,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -2171,7 +2193,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "sum by (job) (\n    increase(lean_peer_disconnection_events_total{job=~\"$job\"}[$__rate_interval])\n  )",
@@ -2200,7 +2222,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Total number of individual attestation signatures",
       "fieldConfig": {
@@ -2285,7 +2307,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -2302,7 +2324,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Total number of valid individual attestation signatures",
       "fieldConfig": {
@@ -2387,7 +2409,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -2404,7 +2426,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Total number of invalid individual attestation signatures",
       "fieldConfig": {
@@ -2489,7 +2511,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -2506,7 +2528,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -2592,7 +2614,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -2609,7 +2631,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -2695,7 +2717,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -2712,7 +2734,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -2797,7 +2819,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -2814,7 +2836,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -2899,7 +2921,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -2916,7 +2938,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -3001,7 +3023,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -3018,7 +3040,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -3103,7 +3125,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -3120,7 +3142,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -3206,7 +3228,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -3223,7 +3245,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "",
       "fieldConfig": {
@@ -3309,7 +3331,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -3339,7 +3361,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Time taken to process block in fork-choice",
       "fieldConfig": {
@@ -3449,7 +3471,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, \n  rate(lean_fork_choice_block_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
@@ -3465,7 +3487,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Time taken to process block in fork-choice",
       "fieldConfig": {
@@ -3550,7 +3572,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, \n  rate(lean_committee_signatures_aggregation_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
@@ -3566,7 +3588,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3650,7 +3672,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "sum by (job) (\n  increase(lean_fork_choice_reorgs_total{job=~\"$job\"}[$__rate_interval])\n)",
@@ -3666,7 +3688,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3750,7 +3772,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "sum by (job) (\n  increase(lean_fork_choice_reorg_depth_bucket{job=~\"$job\"}[$__rate_interval])\n)",
@@ -3766,7 +3788,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3850,15 +3872,15 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": " sum by (job) (lean_gossip_signatures{job=~\"$job\"})",
-          "instant": true,
+          "expr": " avg_over_time (\n  sum by (job) (\n    (lean_gossip_signatures{job=~\"$job\"})\n  )[2m:]\n)",
+          "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
-          "range": false,
+          "range": true,
           "refId": "A"
         }
       ],
@@ -3868,7 +3890,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3952,15 +3974,15 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": " sum by (job) (lean_latest_new_aggregated_payloads{job=~\"$job\"})",
-          "instant": true,
+          "expr": "avg_over_time(\n  sum by (job) (\n   (lean_latest_new_aggregated_payloads{job=~\"$job\"})\n  )[2m:]\n)",
+          "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
-          "range": false,
+          "range": true,
           "refId": "A"
         }
       ],
@@ -3970,7 +3992,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -4054,15 +4076,15 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": " sum by (job) (lean_latest_known_aggregated_payloads{job=~\"$job\"})",
-          "instant": true,
+          "expr": "avg_over_time(\n  sum by (job) (\n   (lean_latest_known_aggregated_payloads{job=~\"$job\"})\n  )[1m:]\n)",
+          "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
-          "range": false,
+          "range": true,
           "refId": "A"
         }
       ],
@@ -4085,7 +4107,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -4169,12 +4191,12 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_attestations_valid_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
           "interval": "",
-          "legendFormat": "{{job}}",
+          "legendFormat": "{{job}} {{source}}",
           "range": true,
           "refId": "A"
         }
@@ -4185,7 +4207,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -4268,11 +4290,11 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "avg_over_time(\n  sum by (job) (increase(lean_attestations_invalid_total{job=~\"$job\"}[$__rate_interval]))[5m:]\n)",
-          "legendFormat": "{{job}}",
+          "legendFormat": "{{job}} {{source}}",
           "range": true,
           "refId": "A"
         }
@@ -4283,7 +4305,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -4367,7 +4389,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, rate(lean_attestation_validation_time_seconds_bucket{job=~\"$job\"}[$__rate_interval]))",
@@ -4382,7 +4404,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "fieldConfig": {
         "defaults": {
@@ -4466,7 +4488,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": " sum by (job) (lean_safe_target_slot{job=~\"$job\"})",
@@ -4481,7 +4503,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Total number of attestations processed in state transition function",
       "fieldConfig": {
@@ -4566,7 +4588,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -4583,7 +4605,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Time taken to process attestations in state transition function",
       "fieldConfig": {
@@ -4668,7 +4690,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99,\n rate(lean_state_transition_attestations_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
@@ -4678,6 +4700,205 @@
         }
       ],
       "title": "STF Attestations processing time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasourse}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 144
+      },
+      "id": 83,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasourse}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(lean_attestations_production_time_seconds_bucket{job=~\"$job\"}[$__rate_interval]))",
+          "interval": "",
+          "legendFormat": "{{job}} {{source}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Time taken to produce attestations",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasourse}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 144
+      },
+      "id": 84,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasourse}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(lean_committee_signatures_aggregation_time_seconds_bucket{job=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Time taken to aggregate committee signatures",
       "type": "timeseries"
     },
     {
@@ -4696,7 +4917,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Time taken to process state transition function",
       "fieldConfig": {
@@ -4781,7 +5002,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, \n  rate(lean_state_transition_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
@@ -4797,7 +5018,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Time taken to process block in state transition function",
       "fieldConfig": {
@@ -4882,7 +5103,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, \n  rate(lean_state_transition_block_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
@@ -4898,7 +5119,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Total number of processed slots in state transition function",
       "fieldConfig": {
@@ -4983,7 +5204,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "avg_over_time(\n  sum by (job) (increase(lean_state_transition_slots_processed_total{job=~\"$job\"}[$__rate_interval]))[5m:]\n)",
@@ -4998,7 +5219,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Time taken to process slots in state transition function",
       "fieldConfig": {
@@ -5083,7 +5304,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99,\n rate(lean_state_transition_slots_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
@@ -5098,7 +5319,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
+        "uid": "${datasourse}"
       },
       "description": "Total number of processed slots in state transition function",
       "fieldConfig": {
@@ -5183,7 +5404,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
+            "uid": "${datasourse}"
           },
           "editorMode": "code",
           "expr": "avg_over_time(\n  sum by (job) (increase(lean_finalizations_total{job=~\"$job\"}[$__rate_interval]))[5m:]\n)",
@@ -5196,10 +5417,6 @@
       "type": "timeseries"
     },
     {
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -5217,7 +5434,6 @@
         "mode": "markdown"
       },
       "pluginVersion": "12.3.2",
-      "title": "",
       "type": "text"
     }
   ],
@@ -5231,14 +5447,7 @@
     "list": [
       {
         "allowCustomValue": false,
-        "current": {
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
         "definition": "label_values(job)",
         "includeAll": true,
         "label": "Job",
@@ -5253,16 +5462,28 @@
         "refresh": 1,
         "regex": ".*ethlambda.*|.*gean.*|.*grandine.*|.*lantern.*|.*lighthouse.*|.*qlean.*|.*ream.*|.*zeam.*",
         "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {},
+        "name": "datasourse",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
       }
     ]
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "utc",
   "title": "Lean Ethereum Clients Dashboard",
   "uid": "lean-ethereum-clients-dashboard",
-  "version": 13
+  "version": 16,
+  "weekStart": "",
+  "id": null
 }
