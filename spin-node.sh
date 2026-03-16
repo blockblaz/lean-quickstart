@@ -77,6 +77,31 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
     exit 1
   fi
 
+  # Reject flags that have no meaning in prepare mode.
+  ignored_flags=()
+  [ -n "$node" ]                && ignored_flags+=("--node")
+  [ -n "$cleanData" ]           && ignored_flags+=("--cleanData")
+  [ -n "$generateGenesis" ]     && ignored_flags+=("--generateGenesis")
+  [ -n "$FORCE_KEYGEN_FLAG" ]   && ignored_flags+=("--forceKeyGen")
+  [ -n "$stopNodes" ]           && ignored_flags+=("--stop")
+  [ -n "$restartClient" ]       && ignored_flags+=("--restart-client")
+  [ -n "$checkpointSyncUrl" ]   && ignored_flags+=("--checkpoint-sync-url")
+  [ -n "$dockerTag" ]           && ignored_flags+=("--tag")
+  [ -n "$aggregatorNode" ]      && ignored_flags+=("--aggregator")
+  [ -n "$coreDumps" ]           && ignored_flags+=("--coreDumps")
+  [ -n "$enableMetrics" ]       && ignored_flags+=("--metrics")
+  [ -n "$popupTerminal" ]       && ignored_flags+=("--popupTerminal")
+  [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
+  [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
+  [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ] \
+                                && ignored_flags+=("--validatorConfig")
+
+  if [ ${#ignored_flags[@]} -gt 0 ]; then
+    echo "Error: --prepare does not accept the following flag(s): ${ignored_flags[*]}"
+    echo "Only --sshKey (or --private-key), --useRoot, and --deploymentMode are allowed with --prepare."
+    exit 1
+  fi
+
   if ! command -v ansible-playbook &> /dev/null; then
     echo "Error: ansible-playbook is not installed."
     echo "Install Ansible: brew install ansible (macOS) or pip install ansible"
