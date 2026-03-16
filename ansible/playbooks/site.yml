@@ -30,11 +30,12 @@
     genesis_dir: "{{ network_dir }}/genesis"
   when: not (skip_genesis | default(false) | bool)
 
-# Always run copy-genesis - it targets all:!local (remote hosts only)
+# Copy genesis to all remote hosts (skip when restarting a single node — deploy-nodes.yml syncs to the target)
 - name: Copy Genesis Files to Remote Hosts
   import_playbook: copy-genesis.yml
   vars:
     genesis_dir: "{{ network_dir }}/genesis"
+  when: not (skip_genesis | default(false) | bool)
 
 - name: Deploy Nodes
   import_playbook: deploy-nodes.yml

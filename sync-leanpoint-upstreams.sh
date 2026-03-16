@@ -84,7 +84,7 @@ fi
 
 out_file=$(mktemp)
 trap "rm -f $out_file" EXIT
-python3 "$convert_script" "$validator_config_file" "$out_file" || {
+python3 "$convert_script" "$validator_config_file" "$out_file" --quiet || {
   echo "Warning: convert-validator-config.py failed, skipping leanpoint sync."
   exit 0
 }

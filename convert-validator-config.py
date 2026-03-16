@@ -37,6 +37,7 @@ def convert_validator_config(
     output_path: str,
     base_port: int = 8081,
     docker_host: bool = False,
+    quiet: bool = False,
 ):
     """
     Convert validator-config.yaml to upstreams.json.
@@ -83,17 +84,18 @@ def convert_validator_config(
     with open(output_path, 'w') as f:
         json.dump(output, f, indent=2)
     
-    print(f"✅ Converted {len(upstreams)} validators to {output_path}")
-    print(f"\nGenerated upstreams:")
-    for u in upstreams:
-        print(f"  - {u['name']}: {u['url']}{u['path']}")
-    
-    print(f"\n💡 To use: leanpoint --upstreams-config {output_path}")
+    if not quiet:
+        print(f"✅ Converted {len(upstreams)} validators to {output_path}")
+        print(f"\nGenerated upstreams:")
+        for u in upstreams:
+            print(f"  - {u['name']}: {u['url']}{u['path']}")
+        print(f"\n💡 To use: leanpoint --upstreams-config {output_path}")
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a != "--docker"]
+    args = [a for a in sys.argv[1:] if a not in ("--docker", "--quiet")]
     docker_host = "--docker" in sys.argv
+    quiet = "--quiet" in sys.argv
 
     if len(args) < 2:
         if len(args) == 0:
@@ -109,7 +111,7 @@ def main():
         output_path = args[1]
 
     try:
-        convert_validator_config(yaml_path, output_path, docker_host=docker_host)
+        convert_validator_config(yaml_path, output_path, docker_host=docker_host, quiet=quiet)
     except FileNotFoundError as e:
         print(f"Error: File not found: {e}", file=sys.stderr)
         sys.exit(1)
