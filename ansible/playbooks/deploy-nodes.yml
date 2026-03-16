@@ -14,6 +14,9 @@
   hosts: localhost
   connection: local
   gather_facts: yes
+  tags:
+    - deploy
+    - observability
   vars:
     validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
 
@@ -201,16 +204,23 @@
     - name: Include common role
       include_role:
         name: common
-      vars:
-        node_names: "{{ [inventory_hostname] }}"
       tags:
         - setup
         - deploy
 
+    - name: Deploy observability stack
+      include_role:
+        name: observability
+        apply:
+          tags:
+            - observability
+            - deploy
+      tags:
+        - observability
+        - deploy
+
     - name: Deploy this node
       include_tasks: helpers/deploy-single-node.yml
-      vars:
-        node_name: "{{ inventory_hostname }}"
       tags:
         - deploy
 

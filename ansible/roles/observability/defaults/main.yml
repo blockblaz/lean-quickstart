@@ -1,0 +1,12 @@
+---
+observability_dir: "/opt/lean-quickstart/observability"
+cadvisor_image: "gcr.io/cadvisor/cadvisor:latest"
+node_exporter_image: "prom/node-exporter:latest"
+prometheus_image: "prom/prometheus:latest"
+promtail_image: "grafana/promtail:latest"
+prometheus_port: 9090
+promtail_port: 9080
+cadvisor_port: 9098
+node_exporter_port: 9100
+remote_write_url: "http://46.225.10.32:9090/api/v1/write"
+loki_push_url: "http://46.225.10.32:3100/loki/api/v1/push"

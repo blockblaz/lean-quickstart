@@ -3,7 +3,7 @@
 # 1. Clean data directories (if clean_data=true)
 # 2. Generate genesis files locally (including .key files)
 # 3. Copy genesis files to remote hosts
-# 4. Deploy nodes
+# 4. Deploy nodes (observability stack + lean node per host)
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml playbooks/site.yml \

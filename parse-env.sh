@@ -100,6 +100,10 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --skip-leanpoint)
+      skipLeanpoint=true
+      shift
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
@@ -139,3 +143,4 @@ echo "aggregatorNode = ${aggregatorNode:-<auto-select>}"
 echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"
+echo "skipLeanpoint = ${skipLeanpoint:-false}"

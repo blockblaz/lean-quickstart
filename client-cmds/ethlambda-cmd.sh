@@ -28,7 +28,8 @@ node_binary="$binary_path \
       --gossipsub-port $quicPort \
       --node-id $item \
       --node-key $configDir/$item.key \
-      --metrics-address 0.0.0.0 \
+      --http-address 0.0.0.0 \
+      --api-port $apiPort \
       --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
@@ -40,7 +41,8 @@ node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
       --gossipsub-port $quicPort \
       --node-id $item \
       --node-key /config/$item.key \
-      --metrics-address 0.0.0.0 \
+      --http-address 0.0.0.0 \
+      --api-port $apiPort \
       --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \

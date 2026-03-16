@@ -33,6 +33,7 @@ node_binary="$lighthouse_bin lean_node \
       $metrics_flag \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
+      --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"
@@ -49,6 +50,7 @@ node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
       $metrics_flag \
       --metrics-address 0.0.0.0 \
       --metrics-port $metricsPort \
+      --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag"

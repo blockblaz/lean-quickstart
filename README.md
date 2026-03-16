@@ -24,6 +24,7 @@ A single command line quickstart to spin up lean node(s)
 3. **yq**: YAML processor for automated configuration parsing
    - Install on macOS: `brew install yq`
    - Install on Linux: See [yq installation guide](https://github.com/mikefarah/yq#install)
+4. **Python 3 + PyYAML** (optional, for leanpoint upstreams sync): Required only if you use the automatic leanpoint upstreams sync (tooling server). Install with `pip install pyyaml` or `uv add pyyaml`.
 
 ## Quick Start
 
@@ -94,6 +95,54 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
 # The aggregator selection is applied automatically and the isAggregator flag
 # is updated in validator-config.yaml before nodes are started
 ```
+
+### Leanpoint deployment
+
+After validator nodes are spun up, leanpoint is deployed so it can monitor them. Behavior depends on deployment mode:
+
+- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at http://localhost:5555. The container is removed on Ctrl+C cleanup or when you run with `--stop`.
+- **Ansible/remote deployment**: Leanpoint is updated on the **tooling server**. The script rsyncs `upstreams.json` to the server, pulls the latest image there, and recreates the remote container.
+
+**What runs:**
+1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
+2. `sync-leanpoint-upstreams.sh` either deploys leanpoint locally (local devnet) or syncs to the tooling server and recreates the remote container (Ansible).
+
+**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+
+**SSH key for remote sync:** When using Ansible deployment, the tooling server may require a specific SSH key. Pass `--sshKey ~/.ssh/id_ed25519_github` (or `--private-key`) so the sync can succeed.
+
+**Skip via flag:** Pass `--skip-leanpoint` to `spin-node.sh` to skip leanpoint deployment (local and remote). Alternatively set `LEANPOINT_SYNC_DISABLED=1`, or the step is skipped when the convert script or validator config is missing.
+
+**Standalone use of convert script:** You can generate `upstreams.json` for local leanpoint without the tooling server:
+
+```sh
+# From lean-quickstart root
+python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml upstreams.json
+# With --docker for leanpoint in Docker reaching a host devnet:
+python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml upstreams-local-docker.json --docker
+```
+
+Requires Python 3 and PyYAML (`pip install pyyaml`).
+
+### Remote Observability Stack
+
+Every Ansible deployment automatically deploys an observability stack alongside each lean node on remote hosts. No additional flags are needed.
+
+**What gets deployed on each remote host:**
+- **cadvisor** - Container metrics
+- **node-exporter** - System metrics
+- **prometheus** - Scrape local targets, remote_write to central
+- **promtail** - Collect lean node container logs, push to Loki
+
+**How it works:**
+- The local prometheus on each host scrapes the lean node (at its `metricsPort`), cadvisor, node-exporter, and itself, then forwards all data to central prometheus via `remote_write`
+- Promtail discovers the lean node container via Docker socket and pushes logs to central Loki
+
+**Key properties:**
+- **Idempotent**: cadvisor and node-exporter are only started if not already running; prometheus and promtail only restart when their config files change
+- **Persistent**: observability containers are not stopped when lean nodes are stopped — they run independently
+- **Configurable**: central endpoints, images, and ports can be overridden in `ansible/roles/observability/defaults/main.yml`
+- **Remote config path**: `/opt/lean-quickstart/observability/` on each host
 
 ## Args
 
@@ -570,6 +619,7 @@ For more details, see the [Docker Desktop host networking documentation](https:/
 This quickstart includes automated configuration parsing:
 
 - **Official Genesis Generation**: Uses PK's `eth-beacon-genesis` docker tool from [PR #36](https://github.com/ethpandaops/eth-beacon-genesis/pull/36)
+- **Leanpoint upstreams sync**: After nodes are spun up, `convert-validator-config.py` and `sync-leanpoint-upstreams.sh` generate `upstreams.json` from `validator-config.yaml`, rsync it to the tooling server, and restart the leanpoint container (see [Leanpoint upstreams sync](#leanpoint-upstreams-sync-tooling-server))
 - **Complete File Set**: Generates `validators.yaml`, `nodes.yaml`, `genesis.json`, `genesis.ssz`, and `.key` files
 - **QUIC Port Detection**: Automatically extracts QUIC ports from `validator-config.yaml` using `yq`
 - **Node Detection**: Dynamically discovers available nodes from the validator configuration
