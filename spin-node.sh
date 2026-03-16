@@ -68,6 +68,32 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
+# Handle --prepare mode: verify and install required software on all remote servers.
+# Must run after deployment_mode is resolved but before genesis setup.
+if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
+  if [ "$deployment_mode" != "ansible" ]; then
+    echo "Error: --prepare can only be used in ansible mode."
+    echo "Set deployment_mode: ansible in your validator-config.yaml or pass --deploymentMode ansible"
+    exit 1
+  fi
+
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed."
+    echo "Install Ansible: brew install ansible (macOS) or pip install ansible"
+    exit 1
+  fi
+
+  echo "Preparing remote servers (verifying and installing required software)..."
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" ""; then
+    echo "❌ Server preparation failed."
+    exit 1
+  fi
+
+  echo "✅ All remote servers are prepared."
+  exit 0
+fi
+
 #1. setup genesis params and run genesis generator
 source "$(dirname $0)/set-up.sh"
 # ✅ Genesis generator implemented using PK's eth-beacon-genesis tool

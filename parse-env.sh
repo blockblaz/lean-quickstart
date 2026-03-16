@@ -104,14 +104,18 @@ while [[ $# -gt 0 ]]; do
       skipLeanpoint=true
       shift
       ;;
+    --prepare)
+      prepareMode=true
+      shift
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
   esac
 done
 
-# if no node and no restart-client specified, exit
-if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]];
+# if no node and no restart-client specified, exit (unless --prepare mode)
+if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]];
 then
   echo "no node or restart-client specified, exiting..."
   exit
