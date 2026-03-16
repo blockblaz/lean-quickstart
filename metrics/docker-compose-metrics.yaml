@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.8.0
     container_name: lean-prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:12.3.2
     container_name: lean-grafana
     ports:
       - "3000:3000"
@@ -33,7 +33,6 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true
     volumes:
-      - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
@@ -44,8 +43,6 @@ services:
 
 volumes:
   prometheus-data:
-    driver: local
-  grafana-data:
     driver: local
 
 networks:
