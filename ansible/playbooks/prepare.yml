@@ -1,7 +1,8 @@
 ---
-# Prepare playbook: Verify and install the software required to run lean nodes.
+# Prepare playbook: Verify and install the software required to run lean nodes,
+# then open and persist the firewall rules each host needs.
 #
-# Three things are needed on every remote server:
+# Three software prerequisites on every remote server:
 #
 #   1. python3       — Ansible requires Python on managed nodes before any task
 #                      can run. It cannot self-bootstrap this.
@@ -12,8 +13,21 @@
 #   3. yq            — the common role (which runs at every deploy) hard-fails if
 #                      `yq --version` is not available on the remote host.
 #
-# Everything else is either present on a stock Debian/Ubuntu server or is
-# installed automatically as a side-effect of the Docker apt repository setup.
+# Firewall rules opened per host (read from validator-config.yaml):
+#
+#   - quicPort  (UDP) — QUIC/P2P transport for inter-node communication
+#   - metricsPort (TCP) — Prometheus metrics scrape endpoint
+#   - apiPort / httpPort (TCP) — REST API
+#
+# Observability ports opened on every host (fixed, from observability role defaults):
+#
+#   - 9090/tcp  — prometheus
+#   - 9080/tcp  — promtail
+#   - 9098/tcp  — cadvisor
+#   - 9100/tcp  — node_exporter
+#
+# SSH (22/tcp) is always allowed before ufw is enabled to prevent lockout.
+# All rules are persisted by ufw on disk and survive reboots.
 #
 # Usage (via spin-node.sh):
 #   ./spin-node.sh --prepare [--sshKey ~/.ssh/id_ed25519] [--useRoot]
@@ -23,6 +37,10 @@
 - name: Prepare remote servers
   hosts: all:!localhost
   gather_facts: yes
+  vars:
+    # network_dir is passed as an extra var by run-ansible.sh; fall back to
+    # ansible-devnet relative to the playbook if running the playbook directly.
+    _genesis_dir: "{{ network_dir | default(playbook_dir + '/../../ansible-devnet') }}/genesis"
 
   tasks:
 
@@ -140,7 +158,98 @@
           become: yes
 
     # ──────────────────────────────────────────────────────────────────────────
-    # 4. Verification summary
+    # 4. Firewall rules (ufw)
+    #
+    # Ports are read from the local validator-config.yaml on the Ansible
+    # controller. Each host's inventory_hostname matches its node name
+    # (e.g. zeam_0, ream_0), so we select the right validator entry by name.
+    #
+    # Lantern uses httpPort instead of apiPort — both are handled via the
+    # default() chain.
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Install ufw
+      apt:
+        name: ufw
+        state: present
+      become: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Read per-node port configuration from validator-config.yaml
+      vars:
+        _vc: "{{ lookup('file', _genesis_dir + '/validator-config.yaml') | from_yaml }}"
+        _entry: "{{ _vc.validators | selectattr('name', 'equalto', inventory_hostname) | list | first | default({}) }}"
+      set_fact:
+        fw_quic_port:    "{{ _entry.enrFields.quic                                              | default(9001) | string }}"
+        fw_metrics_port: "{{ _entry.metricsPort                                                 | default(9095) | string }}"
+        fw_api_port:     "{{ _entry.apiPort | default(_entry.httpPort | default(5055))          | string }}"
+        fw_node_found:   "{{ (_entry | length) > 0 }}"
+
+    - name: Warn if node not found in validator-config.yaml
+      debug:
+        msg: >-
+          Warning: {{ inventory_hostname }} not found in validator-config.yaml.
+          Node-specific firewall rules will be skipped.
+      when: not fw_node_found | bool
+
+    # SSH must be allowed before enabling ufw, or we lock ourselves out.
+    - name: Allow SSH (22/tcp)
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        comment: "SSH"
+      become: yes
+
+    - name: Open QUIC P2P port (UDP)
+      ufw:
+        rule: allow
+        port: "{{ fw_quic_port }}"
+        proto: udp
+        comment: "lean-quickstart QUIC P2P ({{ inventory_hostname }})"
+      become: yes
+      when: fw_node_found | bool
+
+    - name: Open metrics port (TCP)
+      ufw:
+        rule: allow
+        port: "{{ fw_metrics_port }}"
+        proto: tcp
+        comment: "lean-quickstart metrics ({{ inventory_hostname }})"
+      become: yes
+      when: fw_node_found | bool
+
+    - name: Open API port (TCP)
+      ufw:
+        rule: allow
+        port: "{{ fw_api_port }}"
+        proto: tcp
+        comment: "lean-quickstart API ({{ inventory_hostname }})"
+      become: yes
+      when: fw_node_found | bool
+
+    - name: Open observability stack ports (TCP)
+      ufw:
+        rule: allow
+        port: "{{ item.port }}"
+        proto: tcp
+        comment: "{{ item.name }}"
+      become: yes
+      loop:
+        - { port: "9090", name: "prometheus" }
+        - { port: "9080", name: "promtail" }
+        - { port: "9098", name: "cadvisor" }
+        - { port: "9100", name: "node_exporter" }
+
+    - name: Enable ufw with default deny incoming (persists across reboots)
+      ufw:
+        state: enabled
+        default: deny
+        direction: incoming
+      become: yes
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 5. Verification summary
     # ──────────────────────────────────────────────────────────────────────────
 
     - name: Verify all required tools
@@ -156,6 +265,12 @@
       loop_control:
         label: "{{ item.name }}"
 
+    - name: Show firewall rules summary
+      command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+      become: yes
+
     - name: Print per-tool status
       debug:
         msg: >-
@@ -166,6 +281,10 @@
       loop: "{{ verify_results.results }}"
       loop_control:
         label: "{{ item.item.name }}"
+
+    - name: Print firewall status
+      debug:
+        msg: "{{ ufw_status.stdout_lines }}"
 
     - name: Fail if any required tool is still missing
       fail:

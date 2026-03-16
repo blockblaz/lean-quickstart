@@ -209,10 +209,11 @@ Every Ansible deployment automatically deploys an observability stack alongside 
    - Example: Without flag, a random node will be selected automatically
 13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
-15. `--prepare` verify and install the software required to run lean nodes on every remote server.
+15. `--prepare` verify and install the software required to run lean nodes on every remote server, and open + persist the necessary firewall ports.
    - **Ansible mode only** — fails with an error if `deployment_mode` is not `ansible`
    - Installs: `python3` (Ansible requirement), Docker CE + Compose plugin (all clients run as containers), `yq` (required by the `common` role at every deploy)
-   - Prints a per-tool, per-host status summary (`✅ ok` / `❌ missing`)
+   - Opens per-node ports (`quicPort`/UDP, `metricsPort`/TCP, `apiPort`/TCP) read from `validator-config.yaml`, plus fixed observability ports (9090, 9080, 9098, 9100). Enables `ufw` with default deny incoming (persisted across reboots).
+   - Prints a per-tool, per-host status summary (`✅ ok` / `❌ missing`) and `ufw status verbose`
    - `--node` is not required and is ignored; all other flags are also ignored except `--sshKey` and `--useRoot`
    - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot`
 
@@ -831,7 +832,9 @@ Fresh servers need Docker, build tools, and utilities installed before any lean 
 NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot
 ```
 
-The command runs `ansible/playbooks/prepare.yml` against all remote hosts in the inventory (localhost is excluded). It installs exactly what is required for lean-quickstart ansible deployments:
+The command runs `ansible/playbooks/prepare.yml` against all remote hosts in the inventory (localhost is excluded). It installs exactly what is required for lean-quickstart ansible deployments and opens the necessary firewall ports:
+
+**Software installed:**
 
 | Tool | Why it is needed |
 |---|---|
@@ -839,9 +842,26 @@ The command runs `ansible/playbooks/prepare.yml` against all remote hosts in the
 | Docker CE + `docker-compose-plugin` | Every node client and observability container runs via Docker |
 | `yq` | The `common` role hard-fails at every deploy if `yq` is absent on the remote |
 
-After each run, a per-host, per-tool summary is printed. The playbook fails if any tool remains unavailable, so you know immediately which servers need attention.
+**Firewall rules opened (via `ufw`):**
 
-Run `--prepare` again at any time — it is fully idempotent. Already-installed tools are skipped; only missing ones trigger installation.
+Each host's ports are read directly from `validator-config.yaml`, so only the ports actually configured for that node are opened:
+
+| Port | Protocol | Source |
+|---|---|---|
+| `quicPort` | UDP | Per-node — QUIC/P2P transport (e.g. 9001) |
+| `metricsPort` | TCP | Per-node — Prometheus scrape endpoint (e.g. 9095) |
+| `apiPort` / `httpPort` | TCP | Per-node — REST API (e.g. 5055) |
+| 9090 | TCP | Observability — Prometheus |
+| 9080 | TCP | Observability — Promtail |
+| 9098 | TCP | Observability — cAdvisor |
+| 9100 | TCP | Observability — Node Exporter |
+| 22 | TCP | SSH — always allowed before `ufw` is enabled |
+
+`ufw` is enabled with `default: deny incoming` and rules are written to disk, so they survive reboots. SSH (22/tcp) is explicitly allowed before `ufw` is activated to prevent lockout.
+
+After each run, a per-host software status summary and the full `ufw status verbose` output are printed. The playbook fails if any required tool is still missing.
+
+Run `--prepare` again at any time — it is fully idempotent. Already-installed tools and existing firewall rules are skipped.
 
 ### Remote Deployment
 
