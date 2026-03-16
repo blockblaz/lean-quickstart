@@ -37,6 +37,7 @@
   loop:
     - enrFields.quic
     - metricsPort
+    - apiPort
     - privkey
     - isAggregator
   when: node_name is defined
@@ -45,8 +46,9 @@
   set_fact:
     ream_quic_port: "{{ ream_node_config.results[0].stdout }}"
     ream_metrics_port: "{{ ream_node_config.results[1].stdout }}"
-    ream_privkey: "{{ ream_node_config.results[2].stdout }}"
-    ream_is_aggregator: "{{ 'true' if (ream_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
+    ream_api_port: "{{ ream_node_config.results[2].stdout }}"
+    ream_privkey: "{{ ream_node_config.results[3].stdout }}"
+    ream_is_aggregator: "{{ 'true' if (ream_node_config.results[4].stdout | default('') | trim) == 'true' else 'false' }}"
   when: ream_node_config is defined
 
 - name: Ensure node key file exists
@@ -100,6 +102,7 @@
         --metrics-address 0.0.0.0
         --metrics-port {{ ream_metrics_port }}
         --http-address 0.0.0.0
+        --http-port {{ ream_api_port }}
         {{ '--is-aggregator' if (ream_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ream_container

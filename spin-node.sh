@@ -255,7 +255,14 @@ if [ "$deployment_mode" == "ansible" ]; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
-  
+
+  if [ -z "$skipLeanpoint" ]; then
+    # Sync leanpoint upstreams to tooling server and restart remote container (no 5th arg = remote)
+    if ! "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
+      echo "Warning: leanpoint sync failed. If the tooling server requires a specific SSH key, run with: --sshKey <path-to-key>"
+    fi
+  fi
+
   # Ansible deployment succeeded, exit normally
   exit 0
 fi
@@ -303,6 +310,13 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     else
       docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
     fi
+  fi
+
+  # Stop local leanpoint container if running
+  if [ -n "$dockerWithSudo" ]; then
+    sudo docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
+  else
+    docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
   fi
 
   echo "✅ Local nodes stopped successfully!"
@@ -464,6 +478,16 @@ if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
   echo ""
 fi
 
+# Deploy leanpoint: locally (local devnet) or sync to tooling server (Ansible), unless --skip-leanpoint
+local_leanpoint_deployed=0
+if [ -z "$skipLeanpoint" ]; then
+  if "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
+    local_leanpoint_deployed=1
+  else
+    echo "Warning: leanpoint deploy failed. For remote sync, pass --sshKey <path-to-key> if the tooling server requires it."
+  fi
+fi
+
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
 
@@ -480,6 +504,12 @@ cleanup() {
   fi;
   echo "$execCmd"
   eval "$execCmd"
+
+  if [ "${local_leanpoint_deployed:-0}" = "1" ]; then
+    execCmd="docker rm -f leanpoint"
+    [ -n "$dockerWithSudo" ] && execCmd="sudo $execCmd"
+    eval "$execCmd" 2>/dev/null || true
+  fi
 
   # try for process ids
   execCmd="kill -9 $process_ids"

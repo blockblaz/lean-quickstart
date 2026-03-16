@@ -51,6 +51,12 @@ if [ -z "$httpPort" ] || [ "$httpPort" == "null" ]; then
     httpPort=""
 fi
 
+# Automatically extract API port using yq (optional - only some clients use it)
+apiPort=$(yq eval ".validators[] | select(.name == \"$item\") | .apiPort" "$validator_config_file")
+if [ -z "$apiPort" ] || [ "$apiPort" == "null" ]; then
+    apiPort=""
+fi
+
 # Automatically extract devnet using yq (optional - only ream uses it)
 devnet=$(yq eval ".validators[] | select(.name == \"$item\") | .devnet" "$validator_config_file")
 if [ -z "$devnet" ] || [ "$devnet" == "null" ]; then
@@ -111,6 +117,7 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
     echo "Metrics Port: $metricsPort"
+    echo "API Port: ${apiPort:-<not set>}"
     echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
     echo "Key Type: $keyType"
@@ -125,6 +132,7 @@ else
     echo "Node: $item"
     echo "QUIC Port: $quicPort"
     echo "Metrics Port: $metricsPort"
+    echo "API Port: ${apiPort:-<not set>}"
     echo "Devnet: ${devnet:-<not set>}"
     echo "Private Key File: $privKeyPath"
     echo "Is Aggregator: $isAggregator"
