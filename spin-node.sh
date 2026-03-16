@@ -97,8 +97,21 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
                                 && ignored_flags+=("--validatorConfig")
 
   if [ ${#ignored_flags[@]} -gt 0 ]; then
-    echo "Error: --prepare does not accept the following flag(s): ${ignored_flags[*]}"
-    echo "Only --sshKey (or --private-key), --useRoot, and --deploymentMode are allowed with --prepare."
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                        ❌  ERROR                            ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  --prepare does not accept the following flag(s):           ║"
+    for flag in "${ignored_flags[@]}"; do
+      printf  "║    %-60s║\n" "• $flag"
+    done
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  Allowed flags with --prepare:                              ║"
+    echo "║    • --sshKey / --private-key                               ║"
+    echo "║    • --useRoot                                              ║"
+    echo "║    • --deploymentMode ansible                               ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
     exit 1
   fi
 
