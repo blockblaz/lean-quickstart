@@ -158,7 +158,11 @@
           become: yes
 
     # ──────────────────────────────────────────────────────────────────────────
-    # 4. Firewall rules (ufw)
+    # 4. Firewall rules (iptables + ufw)
+    #
+    # iptables is the kernel-level packet filter; ufw is the management
+    # frontend that writes iptables rules and persists them across reboots.
+    # Both are checked and installed if absent before any rules are applied.
     #
     # Ports are read from the local validator-config.yaml on the Ansible
     # controller. Each host's inventory_hostname matches its node name
@@ -168,10 +172,25 @@
     # default() chain.
     # ──────────────────────────────────────────────────────────────────────────
 
-    - name: Install ufw
+    - name: Check if iptables is already installed
+      command: which iptables
+      register: iptables_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Check if ufw is already installed
+      command: which ufw
+      register: ufw_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Install iptables and ufw
       apt:
-        name: ufw
+        name:
+          - iptables
+          - ufw
         state: present
+        update_cache: "{{ 'yes' if (iptables_pre.rc != 0 or ufw_pre.rc != 0) else 'no' }}"
       become: yes
       when: ansible_os_family == "Debian"
 
@@ -260,6 +279,8 @@
         - { name: "docker",         cmd: "docker --version" }
         - { name: "docker compose", cmd: "docker compose version" }
         - { name: "yq",             cmd: "yq --version" }
+        - { name: "iptables",       cmd: "iptables --version" }
+        - { name: "ufw",            cmd: "ufw --version" }
       changed_when: false
       failed_when: false
       loop_control:
