@@ -243,13 +243,15 @@ echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
 
 # Snapshot which nodes already have isAggregator: true before we reset anything.
 # This lets us honour manual edits in the YAML when no --aggregator flag was passed.
-declare -A _preset_agg   # subnet_idx -> node_name
+# Uses dynamic variable names (_preset_agg_<subnet>) for bash 3.2 compatibility
+# (bash 3.2 ships with macOS and does not support declare -A).
 for _node in "${nodes[@]}"; do
   _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
   if [[ "$_is_agg" == "true" ]]; then
     _sn="$(_node_subnet "$_node")"
+    _varname="_preset_agg_${_sn}"
     # Keep the first preset aggregator found per subnet.
-    [[ -z "${_preset_agg[$_sn]:-}" ]] && _preset_agg["$_sn"]="$_node"
+    [[ -z "${!_varname:-}" ]] && printf -v "$_varname" '%s' "$_node"
   fi
 done
 
@@ -272,9 +274,9 @@ for _subnet_idx in "${_unique_subnets[@]}"; do
   if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
     # 1. Explicit --aggregator flag.
     _selected_agg="$aggregatorNode"
-  elif [ -n "${_preset_agg[$_subnet_idx]:-}" ]; then
+  elif _pv="_preset_agg_${_subnet_idx}"; [ -n "${!_pv:-}" ]; then
     # 2. A node had isAggregator: true in the config — respect the manual choice.
-    _preset="${_preset_agg[$_subnet_idx]}"
+    _preset="${!_pv}"
     # Validate the preset node is still in the active nodes list.
     _preset_valid=false
     for _n in "${_subnet_nodes[@]}"; do
