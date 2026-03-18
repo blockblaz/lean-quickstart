@@ -97,15 +97,15 @@ validators:
     isAggregator: false
     count: 1
 
-  # - name: "gean_0"
-  #   privkey: "df008e968231c25c3938d80fee9bcc93b4b9711312cf471c1b6f77e67ad68d08"
-  #   enrFields:
-  #     ip: "204.168.134.201"
-  #     quic: 9001
-  #   metricsPort: 9095
-  #   apiPort: 5055
-  #   isAggregator: false
-  #   count: 1
+  - name: "gean_0"
+    privkey: "df008e968231c25c3938d80fee9bcc93b4b9711312cf471c1b6f77e67ad68d08"
+    enrFields:
+      ip: "204.168.134.201"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
 
   # - name: "lean_node_0"
   #   privkey: "d94e3dc35e320440c891b66bd82d1aaf2079364162815b32c2633ecae009c84c"
