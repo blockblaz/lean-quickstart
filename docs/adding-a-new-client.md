@@ -67,7 +67,8 @@ validators:
   - name: "myclient_0"
     privkey: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
     enrFields:
-      ip: "203.0.113.42"     # Public IP of the server this node will run on
+      ip: "203.0.113.42"     # Public IP of the server this node will run on.
+                             # Contact the zeam team to get a server assigned for your client.
       quic: 9001             # Can reuse port 9001 if no other node is on this server
     metricsPort: 9095
     apiPort: 5055
