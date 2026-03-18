@@ -241,12 +241,25 @@ _unique_subnets=($(printf '%s\n' "${_subnet_indices[@]}" | sort -un))
 
 echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
 
-# Reset every node's isAggregator flag first (skipped in dry-run).
+# Snapshot which nodes already have isAggregator: true before we reset anything.
+# This lets us honour manual edits in the YAML when no --aggregator flag was passed.
+declare -A _preset_agg   # subnet_idx -> node_name
+for _node in "${nodes[@]}"; do
+  _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+  if [[ "$_is_agg" == "true" ]]; then
+    _sn="$(_node_subnet "$_node")"
+    # Keep the first preset aggregator found per subnet.
+    [[ -z "${_preset_agg[$_sn]:-}" ]] && _preset_agg["$_sn"]="$_node"
+  fi
+done
+
+# Reset every node's isAggregator flag (skipped in dry-run).
 if [ "$dryRun" != "true" ]; then
   yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
 fi
 
 # Select one aggregator per subnet and set the flag.
+# Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
 _aggregator_summary=()
 for _subnet_idx in "${_unique_subnets[@]}"; do
   _subnet_nodes=()
@@ -256,12 +269,27 @@ for _subnet_idx in "${_unique_subnets[@]}"; do
 
   _selected_agg=""
 
-  # Use the user-specified aggregator if it belongs to this subnet.
   if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
+    # 1. Explicit --aggregator flag.
     _selected_agg="$aggregatorNode"
+  elif [ -n "${_preset_agg[$_subnet_idx]:-}" ]; then
+    # 2. A node had isAggregator: true in the config — respect the manual choice.
+    _preset="${_preset_agg[$_subnet_idx]}"
+    # Validate the preset node is still in the active nodes list.
+    _preset_valid=false
+    for _n in "${_subnet_nodes[@]}"; do
+      [[ "$_n" == "$_preset" ]] && _preset_valid=true && break
+    done
+    if [[ "$_preset_valid" == "true" ]]; then
+      _selected_agg="$_preset"
+    else
+      # Preset node no longer exists — fall back to random and warn.
+      echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
+      _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
+    fi
   else
-    _n=${#_subnet_nodes[@]}
-    _selected_agg="${_subnet_nodes[$((RANDOM % _n))]}"
+    # 3. No preference set — pick randomly.
+    _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
   fi
 
   if [ "$dryRun" != "true" ]; then
