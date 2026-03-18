@@ -203,6 +203,9 @@ restart_with_checkpoint_sync=false
 
 # Aggregator selection — one randomly chosen aggregator per subnet.
 #
+# Skipped entirely for --restart-client: restarting a single node must not
+# disturb the existing isAggregator assignments for the rest of the network.
+#
 # Subnet membership is read from the explicit 'subnet:' field in the config,
 # which generate-subnet-config.py writes when --subnets N is used.
 # Nodes without a 'subnet' field (standard single-subnet configs) all
@@ -216,122 +219,131 @@ _node_subnet() {
   yq eval ".validators[] | select(.name == \"$1\") | .subnet // 0" "$validator_config_file"
 }
 
-# If --aggregator was given, validate it exists before doing anything else.
-if [ -n "$aggregatorNode" ]; then
-  aggregator_found=false
-  for available_node in "${nodes[@]}"; do
-    if [[ "$aggregatorNode" == "$available_node" ]]; then
-      aggregator_found=true
-      break
-    fi
-  done
-  if [[ "$aggregator_found" == false ]]; then
-    echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
-    echo "Available nodes: ${nodes[@]}"
-    exit 1
-  fi
-fi
+if [ -n "$restartClient" ]; then
+  echo "Note: skipping aggregator selection — --restart-client retains existing isAggregator assignments."
+  _aggregator_summary=()
+else
 
-# Collect unique subnet indices from the 'subnet' field (0 when absent).
-_subnet_indices=()
-for _node in "${nodes[@]}"; do
-  _subnet_indices+=("$(_node_subnet "$_node")")
-done
-_unique_subnets=($(printf '%s\n' "${_subnet_indices[@]}" | sort -un))
-
-echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
-
-# Snapshot which nodes already have isAggregator: true before we reset anything.
-# This lets us honour manual edits in the YAML when no --aggregator flag was passed.
-# Uses dynamic variable names (_preset_agg_<subnet>) for bash 3.2 compatibility
-# (bash 3.2 ships with macOS and does not support declare -A).
-for _node in "${nodes[@]}"; do
-  _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
-  if [[ "$_is_agg" == "true" ]]; then
-    _sn="$(_node_subnet "$_node")"
-    _varname="_preset_agg_${_sn}"
-    # Keep the first preset aggregator found per subnet.
-    [[ -z "${!_varname:-}" ]] && printf -v "$_varname" '%s' "$_node"
-  fi
-done
-
-# Reset every node's isAggregator flag (skipped in dry-run).
-if [ "$dryRun" != "true" ]; then
-  yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
-fi
-
-# Select one aggregator per subnet and set the flag.
-# Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
-_aggregator_summary=()
-for _subnet_idx in "${_unique_subnets[@]}"; do
-  _subnet_nodes=()
-  for _node in "${nodes[@]}"; do
-    [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]] && _subnet_nodes+=("$_node")
-  done
-
-  _selected_agg=""
-
-  if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
-    # 1. Explicit --aggregator flag.
-    _selected_agg="$aggregatorNode"
-  elif _pv="_preset_agg_${_subnet_idx}"; [ -n "${!_pv:-}" ]; then
-    # 2. A node had isAggregator: true in the config — respect the manual choice.
-    _preset="${!_pv}"
-    # Validate the preset node is still in the active nodes list.
-    _preset_valid=false
-    for _n in "${_subnet_nodes[@]}"; do
-      [[ "$_n" == "$_preset" ]] && _preset_valid=true && break
-    done
-    if [[ "$_preset_valid" == "true" ]]; then
-      _selected_agg="$_preset"
-    else
-      # Preset node no longer exists — fall back to random and warn.
-      echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
-      _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
-    fi
-  else
-    # 3. No preference set — pick randomly.
-    _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
-  fi
-
-  if [ "$dryRun" != "true" ]; then
-    yq eval -i "(.validators[] | select(.name == \"$_selected_agg\") | .isAggregator) = true" "$validator_config_file"
-  fi
-  _aggregator_summary+=("subnet $_subnet_idx → $_selected_agg")
-done
-
-# Verify the invariant: exactly 1 aggregator per subnet (skipped in dry-run).
-if [ "$dryRun" != "true" ]; then
-  _verify_failed=false
-  for _subnet_idx in "${_unique_subnets[@]}"; do
-    _agg_count=0
-    for _node in "${nodes[@]}"; do
-      if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
-        _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
-        [[ "$_is_agg" == "true" ]] && _agg_count=$((_agg_count + 1))
+  # If --aggregator was given, validate it exists before doing anything else.
+  if [ -n "$aggregatorNode" ]; then
+    aggregator_found=false
+    for available_node in "${nodes[@]}"; do
+      if [[ "$aggregatorNode" == "$available_node" ]]; then
+        aggregator_found=true
+        break
       fi
     done
-    if [ "$_agg_count" -ne 1 ]; then
-      echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
-      _verify_failed=true
+    if [[ "$aggregator_found" == false ]]; then
+      echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
+      echo "Available nodes: ${nodes[@]}"
+      exit 1
+    fi
+  fi
+
+  # Collect unique subnet indices from the 'subnet' field (0 when absent).
+  _subnet_indices=()
+  for _node in "${nodes[@]}"; do
+    _subnet_indices+=("$(_node_subnet "$_node")")
+  done
+  _unique_subnets=($(printf '%s\n' "${_subnet_indices[@]}" | sort -un))
+
+  echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
+
+  # Snapshot which nodes already have isAggregator: true before we reset anything.
+  # This lets us honour manual edits in the YAML when no --aggregator flag was passed.
+  # Uses dynamic variable names (_preset_agg_<subnet>) for bash 3.2 compatibility
+  # (bash 3.2 ships with macOS and does not support declare -A).
+  for _node in "${nodes[@]}"; do
+    _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+    if [[ "$_is_agg" == "true" ]]; then
+      _sn="$(_node_subnet "$_node")"
+      _varname="_preset_agg_${_sn}"
+      # Keep the first preset aggregator found per subnet.
+      [[ -z "${!_varname:-}" ]] && printf -v "$_varname" '%s' "$_node"
     fi
   done
-  if [ "$_verify_failed" == "true" ]; then
-    echo "Aggregator invariant check failed. Aborting." >&2
-    exit 1
-  fi
-fi
 
-# Print a prominent aggregator summary banner.
-echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║               🗳  Aggregator Selection                      ║"
-echo "╠══════════════════════════════════════════════════════════════╣"
-for _line in "${_aggregator_summary[@]}"; do
-  printf "║  %-60s║\n" "$_line"
-done
-echo "╚══════════════════════════════════════════════════════════════╝"
-echo ""
+  # Reset every node's isAggregator flag (skipped in dry-run).
+  if [ "$dryRun" != "true" ]; then
+    yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
+  fi
+
+  # Select one aggregator per subnet and set the flag.
+  # Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
+  _aggregator_summary=()
+  for _subnet_idx in "${_unique_subnets[@]}"; do
+    _subnet_nodes=()
+    for _node in "${nodes[@]}"; do
+      [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]] && _subnet_nodes+=("$_node")
+    done
+
+    _selected_agg=""
+
+    if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
+      # 1. Explicit --aggregator flag.
+      _selected_agg="$aggregatorNode"
+    elif _pv="_preset_agg_${_subnet_idx}"; [ -n "${!_pv:-}" ]; then
+      # 2. A node had isAggregator: true in the config — respect the manual choice.
+      _preset="${!_pv}"
+      # Validate the preset node is still in the active nodes list.
+      _preset_valid=false
+      for _n in "${_subnet_nodes[@]}"; do
+        [[ "$_n" == "$_preset" ]] && _preset_valid=true && break
+      done
+      if [[ "$_preset_valid" == "true" ]]; then
+        _selected_agg="$_preset"
+      else
+        # Preset node no longer exists — fall back to random and warn.
+        echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
+        _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
+      fi
+    else
+      # 3. No preference set — pick randomly.
+      _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
+    fi
+
+    if [ "$dryRun" != "true" ]; then
+      yq eval -i "(.validators[] | select(.name == \"$_selected_agg\") | .isAggregator) = true" "$validator_config_file"
+    fi
+    _aggregator_summary+=("subnet $_subnet_idx → $_selected_agg")
+  done
+
+  # Verify the invariant: exactly 1 aggregator per subnet (skipped in dry-run).
+  if [ "$dryRun" != "true" ]; then
+    _verify_failed=false
+    for _subnet_idx in "${_unique_subnets[@]}"; do
+      _agg_count=0
+      for _node in "${nodes[@]}"; do
+        if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
+          _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+          [[ "$_is_agg" == "true" ]] && _agg_count=$((_agg_count + 1))
+        fi
+      done
+      if [ "$_agg_count" -ne 1 ]; then
+        echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
+        _verify_failed=true
+      fi
+    done
+    if [ "$_verify_failed" == "true" ]; then
+      echo "Aggregator invariant check failed. Aborting." >&2
+      exit 1
+    fi
+  fi
+
+fi  # end: aggregator selection (skipped for --restart-client)
+
+# Print a prominent aggregator summary banner (only when aggregator selection ran).
+if [ ${#_aggregator_summary[@]} -gt 0 ]; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║               🗳  Aggregator Selection                      ║"
+  echo "╠══════════════════════════════════════════════════════════════╣"
+  for _line in "${_aggregator_summary[@]}"; do
+    printf "║  %-60s║\n" "$_line"
+  done
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+fi
 
 # When --restart-client is specified, use it as the node list and enable checkpoint sync mode
 if [[ -n "$restartClient" ]]; then
