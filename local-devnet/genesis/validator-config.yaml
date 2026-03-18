@@ -92,10 +92,11 @@ validators:
     count: 1
 
   - name: "gean_0"
-    privkey: "1f2e3d4c5b6a79888796a5b4c3d2e1f00112233445566778899aabbccddeeff0"
+    privkey: "5e4f4cd02d1c06f715e02ca9939e22ecbca063ad188e080cda4f0786f50367a0"
     enrFields:
       ip: "127.0.0.1"
       quic: 9008
     metricsPort: 8088
+    apiPort: 5052
     isAggregator: false
     count: 1

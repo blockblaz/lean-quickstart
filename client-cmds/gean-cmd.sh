@@ -31,9 +31,10 @@ node_binary="$gean_bin \
       --node-id \"$item\" \
       --node-key \"$configDir/$privKeyPath\" \
       --validator-keys \"$configDir/hash-sig-keys\" \
-      --listen-addr "/ip4/0.0.0.0/udp/$quicPort/quic-v1" \
-      --discovery-port $((quicPort + 100)) \
-      --devnet-id \"${devnet:-devnet3}\" \
+      --listen-addr \"/ip4/0.0.0.0/udp/$quicPort/quic-v1\" \
+      --discovery-port $quicPort \
+      --devnet-id \"${devnet:-devnet0}\" \
+      --api-port $apiPort \
       $metrics_flag \
       $attestation_committee_flag \
       $aggregator_flag"
@@ -48,8 +49,9 @@ node_docker="ghcr.io/geanlabs/gean:devnet3 \
       --node-key /config/$privKeyPath \
       --validator-keys /config/hash-sig-keys \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
-      --discovery-port $((quicPort + 100)) \
-      --devnet-id ${devnet:-devnet3} \
+      --discovery-port $quicPort \
+      --devnet-id ${devnet:-devnet0} \
+      --api-port $apiPort \
       $metrics_flag \
       $attestation_committee_flag \
       $aggregator_flag"
