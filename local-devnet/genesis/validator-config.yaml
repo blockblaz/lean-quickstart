@@ -97,6 +97,6 @@ validators:
       ip: "127.0.0.1"
       quic: 9008
     metricsPort: 8088
-    apiPort: 5052
+    apiPort: 5058
     isAggregator: false
     count: 1
