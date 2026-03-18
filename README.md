@@ -336,8 +336,11 @@ Current following clients are supported:
 4. Lantern
 5. Lighthouse
 6. Grandine
+7. Ethlambda
 
-However adding a lean client to this setup is very easy. Feel free to do the PR or reach out to the maintainers.
+Adding a new client requires 6 small, well-defined steps. See the full integration guide:
+
+📖 **[Adding a New Client](docs/adding-a-new-client.md)**
 
 ## How It Works
 
