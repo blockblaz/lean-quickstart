@@ -103,6 +103,7 @@
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
         --port {{ grandine_quic_port }}
+        --address 0.0.0.0
         --hash-sig-key-dir /config/hash-sig-keys
         --http-address 0.0.0.0
         --http-port {{ grandine_api_port }}
