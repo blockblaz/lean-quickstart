@@ -203,14 +203,18 @@ restart_with_checkpoint_sync=false
 
 # Aggregator selection — one randomly chosen aggregator per subnet.
 #
-# Subnet membership is derived from the numeric suffix of each node name:
-#   zeam_0  → subnet 0
-#   zeam_1  → subnet 1
-# Without --subnets all nodes carry suffix _0, so a single aggregator is
-# selected as before.
+# Subnet membership is read from the explicit 'subnet:' field in the config,
+# which generate-subnet-config.py writes when --subnets N is used.
+# Nodes without a 'subnet' field (standard single-subnet configs) all
+# default to subnet 0 regardless of their name suffix.
 #
 # When --aggregator is specified, that node is used as the aggregator for
 # its own subnet; all other subnets still get a random selection.
+
+# Helper: get the subnet index for a node from the config (defaults to 0).
+_node_subnet() {
+  yq eval ".validators[] | select(.name == \"$1\") | .subnet // 0" "$validator_config_file"
+}
 
 # If --aggregator was given, validate it exists before doing anything else.
 if [ -n "$aggregatorNode" ]; then
@@ -228,10 +232,10 @@ if [ -n "$aggregatorNode" ]; then
   fi
 fi
 
-# Collect unique subnet indices (the part after the last '_' in each name).
+# Collect unique subnet indices from the 'subnet' field (0 when absent).
 _subnet_indices=()
 for _node in "${nodes[@]}"; do
-  _subnet_indices+=("${_node##*_}")
+  _subnet_indices+=("$(_node_subnet "$_node")")
 done
 _unique_subnets=($(printf '%s\n' "${_subnet_indices[@]}" | sort -un))
 
@@ -247,13 +251,13 @@ _aggregator_summary=()
 for _subnet_idx in "${_unique_subnets[@]}"; do
   _subnet_nodes=()
   for _node in "${nodes[@]}"; do
-    [[ "${_node##*_}" == "$_subnet_idx" ]] && _subnet_nodes+=("$_node")
+    [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]] && _subnet_nodes+=("$_node")
   done
 
   _selected_agg=""
 
   # Use the user-specified aggregator if it belongs to this subnet.
-  if [ -n "$aggregatorNode" ] && [[ "${aggregatorNode##*_}" == "$_subnet_idx" ]]; then
+  if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
     _selected_agg="$aggregatorNode"
   else
     _n=${#_subnet_nodes[@]}
@@ -272,7 +276,7 @@ if [ "$dryRun" != "true" ]; then
   for _subnet_idx in "${_unique_subnets[@]}"; do
     _agg_count=0
     for _node in "${nodes[@]}"; do
-      if [[ "${_node##*_}" == "$_subnet_idx" ]]; then
+      if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
         _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
         [[ "$_is_agg" == "true" ]] && _agg_count=$((_agg_count + 1))
       fi
