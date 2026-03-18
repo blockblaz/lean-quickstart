@@ -4,28 +4,30 @@
 
 - name: Extract docker image from client-cmd.sh
   shell: |
-    # Extract the docker image from QLEAN_IMAGE line (may be indented inside if/else)
+    # Extract default docker image from docker_image= lines (may be inside if/else)
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^\s*QLEAN_IMAGE=' "$project_root/client-cmds/qlean-cmd.sh" | head -1 | sed -E 's/.*QLEAN_IMAGE="([^"]+)".*/\1/'
+    grep -E '^\s*docker_image=' "$project_root/client-cmds/qlean-cmd.sh" | head -1 | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | head -1
   register: qlean_docker_image_raw
   changed_when: false
   delegate_to: localhost
   run_once: true
 
-- name: Extract deployment mode from client-cmd.sh
+- name: Check user-config.yml for docker image override
   shell: |
-    # Extract the value from node_setup line
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_setup=' "$project_root/client-cmds/qlean-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
-  register: qlean_deployment_mode_raw
+    user_config="$project_root/user-config.yml"
+    if [ -f "$user_config" ]; then
+      yq eval ".{{ node_name }}.docker_image // \"\"" "$user_config"
+    fi
+  register: qlean_user_image_raw
   changed_when: false
   delegate_to: localhost
-  run_once: true
+  when: node_name is defined
 
-- name: Set docker image and deployment mode from client-cmd.sh
+- name: Set docker image (user-config.yml override or default from client-cmd.sh)
   set_fact:
-    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:latest') }}"
-    deployment_mode: "{{ qlean_deployment_mode_raw.stdout | trim | default('docker') }}"
+    qlean_docker_image: "{{ qlean_user_image_raw.stdout | trim if (qlean_user_image_raw.stdout | default('') | trim) not in ['', 'null'] else qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:latest') }}"
+    deployment_mode: "docker"
 
 - name: Extract node configuration from validator-config.yaml
   shell: |

@@ -456,6 +456,30 @@ for item in "${spin_nodes[@]}"; do
     unset checkpoint_sync_url 2>/dev/null || true
   fi
 
+  # Apply user-config.yml overrides BEFORE sourcing client-cmd
+  # Client-cmd scripts respect these via ${var:-default} pattern
+  unset docker_image
+  unset node_setup
+  user_config="$scriptDir/user-config.yml"
+  if [ -f "$user_config" ]; then
+    user_run_mode=$(yq eval ".$item.run_mode // \"\"" "$user_config" 2>/dev/null)
+    if [ -n "$user_run_mode" ] && [ "$user_run_mode" != "null" ]; then
+      if [ "$user_run_mode" == "docker" ] || [ "$user_run_mode" == "binary" ]; then
+        node_setup="$user_run_mode"
+        echo "  user-config.yml: run_mode=$user_run_mode for $item"
+      else
+        echo "Error: user-config.yml: invalid run_mode '$user_run_mode' for $item (expected: docker or binary)"
+        exit 1
+      fi
+    fi
+
+    user_docker_image=$(yq eval ".$item.docker_image // \"\"" "$user_config" 2>/dev/null)
+    if [ -n "$user_docker_image" ] && [ "$user_docker_image" != "null" ]; then
+      docker_image="$user_docker_image"
+      echo "  user-config.yml: docker_image=$docker_image for $item"
+    fi
+  fi
+
   # get client specific cmd and its mode (docker, binary)
   sourceCmd="source client-cmds/$client-cmd.sh"
   echo "$sourceCmd"
