@@ -29,6 +29,7 @@ action="$8"   # Action: "stop" to stop nodes, otherwise deploy
 coreDumps="$9"  # Core dump configuration: "all", node names, or client types
 skipGenesis="${10}"  # Set to "true" to skip genesis generation (e.g. when restarting with checkpoint sync)
 checkpointSyncUrl="${11}"  # URL for checkpoint sync (when restarting with --restart-client)
+dryRun="${12}"  # Set to "true" to run Ansible with --check --diff (no changes applied)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -110,6 +111,11 @@ if [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ]; th
   EXTRA_VARS="$EXTRA_VARS validator_config=$validatorConfig"
 fi
 
+# Pass the basename of the active validator config file so deploy-nodes.yml
+# can sync the correct file (e.g. validator-config-subnets-2.yaml) to remotes.
+validator_config_basename=$(basename "$validator_config_file")
+EXTRA_VARS="$EXTRA_VARS validator_config_basename=$validator_config_basename"
+
 if [ -n "$coreDumps" ]; then
   EXTRA_VARS="$EXTRA_VARS enable_core_dumps=$coreDumps"
 fi
@@ -152,6 +158,11 @@ ANSIBLE_CMD="$ANSIBLE_CMD -i $INVENTORY_FILE"
 ANSIBLE_CMD="$ANSIBLE_CMD $PLAYBOOK"
 ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
 
+# Dry-run: show what Ansible would change without applying anything.
+if [ "$dryRun" == "true" ]; then
+  ANSIBLE_CMD="$ANSIBLE_CMD --check --diff"
+fi
+
 echo "Running Ansible playbook for $ACTION_MSG..."
 echo "Command: $ANSIBLE_CMD"
 echo ""
@@ -161,14 +172,16 @@ cd "$ANSIBLE_DIR"
 eval $ANSIBLE_CMD
 
 EXIT_CODE=$?
+_dry_tag=""
+[ "$dryRun" == "true" ] && _dry_tag=" (dry-run — no changes applied)"
 if [ $EXIT_CODE -eq 0 ]; then
   echo ""
   if [ "$action" == "stop" ]; then
-    echo "✅ Ansible stop operation completed successfully!"
+    echo "✅ Ansible stop operation completed successfully!${_dry_tag}"
   elif [ "$action" == "prepare" ]; then
-    echo "✅ Server preparation completed successfully!"
+    echo "✅ Server preparation completed successfully!${_dry_tag}"
   else
-    echo "✅ Ansible deployment completed successfully!"
+    echo "✅ Ansible deployment completed successfully!${_dry_tag}"
   fi
 else
   echo ""

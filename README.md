@@ -212,10 +212,17 @@ Every Ansible deployment automatically deploys an observability stack alongside 
 15. `--prepare` verify and install the software required to run lean nodes on every remote server, and open + persist the necessary firewall ports.
    - **Ansible mode only** — fails with an error if `deployment_mode` is not `ansible`
    - Installs: `python3` (Ansible requirement), Docker CE + Compose plugin (all clients run as containers), `yq` (required by the `common` role at every deploy)
-   - Opens per-node ports (`quicPort`/UDP, `metricsPort`/TCP, `apiPort`/TCP) read from `validator-config.yaml`, plus fixed observability ports (9090, 9080, 9098, 9100). Enables `ufw` with default deny incoming (persisted across reboots).
+   - Opens per-node ports (`quicPort`/UDP, `metricsPort`/TCP, `apiPort`/TCP) read from the active validator config, plus fixed observability ports (9090, 9080, 9098, 9100). With `--subnets N`, all N nodes' port ranges are opened per host. Enables `ufw` with default deny incoming (persisted across reboots).
    - Prints a per-tool, per-host status summary (`✅ ok` / `❌ missing`) and `ufw status verbose`
-   - `--node` is not required and is ignored; all other flags are also ignored except `--sshKey` and `--useRoot`
+   - `--node` is not required; passing unsupported flags alongside `--prepare` produces a prominent error — only `--sshKey` and `--useRoot` are accepted
    - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot`
+16. `--subnets N` expand the validator config to deploy N nodes of each client on the same server, where N is 1–5.
+   - Generates `validator-config-subnets-N.yaml` from the template (without modifying the original)
+   - Each subnet node gets a unique name (`{client}_0`, `{client}_1`, …), ports incremented by the subnet index, and a fresh P2P identity key for subnets > 0
+   - Subnet assignment rule: each server contributes **exactly one node per subnet** — nodes on the same server are never in the same subnet
+   - Every subnet contains the same set of client types
+   - `N=1` renames nodes to `{client}_0` with no port changes (useful for canonical naming)
+   - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 --sshKey ~/.ssh/id_ed25519 --useRoot`
 
 ### Preparing remote servers
 
@@ -237,13 +244,50 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 -
 
 **Constraints:**
 - Only works in ansible mode (`deployment_mode: ansible` in your config, or `--deploymentMode ansible`)
-- Any other flags (e.g., `--node`, `--generateGenesis`) are silently ignored — only `--sshKey` and `--useRoot` are used
+- Passing unsupported flags (e.g. `--node`, `--generateGenesis`) alongside `--prepare` produces a prominent error — only `--sshKey` and `--useRoot` are accepted
 - `--node` is not required; the playbook runs on all remote hosts in the inventory
 
 Once preparation succeeds, proceed with the normal deploy command:
 
 ```sh
 NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+### Deploying multiple subnets
+
+Use `--subnets N` to run N independent copies of each client on the same server. This is useful for testing multi-subnet P2P scenarios without provisioning additional machines.
+
+```sh
+# Deploy 3 subnets of every client (ansible)
+NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 \
+  --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+**How it works:**
+
+`--subnets N` generates `validator-config-subnets-N.yaml` from the template (the original file is never modified). For each client in the template it creates N entries:
+
+| Subnet index | Name | quicPort | metricsPort | apiPort |
+|---|---|---|---|---|
+| 0 | `zeam_0` | base | base | base |
+| 1 | `zeam_1` | base+1 | base+1 | base+1 |
+| … | … | … | … | … |
+| N-1 | `zeam_N-1` | base+N-1 | base+N-1 | base+N-1 |
+
+**Rules enforced:**
+- `N` must be between 1 and 5
+- Each server contributes exactly one node per subnet (nodes on the same server are never in the same subnet)
+- Every subnet contains the same set of client types
+- Each node beyond subnet 0 gets a fresh P2P identity key
+
+**Running `--prepare` with subnets:**
+
+Always run `--prepare` with the same `--subnets N` value before deploying, so the firewall opens all N port ranges per host:
+
+```sh
+# Prepare firewall for 3 subnets
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --subnets 3 \
+  --sshKey ~/.ssh/id_ed25519 --useRoot
 ```
 
 ### Checkpoint sync
@@ -804,7 +848,7 @@ ansible/
 │       └── all.yml           # Global variables
 ├── playbooks/
 │   ├── site.yml             # Main playbook (clean + copy genesis + deploy)
-│   ├── prepare.yml          # Bootstrap: install Docker, build-essential, yq, etc.
+│   ├── prepare.yml          # Bootstrap: install Docker CE, yq; open firewall ports
 │   ├── clean-node-data.yml  # Clean node data directories
 │   ├── generate-genesis.yml # Generate genesis files
 │   ├── copy-genesis.yml     # Copy genesis files to remote hosts
@@ -844,13 +888,13 @@ The command runs `ansible/playbooks/prepare.yml` against all remote hosts in the
 
 **Firewall rules opened (via `ufw`):**
 
-Each host's ports are read directly from `validator-config.yaml`, so only the ports actually configured for that node are opened:
+Ports are read from the active validator config (the `--subnets`-expanded file when `--subnets N` is used, or `validator-config.yaml` otherwise). Entries are matched by IP address, so all N subnet nodes on a server are found and all their ports are opened:
 
 | Port | Protocol | Source |
 |---|---|---|
-| `quicPort` | UDP | Per-node — QUIC/P2P transport (e.g. 9001) |
-| `metricsPort` | TCP | Per-node — Prometheus scrape endpoint (e.g. 9095) |
-| `apiPort` / `httpPort` | TCP | Per-node — REST API (e.g. 5055) |
+| `quicPort` … `quicPort+N-1` | UDP | Per-node — QUIC/P2P transport (e.g. 9001–9003 for N=3) |
+| `metricsPort` … `metricsPort+N-1` | TCP | Per-node — Prometheus scrape endpoint |
+| `apiPort`/`httpPort` … `+N-1` | TCP | Per-node — REST API |
 | 9090 | TCP | Observability — Prometheus |
 | 9080 | TCP | Observability — Promtail |
 | 9098 | TCP | Observability — cAdvisor |

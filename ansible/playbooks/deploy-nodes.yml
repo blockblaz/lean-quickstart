@@ -122,7 +122,10 @@
 
     - name: Sync validator-config.yaml to remote host
       copy:
-        src: "{{ local_genesis_dir }}/validator-config.yaml"
+        # Use the expanded subnet config when --subnets was specified; fall back
+        # to the standard validator-config.yaml otherwise. The destination is
+        # always validator-config.yaml so client roles don't need to change.
+        src: "{{ local_genesis_dir }}/{{ validator_config_basename | default('validator-config.yaml') }}"
         dest: "{{ genesis_dir }}/validator-config.yaml"
         mode: '0644'
         force: yes
