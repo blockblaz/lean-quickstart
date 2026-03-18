@@ -68,6 +68,70 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
+# Handle --prepare mode: verify and install required software on all remote servers.
+# Must run after deployment_mode is resolved but before genesis setup.
+if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
+  if [ "$deployment_mode" != "ansible" ]; then
+    echo "Error: --prepare can only be used in ansible mode."
+    echo "Set deployment_mode: ansible in your validator-config.yaml or pass --deploymentMode ansible"
+    exit 1
+  fi
+
+  # Reject flags that have no meaning in prepare mode.
+  ignored_flags=()
+  [ -n "$node" ]                && ignored_flags+=("--node")
+  [ -n "$cleanData" ]           && ignored_flags+=("--cleanData")
+  [ -n "$generateGenesis" ]     && ignored_flags+=("--generateGenesis")
+  [ -n "$FORCE_KEYGEN_FLAG" ]   && ignored_flags+=("--forceKeyGen")
+  [ -n "$stopNodes" ]           && ignored_flags+=("--stop")
+  [ -n "$restartClient" ]       && ignored_flags+=("--restart-client")
+  [ -n "$checkpointSyncUrl" ]   && ignored_flags+=("--checkpoint-sync-url")
+  [ -n "$dockerTag" ]           && ignored_flags+=("--tag")
+  [ -n "$aggregatorNode" ]      && ignored_flags+=("--aggregator")
+  [ -n "$coreDumps" ]           && ignored_flags+=("--coreDumps")
+  [ -n "$enableMetrics" ]       && ignored_flags+=("--metrics")
+  [ -n "$popupTerminal" ]       && ignored_flags+=("--popupTerminal")
+  [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
+  [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
+  [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ] \
+                                && ignored_flags+=("--validatorConfig")
+
+  if [ ${#ignored_flags[@]} -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                        ❌  ERROR                            ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  --prepare does not accept the following flag(s):           ║"
+    for flag in "${ignored_flags[@]}"; do
+      printf  "║    %-60s║\n" "• $flag"
+    done
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  Allowed flags with --prepare:                              ║"
+    echo "║    • --sshKey / --private-key                               ║"
+    echo "║    • --useRoot                                              ║"
+    echo "║    • --deploymentMode ansible                               ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
+
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed."
+    echo "Install Ansible: brew install ansible (macOS) or pip install ansible"
+    exit 1
+  fi
+
+  echo "Preparing remote servers (verifying and installing required software)..."
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" ""; then
+    echo "❌ Server preparation failed."
+    exit 1
+  fi
+
+  echo "✅ All remote servers are prepared."
+  exit 0
+fi
+
 #1. setup genesis params and run genesis generator
 source "$(dirname $0)/set-up.sh"
 # ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
