@@ -110,3 +110,7 @@
         msg: "Container {{ node_name }} not found (may already be stopped)"
       when: container_check.stdout != node_name
 
+    - name: Clean node data directory
+      raw: rm -rf {{ remote_data_dir | default('/opt/lean-quickstart/data') }}/{{ node_name }}
+      when: clean_data | default(false) | bool
+

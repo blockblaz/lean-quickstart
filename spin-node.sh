@@ -7,6 +7,9 @@ if [ "$scriptDir" == "." ]; then
   scriptDir="$currentDir"
 fi
 
+# Save original args before parse-env.sh shifts them
+_original_args="$*"
+
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
@@ -73,17 +76,14 @@ if [ "$enableLogs" == "true" ]; then
     _log_dir="$scriptDir/tmp"
     mkdir -p "$_log_dir"
     _log_start=$(date -u +%s)
-    _log_args="$*"
     if [ "$deployment_mode" == "ansible" ]; then
         _log_prefix="ansible-run"
     else
         _log_prefix="local-run"
     fi
     _log_file="$_log_dir/${_log_prefix}-$(date -u '+%d-%m-%Y-%H-%M').log"
-    echo "$(date -u '+%Y-%m-%d %H:%M:%S') START spin-node.sh $_log_args" >> "$_log_dir/devnet.log"
-    # Store relative log path for devnet.log END entry (e.g. tmp/ansible-run-11-03-2026-14-30.log)
-    _log_file_rel="${_log_file#$scriptDir/}"
-    trap 'echo "$(date -u '\''+%Y-%m-%d %H:%M:%S'\'') END   spin-node.sh ($(( $(date -u +%s) - _log_start ))s) -> '"$_log_file_rel"'" >> "'"$_log_dir"'/devnet.log"' EXIT
+    echo "$(date -u '+%Y-%m-%d %H:%M:%S') START spin-node.sh $_original_args" >> "$_log_dir/devnet.log"
+    trap 'echo "$(date -u '\''+%Y-%m-%d %H:%M:%S'\'') END   spin-node.sh ($(( $(date -u +%s) - _log_start ))s) -> '"$_log_file"'" >> "'"$_log_dir"'/devnet.log"' EXIT
     exec > >(tee -a "$_log_file") 2>&1
     echo "Logging to $_log_file"
 fi
@@ -185,23 +185,27 @@ if [[ -n "$restartClient" ]]; then
   node_present=true
 
   # --- Handle --replace-with: swap client implementations ---
+  # Uses parallel arrays (bash 3.x compatible, no associative arrays)
   if [[ -n "$replaceWith" ]]; then
     IFS=',' read -r -a replace_nodes <<< "$replaceWith"
 
-    # Build replacement pairs: replace_map[i] corresponds to requested_nodes[i]
-    declare -A replace_map
+    # Build replacement pairs as parallel arrays
+    replace_old_names=()
+    replace_new_names=()
     has_replacements=false
-    for i in "${!requested_nodes[@]}"; do
-      old_name="${requested_nodes[$i]}"
+    i=0
+    for old_name in "${requested_nodes[@]}"; do
       new_name=""
       if [ $i -lt ${#replace_nodes[@]} ]; then
         new_name=$(echo "${replace_nodes[$i]}" | xargs)  # trim whitespace
       fi
       if [ -n "$new_name" ] && [ "$new_name" != "$old_name" ]; then
-        replace_map["$old_name"]="$new_name"
+        replace_old_names+=("$old_name")
+        replace_new_names+=("$new_name")
         has_replacements=true
         echo "Will replace: $old_name → $new_name"
       fi
+      i=$((i + 1))
     done
 
     # Warn about extra --replace-with entries beyond --restart-client count
@@ -210,12 +214,13 @@ if [[ -n "$restartClient" ]]; then
     fi
 
     if [ "$has_replacements" = true ]; then
-      # 1. Stop old containers BEFORE config changes (inventory still resolves to old names)
-      echo "Stopping old containers before replacement..."
-      for old_name in "${!replace_map[@]}"; do
+      # 1. Stop old containers and clean data BEFORE config changes (inventory still resolves to old names)
+      echo "Stopping old containers and cleaning data before replacement..."
+      for idx in "${!replace_old_names[@]}"; do
+        old_name="${replace_old_names[$idx]}"
         if [ "$deployment_mode" == "ansible" ]; then
-          echo "Stopping $old_name via Ansible..."
-          "$scriptDir/run-ansible.sh" "$configDir" "$old_name" "" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "" "true" "" || {
+          echo "Stopping $old_name and cleaning remote data via Ansible..."
+          "$scriptDir/run-ansible.sh" "$configDir" "$old_name" "true" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "" "true" "" || {
             echo "Warning: Failed to stop $old_name via Ansible, continuing..."
           }
         else
@@ -225,42 +230,41 @@ if [[ -n "$restartClient" ]]; then
           else
             docker rm -f "$old_name" 2>/dev/null || true
           fi
+          # Remove old local data directory (different clients have different data structures)
+          old_data_dir="$dataDir/$old_name"
+          if [ -d "$old_data_dir" ]; then
+            rm -rf "$old_data_dir"
+            echo "  Removed data dir $old_name"
+          fi
         fi
       done
 
-      # 2. Remove old data directories (different clients have different data structures)
-      # New data dirs will be created fresh by the spin loop below (mkdir -p + cleanData)
-      for old_name in "${!replace_map[@]}"; do
-        old_data_dir="$dataDir/$old_name"
-        if [ -d "$old_data_dir" ]; then
-          rm -rf "$old_data_dir"
-          echo "  Removed data dir $old_name"
-        fi
-      done
-
-      # 3. Update config files (rename old → new)
-      for old_name in "${!replace_map[@]}"; do
-        new_name="${replace_map[$old_name]}"
+      # 2. Update config files (rename old → new)
+      for idx in "${!replace_old_names[@]}"; do
+        old_name="${replace_old_names[$idx]}"
+        new_name="${replace_new_names[$idx]}"
         echo "Updating config files: $old_name → $new_name"
 
         # validator-config.yaml: rename .validators[].name
         yq eval -i "(.validators[] | select(.name == \"$old_name\") | .name) = \"$new_name\"" "$validator_config_file"
 
-        # validators.yaml: rename top-level key
+        # validators.yaml: rename top-level key (two steps: copy then delete, single expression doesn't work)
         validators_file="$configDir/validators.yaml"
         if [ -f "$validators_file" ]; then
-          yq eval -i ".[\"$new_name\"] = .[\"$old_name\"] | del(.[\"$old_name\"])" "$validators_file"
+          yq eval -i ".$new_name = .$old_name" "$validators_file"
+          yq eval -i "del(.$old_name)" "$validators_file"
         fi
 
         # annotated_validators.yaml: rename top-level key
         annotated_file="$configDir/annotated_validators.yaml"
         if [ -f "$annotated_file" ]; then
-          yq eval -i ".[\"$new_name\"] = .[\"$old_name\"] | del(.[\"$old_name\"])" "$annotated_file"
+          yq eval -i ".$new_name = .$old_name" "$annotated_file"
+          yq eval -i "del(.$old_name)" "$annotated_file"
         fi
 
-        # Rename key file
+        # Rename key file (overwrite if destination exists from a previous run)
         if [ -f "$configDir/$old_name.key" ]; then
-          mv "$configDir/$old_name.key" "$configDir/$new_name.key"
+          mv -f "$configDir/$old_name.key" "$configDir/$new_name.key"
           echo "  Renamed $old_name.key → $new_name.key"
         fi
       done
@@ -268,13 +272,20 @@ if [[ -n "$restartClient" ]]; then
       # 3. Update spin_nodes array with new names
       for i in "${!spin_nodes[@]}"; do
         old="${spin_nodes[$i]}"
-        if [[ -n "${replace_map[$old]+x}" ]]; then
-          spin_nodes[$i]="${replace_map[$old]}"
-        fi
+        for idx in "${!replace_old_names[@]}"; do
+          if [ "$old" = "${replace_old_names[$idx]}" ]; then
+            spin_nodes[$i]="${replace_new_names[$idx]}"
+            break
+          fi
+        done
       done
 
       # Re-read nodes from updated config (needed for aggregator and downstream logic)
       nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+
+      # Ensure inventory is regenerated on next run-ansible.sh call
+      # (the stop call may have regenerated it with old names)
+      touch "$validator_config_file"
 
       echo "Updated spin_nodes: ${spin_nodes[*]}"
       echo "Config files updated successfully."
@@ -368,9 +379,14 @@ if [ "$deployment_mode" == "ansible" ]; then
     exit 0
   fi
   
+  # When --replace-with already cleaned data in the stop step, don't pass clean_data to deploy
+  # (the old node name no longer exists in config, so clean-node-data.yml would fail resolving it)
+  ansible_clean_data="$cleanData"
+  [[ "${has_replacements:-false}" = "true" ]] && ansible_clean_data=""
+
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$ansible_clean_data" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
