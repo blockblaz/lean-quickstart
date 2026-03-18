@@ -163,7 +163,25 @@
           become: yes
 
     # ──────────────────────────────────────────────────────────────────────────
-    # 4. Firewall rules (iptables + ufw)
+    # 4. jq — used by several client-cmd scripts to parse JSON responses
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Check if jq is already installed
+      command: which jq
+      register: jq_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Install jq
+      when: jq_pre.rc != 0
+      apt:
+        name: jq
+        state: present
+        update_cache: yes
+      become: yes
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 5. Firewall rules (iptables + ufw)
     #
     # iptables is the kernel-level packet filter; ufw is the management
     # frontend that writes iptables rules and persists them across reboots.
