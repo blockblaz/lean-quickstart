@@ -22,12 +22,21 @@ consistently.
 
 ## Touch point 1 — `validator-config.yaml`
 
-Add an entry for your node in whichever config file you are targeting:
+You must add your entry to **both** config files. They serve different purposes and are kept
+intentionally separate:
 
-- **Local devnet**: `local-devnet/genesis/validator-config.yaml`
-- **Ansible devnet**: `ansible-devnet/genesis/validator-config.yaml`
+| File | Purpose |
+|---|---|
+| `local-devnet/genesis/validator-config.yaml` | Local development on your own machine |
+| `ansible-devnet/genesis/validator-config.yaml` | Remote deployment to production servers |
+
+### Local devnet entry
+
+For local use all nodes run on the same machine, so every node gets `127.0.0.1` and a unique
+port.
 
 ```yaml
+# local-devnet/genesis/validator-config.yaml
 validators:
   # ... existing entries ...
 
@@ -36,23 +45,59 @@ validators:
     # Generate one: python3 -c "import secrets; print(secrets.token_hex(32))"
     privkey: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
     enrFields:
-      ip: "127.0.0.1"       # Use real server IP for Ansible deployments
-      quic: 9009             # Must be unique per server; UDP port for QUIC/P2P
-    metricsPort: 9104        # TCP port Prometheus scrapes
-    apiPort: 5064            # TCP port for the REST API (use httpPort instead if your client uses that key)
+      ip: "127.0.0.1"
+      quic: 9009             # Must be unique among all local nodes
+    metricsPort: 9104        # Must be unique among all local nodes
+    apiPort: 5064            # Must be unique among all local nodes
     isAggregator: false      # Managed automatically by spin-node.sh — do not set manually
     count: 1                 # Number of validator indices to assign to this node
 ```
 
-> **`apiPort` vs `httpPort`**: use `apiPort` if your client serves its REST API on that key.
-> If your client uses `httpPort` (as Lantern does), use `httpPort` instead — both are
-> understood everywhere in lean-quickstart.
+### Ansible devnet entry
 
-**Port uniqueness rules:**
-- `quic`, `metricsPort`, and `apiPort`/`httpPort` must not clash with any other node on the
-  same server.
-- When `--subnets N` is used, `generate-subnet-config.py` increments each port by the subnet
-  index, so base ports only need to be unique among subnet-0 nodes.
+For remote deployment each node gets the IP of the server it will run on. Ports must be
+unique per server (not globally, since nodes on different servers don't share a network
+namespace).
+
+```yaml
+# ansible-devnet/genesis/validator-config.yaml
+validators:
+  # ... existing entries ...
+
+  - name: "myclient_0"
+    privkey: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+    enrFields:
+      ip: "203.0.113.42"     # Public IP of the server this node will run on
+      quic: 9001             # Can reuse port 9001 if no other node is on this server
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
+```
+
+> **Note — server assignment:** The `enrFields.ip` field is currently how lean-quickstart
+> ties a node to a specific server. The Ansible inventory is generated from this IP, and
+> `--prepare` opens firewall ports by matching this IP against each host. This coupling of
+> server IP to node name is expected to be decoupled in a future release.
+
+### Ports and `--subnets N`
+
+When `--subnets N` is used, `generate-subnet-config.py` generates `myclient_0` … `myclient_{N-1}`
+from your single template entry, incrementing every port by the subnet index:
+
+| Subnet | Node | quic | metricsPort | apiPort |
+|---|---|---|---|---|
+| 0 | `myclient_0` | base | base | base |
+| 1 | `myclient_1` | base+1 | base+1 | base+1 |
+| … | … | … | … | … |
+
+Your base ports therefore only need to be unique among subnet-0 entries. The generated nodes
+`myclient_1` … `myclient_{N-1}` also receive fresh P2P keys automatically — you do not need
+to provide them.
+
+> **`apiPort` vs `httpPort`**: use `apiPort` if your client serves its REST API under that
+> config key. If your client uses `httpPort` (as Lantern does), use `httpPort` instead — both
+> are understood everywhere in lean-quickstart.
 
 ---
 
