@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: '{{ node_name }}'
+    static_configs:
+      - targets: ['172.17.0.1:{{ obs_metrics_port }}']
+        labels:
+          type: 'app'
+          node_id: '{{ node_name }}'
+      - targets: ['172.17.0.1:{{ node_exporter_port }}']
+        labels:
+          type: 'node'
+          node_id: '{{ node_name }}'
+      - targets: ['172.17.0.1:{{ cadvisor_port }}']
+        labels:
+          type: 'docker'
+          node_id: '{{ node_name }}'
+    relabel_configs:
+      - source_labels: [node_id]
+        target_label: instance
+remote_write:
+  - url: {{ remote_write_url }}

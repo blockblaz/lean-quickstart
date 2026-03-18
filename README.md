@@ -24,6 +24,7 @@ A single command line quickstart to spin up lean node(s)
 3. **yq**: YAML processor for automated configuration parsing
    - Install on macOS: `brew install yq`
    - Install on Linux: See [yq installation guide](https://github.com/mikefarah/yq#install)
+4. **Python 3 + PyYAML** (optional, for leanpoint upstreams sync): Required only if you use the automatic leanpoint upstreams sync (tooling server). Install with `pip install pyyaml` or `uv add pyyaml`.
 
 ## Quick Start
 
@@ -95,6 +96,54 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
 # is updated in validator-config.yaml before nodes are started
 ```
 
+### Leanpoint deployment
+
+After validator nodes are spun up, leanpoint is deployed so it can monitor them. Behavior depends on deployment mode:
+
+- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at http://localhost:5555. The container is removed on Ctrl+C cleanup or when you run with `--stop`.
+- **Ansible/remote deployment**: Leanpoint is updated on the **tooling server**. The script rsyncs `upstreams.json` to the server, pulls the latest image there, and recreates the remote container.
+
+**What runs:**
+1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
+2. `sync-leanpoint-upstreams.sh` either deploys leanpoint locally (local devnet) or syncs to the tooling server and recreates the remote container (Ansible).
+
+**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+
+**SSH key for remote sync:** When using Ansible deployment, the tooling server may require a specific SSH key. Pass `--sshKey ~/.ssh/id_ed25519_github` (or `--private-key`) so the sync can succeed.
+
+**Skip via flag:** Pass `--skip-leanpoint` to `spin-node.sh` to skip leanpoint deployment (local and remote). Alternatively set `LEANPOINT_SYNC_DISABLED=1`, or the step is skipped when the convert script or validator config is missing.
+
+**Standalone use of convert script:** You can generate `upstreams.json` for local leanpoint without the tooling server:
+
+```sh
+# From lean-quickstart root
+python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml upstreams.json
+# With --docker for leanpoint in Docker reaching a host devnet:
+python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml upstreams-local-docker.json --docker
+```
+
+Requires Python 3 and PyYAML (`pip install pyyaml`).
+
+### Remote Observability Stack
+
+Every Ansible deployment automatically deploys an observability stack alongside each lean node on remote hosts. No additional flags are needed.
+
+**What gets deployed on each remote host:**
+- **cadvisor** - Container metrics
+- **node-exporter** - System metrics
+- **prometheus** - Scrape local targets, remote_write to central
+- **promtail** - Collect lean node container logs, push to Loki
+
+**How it works:**
+- The local prometheus on each host scrapes the lean node (at its `metricsPort`), cadvisor, node-exporter, and itself, then forwards all data to central prometheus via `remote_write`
+- Promtail discovers the lean node container via Docker socket and pushes logs to central Loki
+
+**Key properties:**
+- **Idempotent**: cadvisor and node-exporter are only started if not already running; prometheus and promtail only restart when their config files change
+- **Persistent**: observability containers are not stopped when lean nodes are stopped — they run independently
+- **Configurable**: central endpoints, images, and ports can be overridden in `ansible/roles/observability/defaults/main.yml`
+- **Remote config path**: `/opt/lean-quickstart/observability/` on each host
+
 ## Args
 
 1. `NETWORK_DIR` is an env to specify the network directory. Should have a `genesis` directory with genesis config. A `data` folder will be created inside this `NETWORK_DIR` if not already there.
@@ -160,6 +209,42 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
    - Example: Without flag, a random node will be selected automatically
 13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
+15. `--prepare` verify and install the software required to run lean nodes on every remote server, and open + persist the necessary firewall ports.
+   - **Ansible mode only** — fails with an error if `deployment_mode` is not `ansible`
+   - Installs: `python3` (Ansible requirement), Docker CE + Compose plugin (all clients run as containers), `yq` (required by the `common` role at every deploy)
+   - Opens per-node ports (`quicPort`/UDP, `metricsPort`/TCP, `apiPort`/TCP) read from `validator-config.yaml`, plus fixed observability ports (9090, 9080, 9098, 9100). Enables `ufw` with default deny incoming (persisted across reboots).
+   - Prints a per-tool, per-host status summary (`✅ ok` / `❌ missing`) and `ufw status verbose`
+   - `--node` is not required and is ignored; all other flags are also ignored except `--sshKey` and `--useRoot`
+   - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot`
+
+### Preparing remote servers
+
+Before deploying nodes to fresh remote servers for the first time, run `--prepare` to verify and install the three things every remote host needs:
+
+- **`python3`** — Ansible requires Python on managed nodes before any task can run; it cannot self-bootstrap this. If missing, `--prepare` fails immediately with a clear message.
+- **Docker CE + Compose plugin** — every node client and the full observability stack runs as a Docker container.
+- **`yq`** — the `common` role (which runs at every deploy) hard-fails if `yq` is not on the remote host.
+
+Prints a `✅` / `❌` status line per tool per host at the end. Fails if any required tool is still missing after the run.
+
+```sh
+# Prepare all remote servers using the default SSH key
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare
+
+# With a custom SSH key and root user
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+**Constraints:**
+- Only works in ansible mode (`deployment_mode: ansible` in your config, or `--deploymentMode ansible`)
+- Any other flags (e.g., `--node`, `--generateGenesis`) are silently ignored — only `--sshKey` and `--useRoot` are used
+- `--node` is not required; the playbook runs on all remote hosts in the inventory
+
+Once preparation succeeds, proceed with the normal deploy command:
+
+```sh
+NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
+```
 
 ### Checkpoint sync
 
@@ -570,6 +655,7 @@ For more details, see the [Docker Desktop host networking documentation](https:/
 This quickstart includes automated configuration parsing:
 
 - **Official Genesis Generation**: Uses PK's `eth-beacon-genesis` docker tool from [PR #36](https://github.com/ethpandaops/eth-beacon-genesis/pull/36)
+- **Leanpoint upstreams sync**: After nodes are spun up, `convert-validator-config.py` and `sync-leanpoint-upstreams.sh` generate `upstreams.json` from `validator-config.yaml`, rsync it to the tooling server, and restart the leanpoint container (see [Leanpoint upstreams sync](#leanpoint-upstreams-sync-tooling-server))
 - **Complete File Set**: Generates `validators.yaml`, `nodes.yaml`, `genesis.json`, `genesis.ssz`, and `.key` files
 - **QUIC Port Detection**: Automatically extracts QUIC ports from `validator-config.yaml` using `yq`
 - **Node Detection**: Dynamically discovers available nodes from the validator configuration
@@ -718,6 +804,7 @@ ansible/
 │       └── all.yml           # Global variables
 ├── playbooks/
 │   ├── site.yml             # Main playbook (clean + copy genesis + deploy)
+│   ├── prepare.yml          # Bootstrap: install Docker, build-essential, yq, etc.
 │   ├── clean-node-data.yml  # Clean node data directories
 │   ├── generate-genesis.yml # Generate genesis files
 │   ├── copy-genesis.yml     # Copy genesis files to remote hosts
@@ -736,6 +823,45 @@ ansible/
     ├── grandine/            # Grandine node role
     └── ethlambda/           # EthLambda node role    
 ```
+
+### Bootstrapping remote servers
+
+Fresh servers need Docker, build tools, and utilities installed before any lean node can be deployed. Run `--prepare` once per set of servers:
+
+```sh
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+The command runs `ansible/playbooks/prepare.yml` against all remote hosts in the inventory (localhost is excluded). It installs exactly what is required for lean-quickstart ansible deployments and opens the necessary firewall ports:
+
+**Software installed:**
+
+| Tool | Why it is needed |
+|---|---|
+| `python3` | Ansible requires Python on managed nodes — cannot self-bootstrap |
+| Docker CE + `docker-compose-plugin` | Every node client and observability container runs via Docker |
+| `yq` | The `common` role hard-fails at every deploy if `yq` is absent on the remote |
+
+**Firewall rules opened (via `ufw`):**
+
+Each host's ports are read directly from `validator-config.yaml`, so only the ports actually configured for that node are opened:
+
+| Port | Protocol | Source |
+|---|---|---|
+| `quicPort` | UDP | Per-node — QUIC/P2P transport (e.g. 9001) |
+| `metricsPort` | TCP | Per-node — Prometheus scrape endpoint (e.g. 9095) |
+| `apiPort` / `httpPort` | TCP | Per-node — REST API (e.g. 5055) |
+| 9090 | TCP | Observability — Prometheus |
+| 9080 | TCP | Observability — Promtail |
+| 9098 | TCP | Observability — cAdvisor |
+| 9100 | TCP | Observability — Node Exporter |
+| 22 | TCP | SSH — always allowed before `ufw` is enabled |
+
+`ufw` is enabled with `default: deny incoming` and rules are written to disk, so they survive reboots. SSH (22/tcp) is explicitly allowed before `ufw` is activated to prevent lockout.
+
+After each run, a per-host software status summary and the full `ufw status verbose` output are printed. The playbook fails if any required tool is still missing.
+
+Run `--prepare` again at any time — it is fully idempotent. Already-installed tools and existing firewall rules are skipped.
 
 ### Remote Deployment
 
@@ -793,7 +919,7 @@ The inventory generator will automatically:
   - Use `--useRoot` flag to connect as root user (defaults to current user)
   - Or manually add `ansible_user` and `ansible_ssh_private_key_file` to the generated inventory
   - Or configure in `ansible/ansible.cfg` (see `private_key_file` option)
-- Docker is installed on remote hosts (or use `deployment_mode: binary` in group_vars)
+- Required software is installed on remote hosts — run `--prepare` first on fresh servers (see [Bootstrapping remote servers](#bootstrapping-remote-servers))
 - Required ports are open (QUIC ports, metrics ports)
 - Genesis files are accessible (copied or mounted)
 

@@ -100,14 +100,22 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --skip-leanpoint)
+      skipLeanpoint=true
+      shift
+      ;;
+    --prepare)
+      prepareMode=true
+      shift
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
   esac
 done
 
-# if no node and no restart-client specified, exit
-if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]];
+# if no node and no restart-client specified, exit (unless --prepare mode)
+if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]];
 then
   echo "no node or restart-client specified, exiting..."
   exit
@@ -139,3 +147,4 @@ echo "aggregatorNode = ${aggregatorNode:-<auto-select>}"
 echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"
+echo "skipLeanpoint = ${skipLeanpoint:-false}"

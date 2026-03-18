@@ -68,6 +68,70 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
+# Handle --prepare mode: verify and install required software on all remote servers.
+# Must run after deployment_mode is resolved but before genesis setup.
+if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
+  if [ "$deployment_mode" != "ansible" ]; then
+    echo "Error: --prepare can only be used in ansible mode."
+    echo "Set deployment_mode: ansible in your validator-config.yaml or pass --deploymentMode ansible"
+    exit 1
+  fi
+
+  # Reject flags that have no meaning in prepare mode.
+  ignored_flags=()
+  [ -n "$node" ]                && ignored_flags+=("--node")
+  [ -n "$cleanData" ]           && ignored_flags+=("--cleanData")
+  [ -n "$generateGenesis" ]     && ignored_flags+=("--generateGenesis")
+  [ -n "$FORCE_KEYGEN_FLAG" ]   && ignored_flags+=("--forceKeyGen")
+  [ -n "$stopNodes" ]           && ignored_flags+=("--stop")
+  [ -n "$restartClient" ]       && ignored_flags+=("--restart-client")
+  [ -n "$checkpointSyncUrl" ]   && ignored_flags+=("--checkpoint-sync-url")
+  [ -n "$dockerTag" ]           && ignored_flags+=("--tag")
+  [ -n "$aggregatorNode" ]      && ignored_flags+=("--aggregator")
+  [ -n "$coreDumps" ]           && ignored_flags+=("--coreDumps")
+  [ -n "$enableMetrics" ]       && ignored_flags+=("--metrics")
+  [ -n "$popupTerminal" ]       && ignored_flags+=("--popupTerminal")
+  [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
+  [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
+  [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ] \
+                                && ignored_flags+=("--validatorConfig")
+
+  if [ ${#ignored_flags[@]} -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                        ❌  ERROR                            ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  --prepare does not accept the following flag(s):           ║"
+    for flag in "${ignored_flags[@]}"; do
+      printf  "║    %-60s║\n" "• $flag"
+    done
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  Allowed flags with --prepare:                              ║"
+    echo "║    • --sshKey / --private-key                               ║"
+    echo "║    • --useRoot                                              ║"
+    echo "║    • --deploymentMode ansible                               ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
+
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed."
+    echo "Install Ansible: brew install ansible (macOS) or pip install ansible"
+    exit 1
+  fi
+
+  echo "Preparing remote servers (verifying and installing required software)..."
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" ""; then
+    echo "❌ Server preparation failed."
+    exit 1
+  fi
+
+  echo "✅ All remote servers are prepared."
+  exit 0
+fi
+
 #1. setup genesis params and run genesis generator
 source "$(dirname $0)/set-up.sh"
 # ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
@@ -255,7 +319,14 @@ if [ "$deployment_mode" == "ansible" ]; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
-  
+
+  if [ -z "$skipLeanpoint" ]; then
+    # Sync leanpoint upstreams to tooling server and restart remote container (no 5th arg = remote)
+    if ! "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
+      echo "Warning: leanpoint sync failed. If the tooling server requires a specific SSH key, run with: --sshKey <path-to-key>"
+    fi
+  fi
+
   # Ansible deployment succeeded, exit normally
   exit 0
 fi
@@ -303,6 +374,13 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     else
       docker compose -f "$metricsDir/docker-compose-metrics.yaml" down 2>/dev/null || echo "  Metrics stack not running or already stopped"
     fi
+  fi
+
+  # Stop local leanpoint container if running
+  if [ -n "$dockerWithSudo" ]; then
+    sudo docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
+  else
+    docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
   fi
 
   echo "✅ Local nodes stopped successfully!"
@@ -464,6 +542,16 @@ if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
   echo ""
 fi
 
+# Deploy leanpoint: locally (local devnet) or sync to tooling server (Ansible), unless --skip-leanpoint
+local_leanpoint_deployed=0
+if [ -z "$skipLeanpoint" ]; then
+  if "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
+    local_leanpoint_deployed=1
+  else
+    echo "Warning: leanpoint deploy failed. For remote sync, pass --sshKey <path-to-key> if the tooling server requires it."
+  fi
+fi
+
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
 
@@ -480,6 +568,12 @@ cleanup() {
   fi;
   echo "$execCmd"
   eval "$execCmd"
+
+  if [ "${local_leanpoint_deployed:-0}" = "1" ]; then
+    execCmd="docker rm -f leanpoint"
+    [ -n "$dockerWithSudo" ] && execCmd="sudo $execCmd"
+    eval "$execCmd" 2>/dev/null || true
+  fi
 
   # try for process ids
   execCmd="kill -9 $process_ids"
