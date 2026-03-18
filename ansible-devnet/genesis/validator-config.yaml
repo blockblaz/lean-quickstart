@@ -54,7 +54,7 @@ validators:
       ip: "65.109.131.177"
       quic: 9001
     metricsPort: 9095
-    httpPort: 5055
+    apiPort: 5055
     isAggregator: false
     count: 1
 
