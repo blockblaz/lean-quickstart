@@ -266,6 +266,28 @@ for _subnet_idx in "${_unique_subnets[@]}"; do
   _aggregator_summary+=("subnet $_subnet_idx → $_selected_agg")
 done
 
+# Verify the invariant: exactly 1 aggregator per subnet (skipped in dry-run).
+if [ "$dryRun" != "true" ]; then
+  _verify_failed=false
+  for _subnet_idx in "${_unique_subnets[@]}"; do
+    _agg_count=0
+    for _node in "${nodes[@]}"; do
+      if [[ "${_node##*_}" == "$_subnet_idx" ]]; then
+        _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+        [[ "$_is_agg" == "true" ]] && _agg_count=$((_agg_count + 1))
+      fi
+    done
+    if [ "$_agg_count" -ne 1 ]; then
+      echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
+      _verify_failed=true
+    fi
+  done
+  if [ "$_verify_failed" == "true" ]; then
+    echo "Aggregator invariant check failed. Aborting." >&2
+    exit 1
+  fi
+fi
+
 # Print a prominent aggregator summary banner.
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
