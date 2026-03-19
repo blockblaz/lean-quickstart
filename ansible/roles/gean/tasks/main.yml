@@ -1,0 +1,110 @@
+---
+# Gean role: Deploy and manage Gean nodes
+# Converts client-cmds/gean-cmd.sh logic to Ansible tasks
+
+- name: Extract docker image from client-cmd.sh
+  shell: |
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_docker=' "$project_root/client-cmds/gean-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+  register: gean_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/gean-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: gean_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    gean_docker_image: "{{ gean_docker_image_raw.stdout | trim | default('ghcr.io/geanlabs/gean:devnet3') }}"
+    deployment_mode: "{{ gean_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
+  register: gean_node_config
+  changed_when: false
+  delegate_to: localhost
+  loop:
+    - enrFields.quic
+    - metricsPort
+    - apiPort
+    - isAggregator
+  when: node_name is defined
+
+- name: Set node ports and aggregator flag
+  set_fact:
+    gean_quic_port: "{{ gean_node_config.results[0].stdout }}"
+    gean_metrics_port: "{{ gean_node_config.results[1].stdout }}"
+    gean_api_port: "{{ gean_node_config.results[2].stdout }}"
+    gean_is_aggregator: "{{ 'true' if (gean_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
+  when: gean_node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Debug node key file check
+  debug:
+    msg: "Checking for key file at {{ genesis_dir }}/{{ node_name }}.key - exists: {{ node_key_stat.stat.exists | default('undefined') }}"
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not (node_key_stat.stat.exists | default(false))
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false) | bool
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Gean node using Docker
+  block:
+    - name: Stop existing Gean container (if any)
+      command: docker rm -f {{ node_name }}
+      register: gean_stop
+      failed_when: false
+      changed_when: gean_stop.rc == 0
+
+    - name: Start Gean container
+      command: >-
+        docker run -d
+        --pull=always
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ gean_docker_image }}
+        --data-dir /data
+        --genesis /config/config.yaml
+        --bootnodes /config/nodes.yaml
+        --validator-registry-path /config/validators.yaml
+        --node-id {{ node_name }}
+        --node-key /config/{{ node_name }}.key
+        --validator-keys /config/hash-sig-keys
+        --listen-addr /ip4/0.0.0.0/udp/{{ gean_quic_port }}/quic-v1
+        --discovery-port {{ gean_quic_port }}
+        --devnet-id {{ gean_devnet_id }}
+        --api-port {{ gean_api_port }}
+        --metrics-port {{ gean_metrics_port }}
+        {{ '--is-aggregator' if (gean_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
+      register: gean_container
+      changed_when: gean_container.rc == 0
+  when: deployment_mode == 'docker'

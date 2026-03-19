@@ -1,0 +1,109 @@
+---
+# Nlean role: Deploy and manage Nlean nodes
+# Converts client-cmds/nlean-cmd.sh logic to Ansible tasks
+
+- name: Extract docker image from client-cmd.sh
+  shell: |
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^nlean_docker_image=' "$project_root/client-cmds/nlean-cmd.sh" | head -1 | sed -E 's/.*\$\{[^}]+:-([^}]+)\}.*/\1/'
+  register: nlean_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/nlean-cmd.sh" | head -1 | sed -E 's/.*\$\{[^}]+:-([^}]+)\}.*/\1/'
+  register: nlean_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    nlean_docker_image: "{{ nlean_docker_image_raw.stdout | trim | default('nlean-local:devnet3') }}"
+    deployment_mode: "{{ nlean_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
+  register: nlean_node_config
+  changed_when: false
+  delegate_to: localhost
+  loop:
+    - enrFields.quic
+    - metricsPort
+    - apiPort
+    - isAggregator
+  when: node_name is defined
+
+- name: Set node ports and aggregator flag
+  set_fact:
+    nlean_quic_port: "{{ nlean_node_config.results[0].stdout }}"
+    nlean_metrics_port: "{{ nlean_node_config.results[1].stdout }}"
+    nlean_api_port: "{{ nlean_node_config.results[2].stdout }}"
+    nlean_is_aggregator: "{{ 'true' if (nlean_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
+  when: nlean_node_config is defined
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Debug node key file check
+  debug:
+    msg: "Checking for key file at {{ genesis_dir }}/{{ node_name }}.key - exists: {{ node_key_stat.stat.exists | default('undefined') }}"
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not (node_key_stat.stat.exists | default(false))
+
+- name: Clean node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: absent
+  when: clean_data | default(false) | bool
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy Nlean node using Docker
+  block:
+    - name: Stop existing Nlean container (if any)
+      command: docker rm -f {{ node_name }}
+      register: nlean_stop
+      failed_when: false
+      changed_when: nlean_stop.rc == 0
+
+    - name: Start Nlean container
+      command: >-
+        docker run -d
+        --pull=always
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ nlean_docker_image }}
+        --validator-config /config/validator-config.yaml
+        --node {{ node_name }}
+        --data-dir /data
+        --network {{ nlean_network_name }}
+        --node-key /config/{{ node_name }}.key
+        --socket-port {{ nlean_quic_port }}
+        --metrics false
+        --metrics-port {{ nlean_metrics_port }}
+        --metrics-address 0.0.0.0
+        --hash-sig-key-dir /config/hash-sig-keys
+        --api-port {{ nlean_api_port }}
+        {{ '--is-aggregator' if (nlean_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
+      register: nlean_container
+      changed_when: nlean_container.rc == 0
+  when: deployment_mode == 'docker'
