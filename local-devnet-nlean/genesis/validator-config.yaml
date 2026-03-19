@@ -1,0 +1,44 @@
+# Quickstart validator template used by nlean interop scripts.
+# Keep node names and ports aligned with the target interop topology.
+shuffle: roundrobin
+deployment_mode: local
+config:
+  activeEpoch: 18
+  keyType: "hash-sig"
+validators:
+  - name: "nlean_0"
+    privkey: "2e9be3f1b0d32ca3a4d62017fbfafe3950b7e90fed6802ff8bd2e0f8c4e2ca91"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9101
+    metricsPort: 18081
+    apiPort: 5052
+    count: 1
+    isAggregator: false
+  - name: "nlean_1"
+    privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9102
+    metricsPort: 18082
+    apiPort: 5053
+    count: 1
+    isAggregator: true
+  - name: "nlean_2"
+    privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9103
+    metricsPort: 18083
+    apiPort: 5054
+    count: 1
+    isAggregator: false
+  - name: "nlean_3"
+    privkey: "c4f5a6b7d8e9012345abcdef6789012345abcdef6789012345abcdef67890123"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9104
+    metricsPort: 18084
+    apiPort: 5055
+    count: 1
+    isAggregator: false
