@@ -107,6 +107,16 @@ validators:
     isAggregator: false
     count: 1
 
+  - name: "nlean_0"
+    privkey: "d94e3dc35e320440c891b66bd82d1aaf2079364162815b32c2633ecae009c84c"
+    enrFields:
+      ip: "95.216.164.165"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
+
   # - name: "lean_node_0"
   #   privkey: "d94e3dc35e320440c891b66bd82d1aaf2079364162815b32c2633ecae009c84c"
   #   enrFields:
