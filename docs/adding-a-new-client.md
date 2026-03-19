@@ -366,7 +366,7 @@ Add a block for your client type. The client type is the prefix before the first
 node name (`myclient_0` → `myclient`).
 
 ```yaml
-# ... existing entries for zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda ...
+# ... existing entries for zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, gean, nlean ...
 
 - name: Deploy myclient node
   include_role:
@@ -383,8 +383,8 @@ known list:
 ```yaml
 - name: Fail if unknown client type
   fail:
-    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda or myclient"
-  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse", "grandine", "ethlambda", "myclient"]
+    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, gean, nlean or myclient"
+  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse", "grandine", "ethlambda", "gean", "nlean", "myclient"]
 ```
 
 ---
@@ -405,7 +405,9 @@ Current following clients are supported:
 5. Lighthouse
 6. Grandine
 7. Ethlambda
-8. Myclient        ← add here
+8. Gean
+9. Nlean
+10. Myclient       ← add here
 ```
 
 ---
