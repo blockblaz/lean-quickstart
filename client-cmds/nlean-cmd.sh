@@ -49,7 +49,7 @@ fi
 
 # Set API port flag if explicitly configured
 api_port_flag=""
-nlean_api_port="${NLEAN_API_PORT:-${httpPort:-}}"
+nlean_api_port="${NLEAN_API_PORT:-${apiPort:-}}"
 if [[ -n "$nlean_api_port" ]]; then
   api_port_flag="--api-port $nlean_api_port"
 fi
@@ -78,28 +78,28 @@ node_binary="$binary_path \
 
 nlean_docker_extra_env=""
 if [[ -n "${NLEAN_DEBUG_DUMP_ATTESTATIONS:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_ATTESTATIONS=${NLEAN_DEBUG_DUMP_ATTESTATIONS}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_ATTESTATIONS=$NLEAN_DEBUG_DUMP_ATTESTATIONS"
 fi
 if [[ -n "${NLEAN_DEBUG_DUMP_DIR:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_DIR=${NLEAN_DEBUG_DUMP_DIR}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_DIR=$NLEAN_DEBUG_DUMP_DIR"
 fi
 if [[ -n "${NLEAN_DEBUG_DUMP_BLOCKS:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_BLOCKS=${NLEAN_DEBUG_DUMP_BLOCKS}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_BLOCKS=$NLEAN_DEBUG_DUMP_BLOCKS"
 fi
 if [[ -n "${NLEAN_DEBUG_DUMP_BLOCK_DIR:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_BLOCK_DIR=${NLEAN_DEBUG_DUMP_BLOCK_DIR}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_BLOCK_DIR=$NLEAN_DEBUG_DUMP_BLOCK_DIR"
 fi
 if [[ -n "${NLEAN_DEBUG_DUMP_OBSERVED_PROOFS:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_PROOFS=${NLEAN_DEBUG_DUMP_OBSERVED_PROOFS}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_PROOFS=$NLEAN_DEBUG_DUMP_OBSERVED_PROOFS"
 fi
 if [[ -n "${NLEAN_DEBUG_DUMP_OBSERVED_PROOFS_DIR:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_PROOFS_DIR=${NLEAN_DEBUG_DUMP_OBSERVED_PROOFS_DIR}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_PROOFS_DIR=$NLEAN_DEBUG_DUMP_OBSERVED_PROOFS_DIR"
 fi
 if [[ -n "${NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS=${NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS=$NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS"
 fi
 if [[ -n "${NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR:-}" ]]; then
-  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR=${NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR}"
+  nlean_docker_extra_env+=" -e NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR=$NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR"
 fi
 
 node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
@@ -120,4 +120,4 @@ node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
       $log_level_arg"
 
 # choose either binary or docker
-node_setup="${NLEAN_QUICKSTART_SETUP:-binary}"
+node_setup="${NLEAN_QUICKSTART_SETUP:-docker}"

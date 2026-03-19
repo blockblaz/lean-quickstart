@@ -12,25 +12,25 @@ validators:
       ip: "127.0.0.1"
       quic: 9101
     metricsPort: 18081
-    httpPort: 5052
+    apiPort: 5052
     count: 1
-    isAggregator: true
+    isAggregator: false
   - name: "nlean_1"
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
       ip: "127.0.0.1"
       quic: 9102
     metricsPort: 18082
-    httpPort: 5053
+    apiPort: 5053
     count: 1
-    isAggregator: false
+    isAggregator: true
   - name: "nlean_2"
     privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
     enrFields:
       ip: "127.0.0.1"
       quic: 9103
     metricsPort: 18083
-    httpPort: 5054
+    apiPort: 5054
     count: 1
     isAggregator: false
   - name: "nlean_3"
@@ -39,6 +39,6 @@ validators:
       ip: "127.0.0.1"
       quic: 9104
     metricsPort: 18084
-    httpPort: 5055
+    apiPort: 5055
     count: 1
     isAggregator: false
