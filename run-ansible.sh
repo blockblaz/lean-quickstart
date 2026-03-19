@@ -61,8 +61,11 @@ fi
 
 # Update inventory with SSH key file and user if provided
 if command -v yq &> /dev/null; then
-  # Get all remote host groups (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes, lighthouse_nodes)
-  for group in zeam_nodes ream_nodes qlean_nodes lantern_nodes lighthouse_nodes grandine_nodes ethlambda_nodes; do
+  # Derive the group list dynamically from the inventory so newly added clients
+  # (e.g. gean_nodes, lean_nodes) are automatically included without needing to
+  # update this hardcoded list every time a new client type is added.
+  all_groups=$(yq eval '.all.children | keys | .[]' "$INVENTORY_FILE" 2>/dev/null || echo "")
+  for group in $all_groups; do
     # Get all hosts in this group
     hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$INVENTORY_FILE" 2>/dev/null || echo "")
     for host in $hosts; do
