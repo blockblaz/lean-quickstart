@@ -138,6 +138,9 @@ EXTRA_VARS="$EXTRA_VARS deployment_mode=$DEFAULT_DEPLOYMENT_MODE"
 if [ "$action" == "stop" ]; then
   PLAYBOOK="$ANSIBLE_DIR/playbooks/stop-nodes.yml"
   ACTION_MSG="stopping nodes"
+elif [ "$action" == "prepare" ]; then
+  PLAYBOOK="$ANSIBLE_DIR/playbooks/prepare.yml"
+  ACTION_MSG="preparing servers"
 else
   PLAYBOOK="$ANSIBLE_DIR/playbooks/site.yml"
   ACTION_MSG="deploying nodes"
@@ -162,6 +165,8 @@ if [ $EXIT_CODE -eq 0 ]; then
   echo ""
   if [ "$action" == "stop" ]; then
     echo "✅ Ansible stop operation completed successfully!"
+  elif [ "$action" == "prepare" ]; then
+    echo "✅ Server preparation completed successfully!"
   else
     echo "✅ Ansible deployment completed successfully!"
   fi
@@ -169,6 +174,8 @@ else
   echo ""
   if [ "$action" == "stop" ]; then
     echo "❌ Ansible stop operation failed with exit code $EXIT_CODE"
+  elif [ "$action" == "prepare" ]; then
+    echo "❌ Server preparation failed with exit code $EXIT_CODE"
   else
     echo "❌ Ansible deployment failed with exit code $EXIT_CODE"
   fi

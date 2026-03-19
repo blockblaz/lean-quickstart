@@ -209,6 +209,42 @@ Every Ansible deployment automatically deploys an observability stack alongside 
    - Example: Without flag, a random node will be selected automatically
 13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
+15. `--prepare` verify and install the software required to run lean nodes on every remote server, and open + persist the necessary firewall ports.
+   - **Ansible mode only** — fails with an error if `deployment_mode` is not `ansible`
+   - Installs: `python3` (Ansible requirement), Docker CE + Compose plugin (all clients run as containers), `yq` (required by the `common` role at every deploy)
+   - Opens per-node ports (`quicPort`/UDP, `metricsPort`/TCP, `apiPort`/TCP) read from `validator-config.yaml`, plus fixed observability ports (9090, 9080, 9098, 9100). Enables `ufw` with default deny incoming (persisted across reboots).
+   - Prints a per-tool, per-host status summary (`✅ ok` / `❌ missing`) and `ufw status verbose`
+   - `--node` is not required and is ignored; all other flags are also ignored except `--sshKey` and `--useRoot`
+   - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot`
+
+### Preparing remote servers
+
+Before deploying nodes to fresh remote servers for the first time, run `--prepare` to verify and install the three things every remote host needs:
+
+- **`python3`** — Ansible requires Python on managed nodes before any task can run; it cannot self-bootstrap this. If missing, `--prepare` fails immediately with a clear message.
+- **Docker CE + Compose plugin** — every node client and the full observability stack runs as a Docker container.
+- **`yq`** — the `common` role (which runs at every deploy) hard-fails if `yq` is not on the remote host.
+
+Prints a `✅` / `❌` status line per tool per host at the end. Fails if any required tool is still missing after the run.
+
+```sh
+# Prepare all remote servers using the default SSH key
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare
+
+# With a custom SSH key and root user
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+**Constraints:**
+- Only works in ansible mode (`deployment_mode: ansible` in your config, or `--deploymentMode ansible`)
+- Any other flags (e.g., `--node`, `--generateGenesis`) are silently ignored — only `--sshKey` and `--useRoot` are used
+- `--node` is not required; the playbook runs on all remote hosts in the inventory
+
+Once preparation succeeds, proceed with the normal deploy command:
+
+```sh
+NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
+```
 
 ### Checkpoint sync
 
@@ -768,6 +804,7 @@ ansible/
 │       └── all.yml           # Global variables
 ├── playbooks/
 │   ├── site.yml             # Main playbook (clean + copy genesis + deploy)
+│   ├── prepare.yml          # Bootstrap: install Docker, build-essential, yq, etc.
 │   ├── clean-node-data.yml  # Clean node data directories
 │   ├── generate-genesis.yml # Generate genesis files
 │   ├── copy-genesis.yml     # Copy genesis files to remote hosts
@@ -786,6 +823,45 @@ ansible/
     ├── grandine/            # Grandine node role
     └── ethlambda/           # EthLambda node role    
 ```
+
+### Bootstrapping remote servers
+
+Fresh servers need Docker, build tools, and utilities installed before any lean node can be deployed. Run `--prepare` once per set of servers:
+
+```sh
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+The command runs `ansible/playbooks/prepare.yml` against all remote hosts in the inventory (localhost is excluded). It installs exactly what is required for lean-quickstart ansible deployments and opens the necessary firewall ports:
+
+**Software installed:**
+
+| Tool | Why it is needed |
+|---|---|
+| `python3` | Ansible requires Python on managed nodes — cannot self-bootstrap |
+| Docker CE + `docker-compose-plugin` | Every node client and observability container runs via Docker |
+| `yq` | The `common` role hard-fails at every deploy if `yq` is absent on the remote |
+
+**Firewall rules opened (via `ufw`):**
+
+Each host's ports are read directly from `validator-config.yaml`, so only the ports actually configured for that node are opened:
+
+| Port | Protocol | Source |
+|---|---|---|
+| `quicPort` | UDP | Per-node — QUIC/P2P transport (e.g. 9001) |
+| `metricsPort` | TCP | Per-node — Prometheus scrape endpoint (e.g. 9095) |
+| `apiPort` / `httpPort` | TCP | Per-node — REST API (e.g. 5055) |
+| 9090 | TCP | Observability — Prometheus |
+| 9080 | TCP | Observability — Promtail |
+| 9098 | TCP | Observability — cAdvisor |
+| 9100 | TCP | Observability — Node Exporter |
+| 22 | TCP | SSH — always allowed before `ufw` is enabled |
+
+`ufw` is enabled with `default: deny incoming` and rules are written to disk, so they survive reboots. SSH (22/tcp) is explicitly allowed before `ufw` is activated to prevent lockout.
+
+After each run, a per-host software status summary and the full `ufw status verbose` output are printed. The playbook fails if any required tool is still missing.
+
+Run `--prepare` again at any time — it is fully idempotent. Already-installed tools and existing firewall rules are skipped.
 
 ### Remote Deployment
 
@@ -843,7 +919,7 @@ The inventory generator will automatically:
   - Use `--useRoot` flag to connect as root user (defaults to current user)
   - Or manually add `ansible_user` and `ansible_ssh_private_key_file` to the generated inventory
   - Or configure in `ansible/ansible.cfg` (see `private_key_file` option)
-- Docker is installed on remote hosts (or use `deployment_mode: binary` in group_vars)
+- Required software is installed on remote hosts — run `--prepare` first on fresh servers (see [Bootstrapping remote servers](#bootstrapping-remote-servers))
 - Required ports are open (QUIC ports, metrics ports)
 - Genesis files are accessible (copied or mounted)
 
