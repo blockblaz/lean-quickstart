@@ -127,12 +127,12 @@ validators:
   #   isAggregator: false
   #   count: 1
 
-  # - name: "peam_0"
-  #   privkey: "6ccb18b68c94188d9da6635dd1540cf62c0d418eb09eca25e4ad62d712f69b92"
-  #   enrFields:
-  #     ip: "95.216.173.151"
-  #     quic: 9001
-  #   metricsPort: 9095
-  #   apiPort: 5055
-  #   isAggregator: false
-  #   count: 1
+  - name: "peam_0"
+    privkey: "8c7b62f4c4a35d134649817f44d2839ad15bcfa1fe6b87991f64d6f54f3ef2a1"
+    enrFields:
+      ip: ""
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1

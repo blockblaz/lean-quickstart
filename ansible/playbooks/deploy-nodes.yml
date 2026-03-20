@@ -216,6 +216,9 @@
         - lighthouse
         - grandine
         - ethlambda
+        - gean
+        - nlean
+        - peam
         - deploy
 
     - name: Include common role
@@ -240,4 +243,3 @@
       include_tasks: helpers/deploy-single-node.yml
       tags:
         - deploy
-

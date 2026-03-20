@@ -11,7 +11,7 @@ A single command line quickstart to spin up lean node(s)
     - Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
     - Generates PQ keys based on specified configuration in `validator-config.yaml`
         - Force regen with flag `--forceKeyGen` when supplied with `generateGenesis`
-- ✅ Integrates zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
+- ✅ Integrates zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, gean, nlean, peam
 - ✅ Configure to run clients in docker or binary mode for easy development
 - ✅ Linux & Mac compatible & tested
 - ✅ Option to operate on single or multiple nodes or `all`
@@ -322,7 +322,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0 \
 - **Local** (`NETWORK_DIR=local-devnet`): Uses Docker directly
 - **Ansible** (`NETWORK_DIR=ansible-devnet`): Uses Ansible to deploy to remote hosts
 
-**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
+**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, gean, nlean, peam
 
 > **Note:** All clients accept `--checkpoint-sync-url`. Client implementations may use different parameter names internally; update client-cmd scripts if parameters change.
 
@@ -337,6 +337,9 @@ Current following clients are supported:
 5. Lighthouse
 6. Grandine
 7. Ethlambda
+8. Gean
+9. Nlean
+10. Peam
 
 Adding a new client requires 6 small, well-defined steps. See the full integration guide:
 
