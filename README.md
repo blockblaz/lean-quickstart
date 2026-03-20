@@ -278,7 +278,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0 \
 - **Local** (`NETWORK_DIR=local-devnet`): Uses Docker directly
 - **Ansible** (`NETWORK_DIR=ansible-devnet`): Uses Ansible to deploy to remote hosts
 
-**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
+**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, peam
 
 > **Note:** All clients accept `--checkpoint-sync-url`. Client implementations may use different parameter names internally; update client-cmd scripts if parameters change.
 
@@ -292,6 +292,8 @@ Current following clients are supported:
 4. Lantern
 5. Lighthouse
 6. Grandine
+7. Ethlambda
+8. Peam
 
 However adding a lean client to this setup is very easy. Feel free to do the PR or reach out to the maintainers.
 

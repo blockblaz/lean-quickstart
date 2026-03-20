@@ -115,11 +115,12 @@ validators:
   #   isAggregator: false
   #   count: 1
 
-  # - name: "peam_0"
-  #   enrFields:
-  #     ip: "95.216.173.151"
-  #     quic: 9001
-  #   metricsPort: 9095
-  #   apiPort: 5055
-  #   isAggregator: false
-  #   count: 1
+  - name: "peam_0"
+    privkey: "8c7b62f4c4a35d134649817f44d2839ad15bcfa1fe6b87991f64d6f54f3ef2a1"
+    enrFields:
+      ip: ""
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
