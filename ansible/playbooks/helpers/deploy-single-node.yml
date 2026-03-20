@@ -86,7 +86,15 @@
     - ethlambda
     - deploy
 
+- name: Deploy Peam node
+  include_role:
+    name: peam
+  when: client_type == "peam"
+  tags:
+    - peam
+    - deploy
+
 - name: Fail if unknown client type
   fail:
-    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, lighthouse, grandine or ethlambda"
-  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse", "grandine", "ethlambda"]
+    msg: "Unknown client type '{{ client_type }}' for node '{{ node_name }}'. Expected: zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda or peam"
+  when: client_type not in ["zeam", "ream", "qlean", "lantern", "lighthouse", "grandine", "ethlambda", "peam"]
