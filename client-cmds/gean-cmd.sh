@@ -18,6 +18,12 @@ if [ -n "$attestationCommitteeCount" ]; then
   attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
 fi
 
+# Set checkpoint sync URL when restarting with checkpoint sync
+checkpoint_sync_flag=""
+if [ -n "${checkpoint_sync_url:-}" ]; then
+  checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+fi
+
 # Resolve binary path relative to the script location
 # Fallback to absolute path if scriptDir is not available
 BASE_DIR="${scriptDir:-$(pwd)}"
@@ -36,6 +42,7 @@ node_binary="$gean_bin \
       --devnet-id \"${devnet:-devnet0}\" \
       --api-port $apiPort \
       $metrics_flag \
+      $checkpoint_sync_flag \
       $attestation_committee_flag \
       $aggregator_flag"
 
@@ -53,6 +60,7 @@ node_docker="ghcr.io/geanlabs/gean:devnet3 \
       --devnet-id ${devnet:-devnet0} \
       --api-port $apiPort \
       $metrics_flag \
+      $checkpoint_sync_flag \
       $attestation_committee_flag \
       $aggregator_flag"
 
