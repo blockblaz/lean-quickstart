@@ -97,7 +97,7 @@
         --network {{ nlean_network_name }}
         --node-key /config/{{ node_name }}.key
         --socket-port {{ nlean_quic_port }}
-        --metrics false
+        --metrics true
         --metrics-port {{ nlean_metrics_port }}
         --metrics-address 0.0.0.0
         --hash-sig-key-dir /config/hash-sig-keys
