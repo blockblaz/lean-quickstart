@@ -3,7 +3,7 @@
 #-----------------------peam setup----------------------
 
 binary_path="$scriptDir/../Peam/target/release/peam"
-default_peam_docker_image="ghcr.io/malik672/peam:sha-f11c8d1"
+default_peam_docker_image="ghcr.io/malik672/peam:latest"
 peam_docker_image="${PEAM_DOCKER_IMAGE:-$default_peam_docker_image}"
 runtime_config_host="$dataDir/$item/peam.conf"
 runtime_config_container="/data/peam.conf"
@@ -83,7 +83,7 @@ if [ -d "$hash_sig_keys_dir" ]; then
     validator_keys_flag_container="--validator-keys /config/hash-sig-keys"
 fi
 
-node_docker="ghcr.io/malik672/peam:sha-f11c8d1 \
+node_docker="ghcr.io/malik672/peam:latest \
       --run \
       --config $runtime_config_container \
       --data-dir /data \
@@ -94,7 +94,7 @@ node_docker="ghcr.io/malik672/peam:sha-f11c8d1 \
       $checkpoint_sync_flag"
 
 if [ -n "${PEAM_DOCKER_IMAGE:-}" ]; then
-    node_docker="${peam_docker_image}${node_docker#"ghcr.io/malik672/peam:sha-f11c8d1"}"
+    node_docker="${peam_docker_image}${node_docker#"ghcr.io/malik672/peam:latest"}"
 fi
 
 node_setup="docker"
