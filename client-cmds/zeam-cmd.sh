@@ -24,6 +24,12 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
 node_binary="$scriptDir/../zig-out/bin/zeam node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig \

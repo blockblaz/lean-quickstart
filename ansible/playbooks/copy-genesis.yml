@@ -153,20 +153,31 @@
       loop_control:
         label: "{{ item }}.key"
 
+    - name: Resolve hash-sig key files for this node
+      vars:
+        _av: "{{ lookup('file', genesis_dir + '/annotated_validators.yaml') | from_yaml }}"
+        _assignments: "{{ _av[inventory_hostname] | default([]) }}"
+        _sk_files: "{{ _assignments | map(attribute='privkey_file') | list }}"
+        _pk_files: "{{ _sk_files | map('regex_replace', '_sk\\.ssz$', '_pk.ssz') | list }}"
+      set_fact:
+        node_hash_sig_files: "{{ _sk_files + _pk_files }}"
+      when: hash_sig_keys_stat.stat.exists
+
     - name: Create hash-sig-keys directory on remote
       file:
         path: "{{ actual_remote_genesis_dir }}/hash-sig-keys"
         state: directory
         mode: '0755'
-      when: hash_sig_keys_stat.stat.exists
+      when: hash_sig_keys_stat.stat.exists and (node_hash_sig_files | default([]) | length > 0)
 
-    - name: Copy hash-sig-keys directory to remote host
+    - name: Copy hash-sig key files for this node only
       copy:
-        src: "{{ genesis_dir }}/hash-sig-keys/"
-        dest: "{{ actual_remote_genesis_dir }}/hash-sig-keys/"
-        mode: '0644'
+        src: "{{ genesis_dir }}/hash-sig-keys/{{ item }}"
+        dest: "{{ actual_remote_genesis_dir }}/hash-sig-keys/{{ item }}"
+        mode: '0600'
         force: yes
-      when: hash_sig_keys_stat.stat.exists
+      loop: "{{ node_hash_sig_files | default([]) }}"
+      when: hash_sig_keys_stat.stat.exists and (node_hash_sig_files | default([]) | length > 0)
 
     - name: List files on remote genesis directory
       find:
