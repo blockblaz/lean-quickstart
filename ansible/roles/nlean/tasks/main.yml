@@ -1,56 +1,50 @@
 ---
-# Grandine role: Deploy and manage Grandine nodes
-# Converts client-cmds/grandine-cmd.sh logic to Ansible tasks
+# Nlean role: Deploy and manage Nlean nodes
+# Converts client-cmds/nlean-cmd.sh logic to Ansible tasks
 
 - name: Extract docker image from client-cmd.sh
   shell: |
-    # Extract the first word (docker image) from node_docker line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_docker=' "$project_root/client-cmds/grandine-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
-  register: grandine_docker_image_raw
+    grep -E '^nlean_docker_image=' "$project_root/client-cmds/nlean-cmd.sh" | head -1 | sed -E 's/.*\$\{[^}]+:-([^}]+)\}.*/\1/'
+  register: nlean_docker_image_raw
   changed_when: false
   delegate_to: localhost
   run_once: true
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |
-    # Extract the value from node_setup line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_setup=' "$project_root/client-cmds/grandine-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
-  register: grandine_deployment_mode_raw
+    grep -E '^node_setup=' "$project_root/client-cmds/nlean-cmd.sh" | head -1 | sed -E 's/.*\$\{[^}]+:-([^}]+)\}.*/\1/'
+  register: nlean_deployment_mode_raw
   changed_when: false
   delegate_to: localhost
   run_once: true
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    grandine_docker_image: "{{ grandine_docker_image_raw.stdout | trim | default('sifrai/lean:latest') }}"
-    deployment_mode: "{{ grandine_deployment_mode_raw.stdout | trim | default('docker') }}"
+    nlean_docker_image: "{{ nlean_docker_image_raw.stdout | trim | default('ghcr.io/nleaneth/nlean:latest') }}"
+    deployment_mode: "{{ nlean_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
     yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
-  register: grandine_node_config
+  register: nlean_node_config
   changed_when: false
   delegate_to: localhost
   loop:
     - enrFields.quic
     - metricsPort
     - apiPort
-    - privkey
     - isAggregator
   when: node_name is defined
 
 - name: Set node ports and aggregator flag
   set_fact:
-    grandine_quic_port: "{{ grandine_node_config.results[0].stdout }}"
-    grandine_metrics_port: "{{ grandine_node_config.results[1].stdout }}"
-    grandine_api_port: "{{ grandine_node_config.results[2].stdout }}"
-    grandine_privkey: "{{ grandine_node_config.results[3].stdout }}"
-    grandine_is_aggregator: "{{ 'true' if (grandine_node_config.results[4].stdout | default('') | trim) == 'true' else 'false' }}"
-  when: grandine_node_config is defined
+    nlean_quic_port: "{{ nlean_node_config.results[0].stdout }}"
+    nlean_metrics_port: "{{ nlean_node_config.results[1].stdout }}"
+    nlean_api_port: "{{ nlean_node_config.results[2].stdout }}"
+    nlean_is_aggregator: "{{ 'true' if (nlean_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
+  when: nlean_node_config is defined
 
 - name: Ensure node key file exists
   stat:
@@ -76,17 +70,17 @@
   file:
     path: "{{ data_dir }}/{{ node_name }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
 
-- name: Deploy Grandine node using Docker
+- name: Deploy Nlean node using Docker
   block:
-    - name: Stop existing Grandine container (if any)
+    - name: Stop existing Nlean container (if any)
       command: docker rm -f {{ node_name }}
-      register: grandine_stop
+      register: nlean_stop
       failed_when: false
-      changed_when: grandine_stop.rc == 0
+      changed_when: nlean_stop.rc == 0
 
-    - name: Start Grandine container
+    - name: Start Nlean container
       command: >-
         docker run -d
         --pull=always
@@ -96,22 +90,20 @@
         {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro
         -v {{ data_dir }}/{{ node_name }}:/data
-        {{ grandine_docker_image }}
-        --genesis /config/config.yaml
-        --validator-registry-path /config/validators.yaml
-        --bootnodes /config/nodes.yaml
-        --node-id {{ node_name }}
+        {{ nlean_docker_image }}
+        --validator-config /config/validator-config.yaml
+        --node {{ node_name }}
+        --data-dir /data
+        --network {{ nlean_network_name }}
         --node-key /config/{{ node_name }}.key
-        --port {{ grandine_quic_port }}
-        --address 0.0.0.0
-        --hash-sig-key-dir /config/hash-sig-keys
-        --http-address 0.0.0.0
-        --http-port {{ grandine_api_port }}
-        --metrics
+        --socket-port {{ nlean_quic_port }}
+        --metrics true
+        --metrics-port {{ nlean_metrics_port }}
         --metrics-address 0.0.0.0
-        --metrics-port {{ grandine_metrics_port }}
-        {{ '--is-aggregator' if (grandine_is_aggregator | default('false')) == 'true' else '' }}
+        --hash-sig-key-dir /config/hash-sig-keys
+        --api-port {{ nlean_api_port }}
+        {{ '--is-aggregator' if (nlean_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
-      register: grandine_container
-      changed_when: grandine_container.rc == 0
+      register: nlean_container
+      changed_when: nlean_container.rc == 0
   when: deployment_mode == 'docker'

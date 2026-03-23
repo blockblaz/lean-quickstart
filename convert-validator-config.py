@@ -74,8 +74,8 @@ def convert_validator_config(
         if docker_host:
             ip = "host.docker.internal"
 
-        # Use apiPort from config
-        http_port = validator.get('apiPort', base_port + idx)
+        # Use apiPort, falling back to httpPort (used by Lantern), then a derived default.
+        http_port = validator.get('apiPort') or validator.get('httpPort') or (base_port + idx)
 
         upstream = {
             "name": name,

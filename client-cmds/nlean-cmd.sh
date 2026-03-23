@@ -6,7 +6,7 @@
 # NLEAN_REPO should point to this repository when lean-quickstart is outside this workspace.
 # Default assumes sibling checkouts: <workspace>/nlean and <workspace>/lean-quickstart.
 nlean_repo="${NLEAN_REPO:-$scriptDir/../nlean}"
-nlean_docker_image="${NLEAN_DOCKER_IMAGE:-nlean-local:devnet3}"
+nlean_docker_image="${NLEAN_DOCKER_IMAGE:-ghcr.io/nleaneth/nlean:latest}"
 nlean_network_name="${NLEAN_NETWORK_NAME:-devnet0}"
 log_level="${NLEAN_LOG_LEVEL:-}"
 enable_metrics="${enableMetrics:-false}"

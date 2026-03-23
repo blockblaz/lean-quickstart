@@ -112,6 +112,15 @@ while [[ $# -gt 0 ]]; do
       prepareMode=true
       shift
       ;;
+    --subnets)
+      subnets="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --dry-run)
+      dryRun=true
+      shift
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
@@ -153,3 +162,4 @@ echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"
 echo "skipLeanpoint = ${skipLeanpoint:-false}"
 echo "skipNemo = ${skipNemo:-false}"
+echo "dryRun = ${dryRun:-false}"

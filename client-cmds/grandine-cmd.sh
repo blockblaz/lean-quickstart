@@ -43,6 +43,7 @@ node_docker="sifrai/lean:devnet-3 \
         --node-id $item \
         --node-key /config/$privKeyPath \
         --port $quicPort \
+        --address 0.0.0.0 \
         --http-address 0.0.0.0 \
         --http-port $apiPort \
         --metrics \
