@@ -104,6 +104,10 @@ while [[ $# -gt 0 ]]; do
       skipLeanpoint=true
       shift
       ;;
+    --skip-nemo)
+      skipNemo=true
+      shift
+      ;;
     --prepare)
       prepareMode=true
       shift
@@ -148,3 +152,4 @@ echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"
 echo "skipLeanpoint = ${skipLeanpoint:-false}"
+echo "skipNemo = ${skipNemo:-false}"
