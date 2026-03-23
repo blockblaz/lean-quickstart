@@ -26,6 +26,17 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
+# Set attestation committee count flag if explicitly configured
+attestation_committee_flag=""
+if [ -n "$attestationCommitteeCount" ]; then
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+fi
+
+# Set HTTP port (default to 5055 if not specified in validator-config.yaml)
+if [ -z "$httpPort" ]; then
+    httpPort="5055"
+fi
+
 # Lantern's repo: https://github.com/Pier-Two/lantern
 node_binary="$scriptDir/lantern/build/lantern_cli \
         --data-dir $dataDir/$item \

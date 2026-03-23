@@ -13,11 +13,16 @@
 #   3. yq            — the common role (which runs at every deploy) hard-fails if
 #                      `yq --version` is not available on the remote host.
 #
-# Firewall rules opened per host (read from validator-config.yaml):
+# Firewall rules opened per host (read from the active validator config,
+# which is the --subnets-expanded file when --subnets N was given):
 #
 #   - quicPort  (UDP) — QUIC/P2P transport for inter-node communication
 #   - metricsPort (TCP) — Prometheus metrics scrape endpoint
 #   - apiPort / httpPort (TCP) — REST API
+#
+# With --subnets N, a server runs N nodes with ports base, base+1, …, base+N-1.
+# All N port ranges are opened because the entries are matched by IP address,
+# collecting every node entry that lives on the current host.
 #
 # Observability ports opened on every host (fixed, from observability role defaults):
 #
@@ -158,18 +163,41 @@
           become: yes
 
     # ──────────────────────────────────────────────────────────────────────────
-    # 4. Firewall rules (iptables + ufw)
+    # 4. jq — used by several client-cmd scripts to parse JSON responses
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Check if jq is already installed
+      command: which jq
+      register: jq_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Install jq
+      when: jq_pre.rc != 0
+      apt:
+        name: jq
+        state: present
+        update_cache: yes
+      become: yes
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 5. Firewall rules (iptables + ufw)
     #
     # iptables is the kernel-level packet filter; ufw is the management
     # frontend that writes iptables rules and persists them across reboots.
     # Both are checked and installed if absent before any rules are applied.
     #
-    # Ports are read from the local validator-config.yaml on the Ansible
-    # controller. Each host's inventory_hostname matches its node name
-    # (e.g. zeam_0, ream_0), so we select the right validator entry by name.
+    # Port lookup uses the active validator config file, which is the
+    # --subnets-expanded file (e.g. validator-config-subnets-3.yaml) when
+    # --subnets N was passed, or validator-config.yaml otherwise.
+    # validator_config_basename is injected by run-ansible.sh.
+    #
+    # Entries are matched by IP (ansible_host) rather than by hostname so
+    # that all subnet nodes sharing a server are found in one pass.
+    # With N subnets, a server has N entries and all N × 3 ports are opened.
     #
     # Lantern uses httpPort instead of apiPort — both are handled via the
-    # default() chain.
+    # per-entry default() chain.
     # ──────────────────────────────────────────────────────────────────────────
 
     - name: Check if iptables is already installed
@@ -194,22 +222,21 @@
       become: yes
       when: ansible_os_family == "Debian"
 
-    - name: Read per-node port configuration from validator-config.yaml
+    - name: Read all node entries for this host from the active validator config
       vars:
-        _vc: "{{ lookup('file', _genesis_dir + '/validator-config.yaml') | from_yaml }}"
-        _entry: "{{ _vc.validators | selectattr('name', 'equalto', inventory_hostname) | list | first | default({}) }}"
+        _vc_file: "{{ _genesis_dir + '/' + (validator_config_basename | default('validator-config.yaml')) }}"
+        _vc: "{{ lookup('file', _vc_file) | from_yaml }}"
+        _entries: "{{ _vc.validators | selectattr('enrFields.ip', 'equalto', ansible_host) | list }}"
       set_fact:
-        fw_quic_port:    "{{ _entry.enrFields.quic                                              | default(9001) | string }}"
-        fw_metrics_port: "{{ _entry.metricsPort                                                 | default(9095) | string }}"
-        fw_api_port:     "{{ _entry.apiPort | default(_entry.httpPort | default(5055))          | string }}"
-        fw_node_found:   "{{ (_entry | length) > 0 }}"
+        fw_node_entries: "{{ _entries }}"
+        fw_nodes_found:  "{{ (_entries | length) > 0 }}"
 
-    - name: Warn if node not found in validator-config.yaml
+    - name: Warn if no entries found for this host in the validator config
       debug:
         msg: >-
-          Warning: {{ inventory_hostname }} not found in validator-config.yaml.
-          Node-specific firewall rules will be skipped.
-      when: not fw_node_found | bool
+          Warning: no validator entries found for {{ ansible_host }} ({{ inventory_hostname }})
+          in the active config. Node-specific firewall rules will be skipped.
+      when: not fw_nodes_found | bool
 
     # SSH must be allowed before enabling ufw, or we lock ourselves out.
     - name: Allow SSH (22/tcp)
@@ -220,32 +247,41 @@
         comment: "SSH"
       become: yes
 
-    - name: Open QUIC P2P port (UDP)
+    - name: Open QUIC P2P ports (UDP) for all subnet nodes on this host
       ufw:
         rule: allow
-        port: "{{ fw_quic_port }}"
+        port: "{{ item.enrFields.quic | string }}"
         proto: udp
-        comment: "lean-quickstart QUIC P2P ({{ inventory_hostname }})"
+        comment: "lean-quickstart QUIC ({{ item.name }})"
       become: yes
-      when: fw_node_found | bool
+      loop: "{{ fw_node_entries }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: fw_nodes_found | bool
 
-    - name: Open metrics port (TCP)
+    - name: Open metrics ports (TCP) for all subnet nodes on this host
       ufw:
         rule: allow
-        port: "{{ fw_metrics_port }}"
+        port: "{{ item.metricsPort | string }}"
         proto: tcp
-        comment: "lean-quickstart metrics ({{ inventory_hostname }})"
+        comment: "lean-quickstart metrics ({{ item.name }})"
       become: yes
-      when: fw_node_found | bool
+      loop: "{{ fw_node_entries }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: fw_nodes_found | bool
 
-    - name: Open API port (TCP)
+    - name: Open API ports (TCP) for all subnet nodes on this host
       ufw:
         rule: allow
-        port: "{{ fw_api_port }}"
+        port: "{{ (item.apiPort | default(item.httpPort | default(5055))) | string }}"
         proto: tcp
-        comment: "lean-quickstart API ({{ inventory_hostname }})"
+        comment: "lean-quickstart API ({{ item.name }})"
       become: yes
-      when: fw_node_found | bool
+      loop: "{{ fw_node_entries }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: fw_nodes_found | bool
 
     - name: Open observability stack ports (TCP)
       ufw:
