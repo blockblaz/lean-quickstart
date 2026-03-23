@@ -6,8 +6,10 @@
 # Metrics enabled by default
 metrics_flag="--metrics_enable"
 
-# Global zeam CLI flags (must appear before the `node` subcommand)
-zeam_global_flags="--console-log-level debug"
+# Optional global zeam CLI flags before `node` (e.g. --console-log-level debug).
+# Default empty: blockblaz/zeam:devnet3 and older binaries do not support top-level log flags.
+# With a current zeam build: export ZEAM_GLOBAL_FLAGS='--console-log-level debug'
+zeam_global_flags="${ZEAM_GLOBAL_FLAGS:-}"
 
 # Set aggregator flag based on isAggregator value
 aggregator_flag=""
