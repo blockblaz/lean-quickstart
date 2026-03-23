@@ -122,6 +122,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
   [ -n "$popupTerminal" ]       && ignored_flags+=("--popupTerminal")
   [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
   [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
+  [ -n "$skipNemo" ]            && ignored_flags+=("--skip-nemo")
   [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ] \
                                 && ignored_flags+=("--validatorConfig")
 
@@ -475,6 +476,14 @@ if [ "$deployment_mode" == "ansible" ]; then
     fi
   fi
 
+  if [ -z "$skipNemo" ]; then
+    _nemo_reset_db=0
+    [ -n "$generateGenesis" ] && _nemo_reset_db=1
+    if ! NEMO_RESET_DB="$_nemo_reset_db" "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
+      echo "Warning: Nemo tooling sync failed. Pass --sshKey <path-to-key> if the tooling server requires it, or use --skip-nemo to skip."
+    fi
+  fi
+
   # Ansible deployment succeeded, exit normally
   exit 0
 fi
@@ -527,8 +536,10 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
   # Stop local leanpoint container if running
   if [ -n "$dockerWithSudo" ]; then
     sudo docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
+    sudo docker rm -f nemo 2>/dev/null || echo "  Container nemo not found or already stopped"
   else
     docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
+    docker rm -f nemo 2>/dev/null || echo "  Container nemo not found or already stopped"
   fi
 
   echo "✅ Local nodes stopped successfully!"
@@ -705,6 +716,18 @@ if [ -z "$skipLeanpoint" ]; then
   fi
 fi
 
+# Nemo explorer: same tooling server (Ansible) or local Docker; DB reset only with --generateGenesis
+local_nemo_deployed=0
+if [ -z "$skipNemo" ]; then
+  _nemo_reset_db=0
+  [ -n "$generateGenesis" ] && _nemo_reset_db=1
+  if NEMO_RESET_DB="$_nemo_reset_db" "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
+    local_nemo_deployed=1
+  else
+    echo "Warning: Nemo deploy failed. Pass --sshKey if needed, or --skip-nemo to skip."
+  fi
+fi
+
 container_names="${spin_nodes[*]}"
 process_ids="${spinned_pids[*]}"
 
@@ -724,6 +747,12 @@ cleanup() {
 
   if [ "${local_leanpoint_deployed:-0}" = "1" ]; then
     execCmd="docker rm -f leanpoint"
+    [ -n "$dockerWithSudo" ] && execCmd="sudo $execCmd"
+    eval "$execCmd" 2>/dev/null || true
+  fi
+
+  if [ "${local_nemo_deployed:-0}" = "1" ]; then
+    execCmd="docker rm -f nemo"
     [ -n "$dockerWithSudo" ] && execCmd="sudo $execCmd"
     eval "$execCmd" 2>/dev/null || true
   fi

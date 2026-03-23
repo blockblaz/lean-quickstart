@@ -100,14 +100,14 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
 
 After validator nodes are spun up, leanpoint is deployed so it can monitor them. Behavior depends on deployment mode:
 
-- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at http://localhost:5555. The container is removed on Ctrl+C cleanup or when you run with `--stop`.
+- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at **http://localhost:5555** (host port **`LEANPOINT_HOST_PORT`**, default **5555** — kept separate from Nemo’s default host port **5455**). The container is removed on Ctrl+C cleanup or when you run with `--stop`.
 - **Ansible/remote deployment**: Leanpoint is updated on the **tooling server**. The script rsyncs `upstreams.json` to the server, pulls the latest image there, and recreates the remote container.
 
 **What runs:**
 1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
 2. `sync-leanpoint-upstreams.sh` either deploys leanpoint locally (local devnet) or syncs to the tooling server and recreates the remote container (Ansible).
 
-**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`, published port **5555→5555** (`LEANPOINT_HOST_PORT`, default **5555**). Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
 
 **SSH key for remote sync:** When using Ansible deployment, the tooling server may require a specific SSH key. Pass `--sshKey ~/.ssh/id_ed25519_github` (or `--private-key`) so the sync can succeed.
 
@@ -123,6 +123,22 @@ python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml u
 ```
 
 Requires Python 3 and PyYAML (`pip install pyyaml`).
+
+### Nemo (block explorer) on the tooling server
+
+After validators are up, **Nemo** (Lean consensus block/slot explorer; image `0xpartha/nemo:latest`) can run on the same **tooling server** as leanpoint (`46.225.10.32` by default). **Ports:** leanpoint uses host **5555** by default; Nemo publishes host **5455** → container **5053** by default — they do not overlap. If you change either port, set **`NEMO_HOST_PORT`** and **`LEANPOINT_HOST_PORT`** so they stay different; `sync-nemo-tooling.sh` exits with an error if they match. **HTTPS / nginx:** see [`docs/tooling-server-nemo-nginx.md`](docs/tooling-server-nemo-nginx.md) and [`tooling/nginx-nemo.conf.example`](tooling/nginx-nemo.conf.example).
+
+It uses **`LEAN_API_URL`**: a comma-separated list of `http://<validator-ip>:<apiPort>` for **every** entry in `validator-config.yaml` (same IPs/ports as the devnet HTTP APIs). Rows with **empty `enrFields.ip`** are skipped (e.g. placeholder nodes until an IP is set).
+
+- **Ansible deploy:** `sync-nemo-tooling.sh` writes `/etc/nemo/nemo.env`, runs **`docker pull`** on **`NEMO_IMAGE`** (default `0xpartha/nemo:latest`), then **`docker run --pull=always`** and recreates the `nemo` container. The SQLite data dir is **cleared only when `spin-node.sh` is run with `--generateGenesis`** (or when you set **`NEMO_RESET_DB=1`** manually). Otherwise the existing DB under **`/opt/nemo/data`** is reused. When **`NEMO_IMAGE`** is a **multi-arch** manifest that lists the host CPU (`linux/arm64` or `linux/amd64`), the script passes **`--platform`** for that arch so Docker pulls the matching variant (no platform-mismatch warning). For **single-arch** tags, it omits **`--platform`** so pull/run still succeed. Optional **`NEMO_DOCKER_PLATFORM`** overrides the detected platform when the manifest includes it.
+- **Local devnet:** Same pull + `--pull=always` behavior; Nemo runs in Docker with `host.docker.internal` and data under `<NETWORK_DIR>/data/nemo-data` (wiped only with **`--generateGenesis`**, same as remote).
+
+UI: `http://<tooling-host>:5455` (override with `NEMO_HOST_PORT`). Skip with **`--skip-nemo`** or **`NEMO_SYNC_DISABLED=1`**. Env vars: see `sync-nemo-tooling.sh`.
+
+```sh
+# Print LEAN_API_URL for the current ansible devnet config
+python3 convert-validator-config.py --print-lean-api-url ansible-devnet/genesis/validator-config.yaml
+```
 
 ### Remote Observability Stack
 
@@ -706,6 +722,7 @@ This quickstart includes automated configuration parsing:
 
 - **Official Genesis Generation**: Uses PK's `eth-beacon-genesis` docker tool from [PR #36](https://github.com/ethpandaops/eth-beacon-genesis/pull/36)
 - **Leanpoint upstreams sync**: After nodes are spun up, `convert-validator-config.py` and `sync-leanpoint-upstreams.sh` generate `upstreams.json` from `validator-config.yaml`, rsync it to the tooling server, and restart the leanpoint container (see [Leanpoint upstreams sync](#leanpoint-upstreams-sync-tooling-server))
+- **Nemo tooling sync**: `sync-nemo-tooling.sh` builds `LEAN_API_URL` for all validators, deploys Nemo on the tooling server (or locally), and clears its SQLite data on each restart (see [Nemo (block explorer) on the tooling server](#nemo-block-explorer-on-the-tooling-server))
 - **Complete File Set**: Generates `validators.yaml`, `nodes.yaml`, `genesis.json`, `genesis.ssz`, and `.key` files
 - **QUIC Port Detection**: Automatically extracts QUIC ports from `validator-config.yaml` using `yq`
 - **Node Detection**: Dynamically discovers available nodes from the validator configuration
