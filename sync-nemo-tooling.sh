@@ -3,6 +3,7 @@
 # their apiPort/httpPort), deploy Nemo on the tooling server or locally.
 #
 # On every deploy: SQLite data dir is wiped so Nemo starts with a fresh DB.
+# Image: docker pull NEMO_IMAGE, then docker run --pull=always so :latest is refreshed from the registry.
 #
 # Usage:
 #   sync-nemo-tooling.sh <validator_config_file> <script_dir> [ssh_key_file] [use_root] [local_data_dir]
@@ -66,10 +67,11 @@ fi
 run_local_nemo_container() {
   local env_file="$1"
   local data_vol="$2"
+  # Always fetch the current registry manifest for this tag (e.g. :latest), then run with --pull=always as a second guard.
   docker pull "$NEMO_IMAGE"
   docker stop "$NEMO_CONTAINER" 2>/dev/null || true
   docker rm -f "$NEMO_CONTAINER" 2>/dev/null || true
-  docker run -d --name "$NEMO_CONTAINER" --restart unless-stopped \
+  docker run -d --pull=always --name "$NEMO_CONTAINER" --restart unless-stopped \
     -p "${NEMO_HOST_PORT}:5053" \
     --env-file "$env_file" \
     -v "$data_vol:/data" \
@@ -118,6 +120,6 @@ remote_env_dir=$(dirname "$REMOTE_NEMO_ENV_PATH")
 $ssh_cmd "$remote_target" "mkdir -p $remote_env_dir $REMOTE_NEMO_DATA_DIR && rm -rf ${REMOTE_NEMO_DATA_DIR}/*"
 rsync -e "$ssh_cmd" "$out_env" "${remote_target}:${REMOTE_NEMO_ENV_PATH}"
 
-$ssh_cmd "$remote_target" "docker pull $NEMO_IMAGE && docker stop $NEMO_CONTAINER 2>/dev/null || true; docker rm -f $NEMO_CONTAINER 2>/dev/null || true; docker run -d --name $NEMO_CONTAINER --restart unless-stopped -p ${NEMO_HOST_PORT}:5053 --env-file $REMOTE_NEMO_ENV_PATH -v $REMOTE_NEMO_DATA_DIR:/data $NEMO_IMAGE"
+$ssh_cmd "$remote_target" "docker pull $NEMO_IMAGE && docker stop $NEMO_CONTAINER 2>/dev/null || true; docker rm -f $NEMO_CONTAINER 2>/dev/null || true; docker run -d --pull=always --name $NEMO_CONTAINER --restart unless-stopped -p ${NEMO_HOST_PORT}:5053 --env-file $REMOTE_NEMO_ENV_PATH -v $REMOTE_NEMO_DATA_DIR:/data $NEMO_IMAGE"
 
 echo "Nemo deployed on $TOOLING_SERVER at port ${NEMO_HOST_PORT} (fresh DB under $REMOTE_NEMO_DATA_DIR, image $NEMO_IMAGE)."

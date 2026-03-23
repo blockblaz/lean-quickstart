@@ -130,8 +130,8 @@ After validators are up, **Nemo** (Lean consensus block/slot explorer; image `0x
 
 It uses **`LEAN_API_URL`**: a comma-separated list of `http://<validator-ip>:<apiPort>` for **every** entry in `validator-config.yaml` (same IPs/ports as the devnet HTTP APIs). Rows with **empty `enrFields.ip`** are skipped (e.g. placeholder nodes until an IP is set).
 
-- **Ansible deploy:** `sync-nemo-tooling.sh` writes `/etc/nemo/nemo.env`, **clears** `/opt/nemo/data`, pulls **`0xpartha/nemo:latest`**, and recreates the `nemo` container so SQLite is **always re-initialized** on each sync.
-- **Local devnet:** Nemo runs in Docker with `host.docker.internal` and data under `<NETWORK_DIR>/data/nemo-data` (cleared each run).
+- **Ansible deploy:** `sync-nemo-tooling.sh` writes `/etc/nemo/nemo.env`, **clears** `/opt/nemo/data`, runs **`docker pull`** on **`NEMO_IMAGE`** (default `0xpartha/nemo:latest`), then **`docker run --pull=always`** so the registry is checked again before start, and recreates the `nemo` container so SQLite is **always re-initialized** on each sync.
+- **Local devnet:** Same pull + `--pull=always` behavior; Nemo runs in Docker with `host.docker.internal` and data under `<NETWORK_DIR>/data/nemo-data` (cleared each run).
 
 UI: `http://<tooling-host>:5053` (override with `NEMO_HOST_PORT`). Skip with **`--skip-nemo`** or **`NEMO_SYNC_DISABLED=1`**. Env vars: see `sync-nemo-tooling.sh`.
 
