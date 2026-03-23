@@ -104,6 +104,23 @@ while [[ $# -gt 0 ]]; do
       skipLeanpoint=true
       shift
       ;;
+    --skip-nemo)
+      skipNemo=true
+      shift
+      ;;
+    --prepare)
+      prepareMode=true
+      shift
+      ;;
+    --subnets)
+      subnets="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --dry-run)
+      dryRun=true
+      shift
+      ;;
     --replace-with)
       replaceWith="$2"
       shift
@@ -119,8 +136,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# if no node and no restart-client specified, exit
-if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]];
+# if no node and no restart-client specified, exit (unless --prepare mode)
+if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]];
 then
   echo "no node or restart-client specified, exiting..."
   exit
@@ -159,5 +176,7 @@ echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"
 echo "skipLeanpoint = ${skipLeanpoint:-false}"
+echo "skipNemo = ${skipNemo:-false}"
+echo "dryRun = ${dryRun:-false}"
 echo "replaceWith = ${replaceWith:-<not set>}"
 echo "enableLogs = ${enableLogs:-false}"
