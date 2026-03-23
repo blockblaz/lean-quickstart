@@ -103,6 +103,7 @@
         -v {{ genesis_dir }}:/config:ro
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ zeam_docker_image }}
+        {{ zeam_global_flags }}
         node
         --custom_genesis /config
         --validator_config {{ actual_validator_config }}
