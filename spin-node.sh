@@ -477,7 +477,9 @@ if [ "$deployment_mode" == "ansible" ]; then
   fi
 
   if [ -z "$skipNemo" ]; then
-    if ! "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
+    _nemo_reset_db=0
+    [ -n "$generateGenesis" ] && _nemo_reset_db=1
+    if ! NEMO_RESET_DB="$_nemo_reset_db" "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
       echo "Warning: Nemo tooling sync failed. Pass --sshKey <path-to-key> if the tooling server requires it, or use --skip-nemo to skip."
     fi
   fi
@@ -714,10 +716,12 @@ if [ -z "$skipLeanpoint" ]; then
   fi
 fi
 
-# Nemo explorer: same tooling server (Ansible) or local Docker; fresh DB each deploy unless --skip-nemo
+# Nemo explorer: same tooling server (Ansible) or local Docker; DB reset only with --generateGenesis
 local_nemo_deployed=0
 if [ -z "$skipNemo" ]; then
-  if "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
+  _nemo_reset_db=0
+  [ -n "$generateGenesis" ] && _nemo_reset_db=1
+  if NEMO_RESET_DB="$_nemo_reset_db" "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
     local_nemo_deployed=1
   else
     echo "Warning: Nemo deploy failed. Pass --sshKey if needed, or --skip-nemo to skip."

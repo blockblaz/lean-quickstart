@@ -2,15 +2,16 @@
 # sync-nemo-tooling.sh — Build LEAN_API_URL from validator-config.yaml (all validators +
 # their apiPort/httpPort), deploy Nemo on the tooling server or locally.
 #
-# On every deploy: SQLite data dir is wiped so Nemo starts with a fresh DB.
+# SQLite under the Nemo data dir is wiped only when NEMO_RESET_DB=1 (spin-node sets this when
+# --generateGenesis is passed). Otherwise the existing DB is reused.
 # Image: docker pull NEMO_IMAGE, then docker run --pull=always so :latest is refreshed from the registry.
 #
 # Usage:
 #   sync-nemo-tooling.sh <validator_config_file> <script_dir> [ssh_key_file] [use_root] [local_data_dir]
 #
 # - If local_data_dir (5th arg) is set: run Nemo in Docker locally with host.docker.internal
-#   (--docker URL generation). Data: <local_data_dir>/nemo-data (cleared each run).
-# - Otherwise: rsync env file to tooling server, clear remote data dir, recreate container.
+#   (--docker URL generation). Data: <local_data_dir>/nemo-data.
+# - Otherwise: rsync env file to tooling server, recreate container.
 #
 # Env (optional):
 #   TOOLING_SERVER          (default: 46.225.10.32)
@@ -29,8 +30,17 @@
 #                           --platform is only passed when the registry manifest lists that architecture
 #                           (multi-arch index). Single-arch images omit it so pull/run still work; publish
 #                           a multi-arch image (see nemo/docker-bake.hcl) to get native pulls without emulation.
+#   NEMO_RESET_DB           If 1 or true: delete SQLite files in the Nemo data dir before start.
+#                           If unset or 0: reuse existing DB. spin-node sets 1 only with --generateGenesis.
 
 set -e
+
+nemo_should_reset_db() {
+  case "${NEMO_RESET_DB:-0}" in
+    1 | true | yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 # Map kernel machine name to Docker platform (multi-arch images, e.g. 0xpartha/nemo:latest).
 nemo_docker_platform_from_uname() {
@@ -131,7 +141,12 @@ if [ -n "$local_data_dir" ]; then
   mkdir -p "$local_data_dir"
   nemo_data="$local_data_dir/nemo-data"
   mkdir -p "$nemo_data"
-  rm -rf "${nemo_data:?}/"*
+  if nemo_should_reset_db; then
+    rm -rf "${nemo_data:?}/"*
+    echo "Nemo: cleared local data dir (NEMO_RESET_DB=1)."
+  else
+    echo "Nemo: reusing local data dir ${nemo_data} (set NEMO_RESET_DB=1 to wipe)."
+  fi
   env_local="$local_data_dir/nemo.env"
   python3 "$convert_script" --write-nemo-env "$env_local" "$validator_config_file" --docker || {
     echo "Error: Nemo env generation failed."
@@ -164,7 +179,13 @@ python3 "$convert_script" --write-nemo-env "$out_env" "$validator_config_file" |
 }
 
 remote_env_dir=$(dirname "$REMOTE_NEMO_ENV_PATH")
-$ssh_cmd "$remote_target" "mkdir -p $remote_env_dir $REMOTE_NEMO_DATA_DIR && rm -rf ${REMOTE_NEMO_DATA_DIR}/*"
+if nemo_should_reset_db; then
+  $ssh_cmd "$remote_target" "mkdir -p $remote_env_dir $REMOTE_NEMO_DATA_DIR && rm -rf ${REMOTE_NEMO_DATA_DIR}/*"
+  echo "Nemo: cleared remote data dir on $TOOLING_SERVER (NEMO_RESET_DB=1)."
+else
+  $ssh_cmd "$remote_target" "mkdir -p $remote_env_dir $REMOTE_NEMO_DATA_DIR"
+  echo "Nemo: reusing remote data dir $REMOTE_NEMO_DATA_DIR (set NEMO_RESET_DB=1 to wipe)."
+fi
 rsync -e "$ssh_cmd" "$out_env" "${remote_target}:${REMOTE_NEMO_ENV_PATH}"
 
 # Remote Docker: match tooling host arch when the registry publishes that variant in a multi-arch manifest.
@@ -173,4 +194,4 @@ remote_plat_args=$(nemo_docker_platform_args_for_machine "$remote_uname")
 
 $ssh_cmd "$remote_target" "docker pull $remote_plat_args $NEMO_IMAGE && docker stop $NEMO_CONTAINER 2>/dev/null || true; docker rm -f $NEMO_CONTAINER 2>/dev/null || true; docker run -d --pull=always $remote_plat_args --name $NEMO_CONTAINER --restart unless-stopped -p ${NEMO_HOST_PORT}:5053 --env-file $REMOTE_NEMO_ENV_PATH -v $REMOTE_NEMO_DATA_DIR:/data $NEMO_IMAGE"
 
-echo "Nemo deployed on $TOOLING_SERVER at port ${NEMO_HOST_PORT} (fresh DB under $REMOTE_NEMO_DATA_DIR, image $NEMO_IMAGE)."
+echo "Nemo deployed on $TOOLING_SERVER at port ${NEMO_HOST_PORT} (data $REMOTE_NEMO_DATA_DIR, image $NEMO_IMAGE)."
