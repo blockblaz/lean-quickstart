@@ -21,7 +21,7 @@
 #   NEMO_CONTAINER          (default: nemo)
 #   NEMO_IMAGE              (default: 0xpartha/nemo:latest)
 #   NEMO_SYNC_DISABLED      Set to 1 to skip
-#   NEMO_HOST_PORT          Host port published for Nemo HTTP (default: 5053).
+#   NEMO_HOST_PORT          Host port published for Nemo HTTP (default: 5455; maps to container port 5053).
 #                           Must differ from LEANPOINT_HOST_PORT (default 5555) on the same host.
 #   LEANPOINT_HOST_PORT     Only used for clash check (default 5555); set if you override leanpoint's host port.
 #   NEMO_DOCKER_PLATFORM    Optional. linux/arm64 or linux/amd64 for pull/run. If unset, derived from
@@ -82,7 +82,7 @@ REMOTE_NEMO_ENV_PATH="${REMOTE_NEMO_ENV_PATH:-/etc/nemo/nemo.env}"
 REMOTE_NEMO_DATA_DIR="${REMOTE_NEMO_DATA_DIR:-/opt/nemo/data}"
 NEMO_CONTAINER="${NEMO_CONTAINER:-nemo}"
 NEMO_IMAGE="${NEMO_IMAGE:-0xpartha/nemo:latest}"
-NEMO_HOST_PORT="${NEMO_HOST_PORT:-5053}"
+NEMO_HOST_PORT="${NEMO_HOST_PORT:-5455}"
 LEANPOINT_HOST_PORT="${LEANPOINT_HOST_PORT:-5555}"
 
 if [ "${NEMO_HOST_PORT}" = "${LEANPOINT_HOST_PORT}" ]; then

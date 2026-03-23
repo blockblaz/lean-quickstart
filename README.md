@@ -100,7 +100,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
 
 After validator nodes are spun up, leanpoint is deployed so it can monitor them. Behavior depends on deployment mode:
 
-- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at **http://localhost:5555** (host port **`LEANPOINT_HOST_PORT`**, default **5555** — kept separate from Nemo’s default **5053**). The container is removed on Ctrl+C cleanup or when you run with `--stop`.
+- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at **http://localhost:5555** (host port **`LEANPOINT_HOST_PORT`**, default **5555** — kept separate from Nemo’s default host port **5455**). The container is removed on Ctrl+C cleanup or when you run with `--stop`.
 - **Ansible/remote deployment**: Leanpoint is updated on the **tooling server**. The script rsyncs `upstreams.json` to the server, pulls the latest image there, and recreates the remote container.
 
 **What runs:**
@@ -126,14 +126,14 @@ Requires Python 3 and PyYAML (`pip install pyyaml`).
 
 ### Nemo (block explorer) on the tooling server
 
-After validators are up, **Nemo** (Lean consensus block/slot explorer; image `0xpartha/nemo:latest`) can run on the same **tooling server** as leanpoint (`46.225.10.32` by default). **Ports:** leanpoint uses host **5555** by default; Nemo uses host **5053** by default — they do not overlap. If you change either port, set **`NEMO_HOST_PORT`** and **`LEANPOINT_HOST_PORT`** so they stay different; `sync-nemo-tooling.sh` exits with an error if they match.
+After validators are up, **Nemo** (Lean consensus block/slot explorer; image `0xpartha/nemo:latest`) can run on the same **tooling server** as leanpoint (`46.225.10.32` by default). **Ports:** leanpoint uses host **5555** by default; Nemo publishes host **5455** → container **5053** by default — they do not overlap. If you change either port, set **`NEMO_HOST_PORT`** and **`LEANPOINT_HOST_PORT`** so they stay different; `sync-nemo-tooling.sh` exits with an error if they match. **HTTPS / nginx:** see [`docs/tooling-server-nemo-nginx.md`](docs/tooling-server-nemo-nginx.md) and [`tooling/nginx-nemo.conf.example`](tooling/nginx-nemo.conf.example).
 
 It uses **`LEAN_API_URL`**: a comma-separated list of `http://<validator-ip>:<apiPort>` for **every** entry in `validator-config.yaml` (same IPs/ports as the devnet HTTP APIs). Rows with **empty `enrFields.ip`** are skipped (e.g. placeholder nodes until an IP is set).
 
 - **Ansible deploy:** `sync-nemo-tooling.sh` writes `/etc/nemo/nemo.env`, **clears** `/opt/nemo/data`, runs **`docker pull`** on **`NEMO_IMAGE`** (default `0xpartha/nemo:latest`), then **`docker run --pull=always`** so the registry is checked again before start, and recreates the `nemo` container so SQLite is **always re-initialized** on each sync. When **`NEMO_IMAGE`** is a **multi-arch** manifest that lists the host CPU (`linux/arm64` or `linux/amd64`), the script passes **`--platform`** for that arch so Docker pulls the matching variant (no platform-mismatch warning). For **single-arch** tags, it omits **`--platform`** so pull/run still succeed. Optional **`NEMO_DOCKER_PLATFORM`** overrides the detected platform when the manifest includes it.
 - **Local devnet:** Same pull + `--pull=always` behavior; Nemo runs in Docker with `host.docker.internal` and data under `<NETWORK_DIR>/data/nemo-data` (cleared each run).
 
-UI: `http://<tooling-host>:5053` (override with `NEMO_HOST_PORT`). Skip with **`--skip-nemo`** or **`NEMO_SYNC_DISABLED=1`**. Env vars: see `sync-nemo-tooling.sh`.
+UI: `http://<tooling-host>:5455` (override with `NEMO_HOST_PORT`). Skip with **`--skip-nemo`** or **`NEMO_SYNC_DISABLED=1`**. Env vars: see `sync-nemo-tooling.sh`.
 
 ```sh
 # Print LEAN_API_URL for the current ansible devnet config
