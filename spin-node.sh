@@ -619,6 +619,18 @@ if [ "$deployment_mode" == "ansible" ]; then
     fi
   fi
 
+  # Push genesis time metric to Pushgateway if available
+  _pushgateway_url="${PUSHGATEWAY_URL:-http://46.225.10.32:9091}"
+  _genesis_config="$configDir/config.yaml"
+  if [ -f "$_genesis_config" ]; then
+    _genesis_time=$(grep "GENESIS_TIME:" "$_genesis_config" | awk '{print $2}')
+    if [ -n "$_genesis_time" ]; then
+      echo "lean_genesis_time $_genesis_time" | curl -s --data-binary @- \
+        "$_pushgateway_url/metrics/job/lean-quickstart" || \
+        echo "Warning: Failed to push lean_genesis_time to Pushgateway."
+    fi
+  fi
+
   # Ansible deployment succeeded, exit normally
   exit 0
 fi
