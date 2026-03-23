@@ -7,8 +7,9 @@ zeam_docker_image: "blockblaz/zeam:devnet3"
 zeam_binary_path: "{{ playbook_dir }}/../zig-out/bin/zeam"
 deployment_mode: docker  # docker or binary
 
-# Global zeam CLI flags before `node` (keep in sync with client-cmds/zeam-cmd.sh zeam_global_flags)
-zeam_global_flags: "--console-log-level debug"
+# Global zeam CLI flags before `node`. Empty by default: published devnet3 image lacks these options.
+# Override when using a zeam build that supports them, e.g. "--console-log-level debug"
+zeam_global_flags: ""
 
 # These should be passed from the playbook
 node_name: ""
