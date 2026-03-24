@@ -173,10 +173,9 @@
       vars:
         _av: "{{ lookup('file', local_genesis_dir + '/annotated_validators.yaml') | from_yaml }}"
         _assignments: "{{ _av[node_name] | default([]) }}"
-        _sk_files: "{{ _assignments | map(attribute='privkey_file') | list }}"
-        _pk_files: "{{ _sk_files | map('regex_replace', '_sk\\.ssz$', '_pk.ssz') | list }}"
+        _base: "{{ _assignments | map(attribute='privkey_file') | map('regex_replace', '_sk\\.ssz$', '') | list }}"
       set_fact:
-        node_hash_sig_files: "{{ _sk_files + _pk_files }}"
+        node_hash_sig_files: "{{ _base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list }}"
       when: hash_sig_keys_local.stat.exists
       tags:
         - deploy

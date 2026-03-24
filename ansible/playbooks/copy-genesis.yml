@@ -157,10 +157,9 @@
       vars:
         _av: "{{ lookup('file', genesis_dir + '/annotated_validators.yaml') | from_yaml }}"
         _assignments: "{{ _av[inventory_hostname] | default([]) }}"
-        _sk_files: "{{ _assignments | map(attribute='privkey_file') | list }}"
-        _pk_files: "{{ _sk_files | map('regex_replace', '_sk\\.ssz$', '_pk.ssz') | list }}"
+        _base: "{{ _assignments | map(attribute='privkey_file') | map('regex_replace', '_sk\\.ssz$', '') | list }}"
       set_fact:
-        node_hash_sig_files: "{{ _sk_files + _pk_files }}"
+        node_hash_sig_files: "{{ _base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list }}"
       when: hash_sig_keys_stat.stat.exists
 
     - name: Create hash-sig-keys directory on remote
