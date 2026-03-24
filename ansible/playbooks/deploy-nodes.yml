@@ -152,6 +152,7 @@
       loop:
         - config.yaml
         - validators.yaml
+        - annotated_validators.yaml
         - nodes.yaml
         - genesis.ssz
         - genesis.json
@@ -243,3 +244,27 @@
       include_tasks: helpers/deploy-single-node.yml
       tags:
         - deploy
+
+# When --replace-with is used, sync updated config yamls to all remote hosts
+- name: Sync updated config files to all hosts after replacement
+  hosts: all:!local
+  gather_facts: no
+  vars:
+    genesis_dir: "{{ remote_genesis_dir | default('/opt/lean-quickstart/genesis') }}"
+    local_genesis_dir: "{{ hostvars['localhost']['local_genesis_dir_path'] }}"
+  tasks:
+    - name: Sync config yamls to all hosts
+      copy:
+        src: "{{ local_genesis_dir }}/{{ item }}"
+        dest: "{{ genesis_dir }}/{{ item }}"
+        mode: '0644'
+        force: yes
+      loop:
+        - validators.yaml
+        - annotated_validators.yaml
+        - nodes.yaml
+        - validator-config.yaml
+      when: sync_all_hosts | default(false) | bool
+      tags:
+        - deploy
+        - sync

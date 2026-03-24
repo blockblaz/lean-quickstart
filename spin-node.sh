@@ -599,7 +599,10 @@ if [ "$deployment_mode" == "ansible" ]; then
   if [ "$dryRun" == "true" ]; then
     echo "[DRY RUN] Would deploy via Ansible — running playbook with --check --diff"
   fi
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$ansible_clean_data" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url" "$dryRun"; then
+  ansible_sync_all_hosts=""
+  [[ "${has_replacements:-false}" = "true" ]] && ansible_sync_all_hosts="true"
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$ansible_clean_data" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url" "$dryRun" "$ansible_sync_all_hosts"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
