@@ -175,7 +175,7 @@
         _assignments: "{{ _av[node_name] | default([]) }}"
         _base: "{{ _assignments | map(attribute='privkey_file') | map('regex_replace', '_sk\\.ssz$', '') | list }}"
       set_fact:
-        node_hash_sig_files: "{{ _base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list }}"
+        node_hash_sig_files: "{{ (_base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list) + ['validator-keys-manifest.yaml'] }}"
       when: hash_sig_keys_local.stat.exists
       tags:
         - deploy
@@ -263,6 +263,17 @@
         - annotated_validators.yaml
         - nodes.yaml
         - validator-config.yaml
+      when: sync_all_hosts | default(false) | bool
+      tags:
+        - deploy
+        - sync
+
+    - name: Sync validator-keys-manifest to all hosts
+      copy:
+        src: "{{ local_genesis_dir }}/hash-sig-keys/validator-keys-manifest.yaml"
+        dest: "{{ genesis_dir }}/hash-sig-keys/validator-keys-manifest.yaml"
+        mode: '0644'
+        force: yes
       when: sync_all_hosts | default(false) | bool
       tags:
         - deploy

@@ -159,7 +159,7 @@
         _assignments: "{{ _av[inventory_hostname] | default([]) }}"
         _base: "{{ _assignments | map(attribute='privkey_file') | map('regex_replace', '_sk\\.ssz$', '') | list }}"
       set_fact:
-        node_hash_sig_files: "{{ _base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list }}"
+        node_hash_sig_files: "{{ (_base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list) + ['validator-keys-manifest.yaml'] }}"
       when: hash_sig_keys_stat.stat.exists
 
     - name: Create hash-sig-keys directory on remote
