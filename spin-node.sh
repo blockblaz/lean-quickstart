@@ -7,6 +7,9 @@ if [ "$scriptDir" == "." ]; then
   scriptDir="$currentDir"
 fi
 
+# Save original args before parse-env.sh shifts them
+_original_args="$*"
+
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
@@ -66,6 +69,23 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     dataDir="$scriptDir/ansible-devnet/data"
     validator_config_file="$configDir/validator-config.yaml"
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
+fi
+
+# Set up logging if --logs flag is enabled
+if [ "$enableLogs" == "true" ]; then
+    _log_dir="$scriptDir/tmp"
+    mkdir -p "$_log_dir"
+    _log_start=$(date -u +%s)
+    if [ "$deployment_mode" == "ansible" ]; then
+        _log_prefix="ansible-run"
+    else
+        _log_prefix="local-run"
+    fi
+    _log_file="$_log_dir/${_log_prefix}-$(date -u '+%d-%m-%Y-%H-%M').log"
+    echo "$(date -u '+%Y-%m-%d %H:%M:%S') START spin-node.sh $_original_args" >> "$_log_dir/devnet.log"
+    trap 'echo "$(date -u '\''+%Y-%m-%d %H:%M:%S'\'') END   spin-node.sh ($(( $(date -u +%s) - _log_start ))s) -> '"$_log_file"'" >> "'"$_log_dir"'/devnet.log"' EXIT
+    exec > >(tee -a "$_log_file") 2>&1
+    echo "Logging to $_log_file"
 fi
 
 # If --subnets N is specified, expand the validator config template into a new
@@ -373,6 +393,115 @@ if [[ -n "$restartClient" ]]; then
   echo "Restarting with checkpoint sync: ${spin_nodes[*]} from $checkpointSyncUrl"
   cleanData=true  # Clear data when restarting with checkpoint sync
   node_present=true
+
+  # --- Handle --replace-with: swap client implementations ---
+  # Uses parallel arrays (bash 3.x compatible, no associative arrays)
+  if [[ -n "$replaceWith" ]]; then
+    IFS=',' read -r -a replace_nodes <<< "$replaceWith"
+
+    # Build replacement pairs as parallel arrays
+    replace_old_names=()
+    replace_new_names=()
+    has_replacements=false
+    i=0
+    for old_name in "${requested_nodes[@]}"; do
+      new_name=""
+      if [ $i -lt ${#replace_nodes[@]} ]; then
+        new_name=$(echo "${replace_nodes[$i]}" | xargs)  # trim whitespace
+      fi
+      if [ -n "$new_name" ] && [ "$new_name" != "$old_name" ]; then
+        replace_old_names+=("$old_name")
+        replace_new_names+=("$new_name")
+        has_replacements=true
+        echo "Will replace: $old_name → $new_name"
+      fi
+      i=$((i + 1))
+    done
+
+    # Warn about extra --replace-with entries beyond --restart-client count
+    if [ ${#replace_nodes[@]} -gt ${#requested_nodes[@]} ]; then
+      echo "Warning: --replace-with has more entries (${#replace_nodes[@]}) than --restart-client (${#requested_nodes[@]}). Extra entries ignored."
+    fi
+
+    if [ "$has_replacements" = true ]; then
+      # 1. Stop old containers and clean data BEFORE config changes (inventory still resolves to old names)
+      echo "Stopping old containers and cleaning data before replacement..."
+      for idx in "${!replace_old_names[@]}"; do
+        old_name="${replace_old_names[$idx]}"
+        if [ "$deployment_mode" == "ansible" ]; then
+          echo "Stopping $old_name and cleaning remote data via Ansible..."
+          "$scriptDir/run-ansible.sh" "$configDir" "$old_name" "true" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "" "true" "" || {
+            echo "Warning: Failed to stop $old_name via Ansible, continuing..."
+          }
+        else
+          echo "Stopping local container $old_name..."
+          if [ -n "$dockerWithSudo" ]; then
+            sudo docker rm -f "$old_name" 2>/dev/null || true
+          else
+            docker rm -f "$old_name" 2>/dev/null || true
+          fi
+          # Remove old local data directory (different clients have different data structures)
+          old_data_dir="$dataDir/$old_name"
+          if [ -d "$old_data_dir" ]; then
+            rm -rf "$old_data_dir"
+            echo "  Removed data dir $old_name"
+          fi
+        fi
+      done
+
+      # 2. Update config files (rename old → new)
+      for idx in "${!replace_old_names[@]}"; do
+        old_name="${replace_old_names[$idx]}"
+        new_name="${replace_new_names[$idx]}"
+        echo "Updating config files: $old_name → $new_name"
+
+        # validator-config.yaml: rename .validators[].name
+        yq eval -i "(.validators[] | select(.name == \"$old_name\") | .name) = \"$new_name\"" "$validator_config_file"
+
+        # validators.yaml: rename top-level key (two steps: copy then delete, single expression doesn't work)
+        validators_file="$configDir/validators.yaml"
+        if [ -f "$validators_file" ]; then
+          yq eval -i ".$new_name = .$old_name" "$validators_file"
+          yq eval -i "del(.$old_name)" "$validators_file"
+        fi
+
+        # annotated_validators.yaml: rename top-level key
+        annotated_file="$configDir/annotated_validators.yaml"
+        if [ -f "$annotated_file" ]; then
+          yq eval -i ".$new_name = .$old_name" "$annotated_file"
+          yq eval -i "del(.$old_name)" "$annotated_file"
+        fi
+
+        # Rename key file (overwrite if destination exists from a previous run)
+        if [ -f "$configDir/$old_name.key" ]; then
+          mv -f "$configDir/$old_name.key" "$configDir/$new_name.key"
+          echo "  Renamed $old_name.key → $new_name.key"
+        fi
+      done
+
+      # 3. Update spin_nodes array with new names
+      for i in "${!spin_nodes[@]}"; do
+        old="${spin_nodes[$i]}"
+        for idx in "${!replace_old_names[@]}"; do
+          if [ "$old" = "${replace_old_names[$idx]}" ]; then
+            spin_nodes[$i]="${replace_new_names[$idx]}"
+            break
+          fi
+        done
+      done
+
+      # Re-read nodes from updated config (needed for aggregator and downstream logic)
+      nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+
+      # Ensure inventory is regenerated on next run-ansible.sh call
+      # (the stop call may have regenerated it with old names)
+      touch "$validator_config_file"
+
+      echo "Updated spin_nodes: ${spin_nodes[*]}"
+      echo "Config files updated successfully."
+    fi
+  fi
+
 # Parse comma-separated or space-separated node names or handle single node/all
 elif [[ "$node" == "all" ]]; then
   # Spin all nodes
@@ -442,6 +571,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   fi
 
   # Determine skip_genesis for Ansible (true when restarting with checkpoint sync)
+  # deploy-nodes.yml syncs config files to the target host, so copy-genesis to all hosts is not needed
   ansible_skip_genesis="false"
   [[ "$restart_with_checkpoint_sync" == "true" ]] && ansible_skip_genesis="true"
 
@@ -459,17 +589,25 @@ if [ "$deployment_mode" == "ansible" ]; then
     exit 0
   fi
   
+  # When --replace-with already cleaned data in the stop step, don't pass clean_data to deploy
+  # (the old node name no longer exists in config, so clean-node-data.yml would fail resolving it)
+  ansible_clean_data="$cleanData"
+  [[ "${has_replacements:-false}" = "true" ]] && ansible_clean_data=""
+
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
   if [ "$dryRun" == "true" ]; then
     echo "[DRY RUN] Would deploy via Ansible — running playbook with --check --diff"
   fi
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url" "$dryRun"; then
+  ansible_sync_all_hosts=""
+  [[ "${has_replacements:-false}" = "true" ]] && ansible_sync_all_hosts="true"
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$ansible_clean_data" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url" "$dryRun" "$ansible_sync_all_hosts"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
 
-  if [ -z "$skipLeanpoint" ]; then
+  if [ -z "$skipLeanpoint" ] && { [ "$restart_with_checkpoint_sync" != "true" ] || [ "${has_replacements:-false}" = "true" ]; }; then
     # Sync leanpoint upstreams to tooling server and restart remote container (no 5th arg = remote)
     if ! "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
       echo "Warning: leanpoint sync failed. If the tooling server requires a specific SSH key, run with: --sshKey <path-to-key>"
@@ -481,6 +619,18 @@ if [ "$deployment_mode" == "ansible" ]; then
     [ -n "$generateGenesis" ] && _nemo_reset_db=1
     if ! NEMO_RESET_DB="$_nemo_reset_db" "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
       echo "Warning: Nemo tooling sync failed. Pass --sshKey <path-to-key> if the tooling server requires it, or use --skip-nemo to skip."
+    fi
+  fi
+
+  # Push genesis time metric to Pushgateway if available
+  _pushgateway_url="${PUSHGATEWAY_URL:-http://46.225.10.32:9091}"
+  _genesis_config="$configDir/config.yaml"
+  if [ -f "$_genesis_config" ]; then
+    _genesis_time=$(grep "GENESIS_TIME:" "$_genesis_config" | awk '{print $2}')
+    if [ -n "$_genesis_time" ]; then
+      echo "lean_genesis_time $_genesis_time" | curl -s --data-binary @- \
+        "$_pushgateway_url/metrics/job/lean-quickstart" || \
+        echo "Warning: Failed to push lean_genesis_time to Pushgateway."
     fi
   fi
 
@@ -707,8 +857,9 @@ if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
 fi
 
 # Deploy leanpoint: locally (local devnet) or sync to tooling server (Ansible), unless --skip-leanpoint
+# Skip leanpoint during checkpoint sync restart (node list hasn't changed)
 local_leanpoint_deployed=0
-if [ -z "$skipLeanpoint" ]; then
+if [ -z "$skipLeanpoint" ] && { [ "$restart_with_checkpoint_sync" != "true" ] || [ "${has_replacements:-false}" = "true" ]; }; then
   if "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
     local_leanpoint_deployed=1
   else

@@ -121,6 +121,15 @@ while [[ $# -gt 0 ]]; do
       dryRun=true
       shift
       ;;
+    --replace-with)
+      replaceWith="$2"
+      shift
+      shift
+      ;;
+    --logs)
+      enableLogs=true
+      shift
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
@@ -133,6 +142,12 @@ then
   echo "no node or restart-client specified, exiting..."
   exit
 fi;
+
+# Validate --replace-with requires --restart-client
+if [[ -n "$replaceWith" ]] && [[ ! -n "$restartClient" ]]; then
+  echo "Warning: --replace-with requires --restart-client. Ignoring --replace-with."
+  replaceWith=""
+fi
 
 # When using --restart-client with checkpoint sync, set default checkpoint URL if not provided
 if [[ -n "$restartClient" ]] && [[ ! -n "$checkpointSyncUrl" ]]; then
@@ -163,3 +178,5 @@ echo "restartClient = ${restartClient:-<not set>}"
 echo "skipLeanpoint = ${skipLeanpoint:-false}"
 echo "skipNemo = ${skipNemo:-false}"
 echo "dryRun = ${dryRun:-false}"
+echo "replaceWith = ${replaceWith:-<not set>}"
+echo "enableLogs = ${enableLogs:-false}"

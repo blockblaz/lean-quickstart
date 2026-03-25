@@ -30,6 +30,7 @@ coreDumps="$9"  # Core dump configuration: "all", node names, or client types
 skipGenesis="${10}"  # Set to "true" to skip genesis generation (e.g. when restarting with checkpoint sync)
 checkpointSyncUrl="${11}"  # URL for checkpoint sync (when restarting with --restart-client)
 dryRun="${12}"  # Set to "true" to run Ansible with --check --diff (no changes applied)
+syncAllHosts="${13}"  # Set to "true" to sync config yamls to all hosts (used after --replace-with)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -129,6 +130,10 @@ fi
 
 if [ -n "$checkpointSyncUrl" ]; then
   EXTRA_VARS="$EXTRA_VARS checkpoint_sync_url=$checkpointSyncUrl"
+fi
+
+if [ "$syncAllHosts" == "true" ]; then
+  EXTRA_VARS="$EXTRA_VARS sync_all_hosts=true"
 fi
 
 # Determine deployment mode (docker/binary) - read default from group_vars/all.yml

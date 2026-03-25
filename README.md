@@ -239,6 +239,16 @@ Every Ansible deployment automatically deploys an observability stack alongside 
    - Every subnet contains the same set of client types
    - `N=1` renames nodes to `{client}_0` with no port changes (useful for canonical naming)
    - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 --sshKey ~/.ssh/id_ed25519 --useRoot`
+17. `--replace-with` comma-separated list of replacement node names, positionally matched 1:1 with `--restart-client`. Swaps client implementations while keeping the same validator slot, keys, and server. Updates `validator-config.yaml`, `validators.yaml`, `annotated_validators.yaml`, and renames `.key` files. Leanpoint is re-synced when replacements occur.
+    - Example: `--restart-client zeam_0 --replace-with ream_0` → replaces zeam_0 with ream_0
+    - Example: `--restart-client zeam_0,ream_0 --replace-with ream_1` → ream_1 replaces zeam_0, ream_0 just restarts
+    - Empty entries skip that position: `--restart-client zeam_0,ream_0 --replace-with ,ream_1` → zeam_0 restarts, ream_0 replaced with ream_1
+18. `--logs` enables run logging. When specified:
+    - Appends UTC-timestamped START/END entries with duration and log file path to `tmp/devnet.log`
+    - Duplicates console output to a timestamped log file in `tmp/`:
+      - `tmp/local-run-DD-MM-YYYY-HH-MM.log` for local deployments
+      - `tmp/ansible-run-DD-MM-YYYY-HH-MM.log` for Ansible deployments
+    - Example: `NETWORK_DIR=local-devnet ./spin-node.sh --node all --logs`
 
 ### Preparing remote servers
 
@@ -333,6 +343,16 @@ NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0 \
 1. Existing containers for the specified clients are stopped (no error if already stopped)
 2. Data directories are cleared
 3. Clients are started with `--checkpoint-sync-url` so they sync from the remote checkpoint instead of genesis
+
+**Replacing a client during restart:**
+
+```sh
+# Replace zeam_0 with ream_0 (same validator slot, keys, and server)
+NETWORK_DIR=ansible-devnet ./spin-node.sh --restart-client zeam_0 --replace-with ream_0 --useRoot
+
+# Replace first node, just restart second
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0,ream_0 --replace-with qlean_0
+```
 
 **Deployment modes:**
 - **Local** (`NETWORK_DIR=local-devnet`): Uses Docker directly
