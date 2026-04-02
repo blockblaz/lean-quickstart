@@ -1099,6 +1099,76 @@ Ansible mode is ideal for:
 - Multi-host deployments
 - Infrastructure as Code workflows
 
+## Shadow Network Simulator
+
+[Shadow](https://shadow.github.io/) is a discrete-event network simulator that runs real application binaries over a simulated network. It is useful for reproducible multi-node testing without real hardware or cloud resources.
+
+### Requirements
+
+- **Shadow** (v3.x): [Install guide](https://shadow.github.io/docs/guide/install.html)
+- **yq**: YAML processor (same as regular devnet)
+- **Docker**: Required for genesis generation
+
+### Quick Start
+
+From the client repo root (with lean-quickstart as a submodule):
+
+```sh
+cd lean-quickstart
+./run-shadow.sh
+```
+
+This single command:
+1. Generates genesis with a fixed Shadow-compatible timestamp (`946684860`)
+2. Generates `shadow.yaml` from `shadow-devnet/genesis/validator-config.yaml`
+3. Runs Shadow simulation (default: 360 seconds)
+
+### Options
+
+```sh
+# Custom simulation time
+./run-shadow.sh --stop-time 600s
+
+# Force regenerate hash-sig keys
+./run-shadow.sh --forceKeyGen
+
+# Use a different genesis directory
+./run-shadow.sh --genesis-dir /path/to/custom/genesis
+```
+
+### Configuration
+
+Shadow devnet configuration lives in `shadow-devnet/genesis/validator-config.yaml`. It uses virtual IPs (`100.0.0.x`) required by Shadow's simulated network:
+
+```yaml
+validators:
+  - name: "zeam_0"
+    enrFields:
+      ip: "100.0.0.1"
+      quic: 9001
+    # ...
+```
+
+To test a different client, change the node name prefixes (e.g., `ream_0`) and ensure a matching `client-cmds/<client>-cmd.sh` exists.
+
+### How It Works
+
+- **`run-shadow.sh`** — orchestrator: genesis → shadow.yaml → `shadow` execution
+- **`generate-shadow-yaml.sh`** — reads `validator-config.yaml`, sources each client's `client-cmds/<client>-cmd.sh` to build per-node command lines, and emits `shadow.yaml`
+- **`generate-genesis.sh --genesis-time 946684860`** — produces genesis with Shadow's virtual clock epoch (Jan 1, 2000 + 60s warmup)
+
+Shadow's virtual clock starts at Unix timestamp `946684800` (Jan 1, 2000). Genesis time is set to `946684860` (epoch + 60s) to give nodes time to initialize.
+
+### Checking Results
+
+```sh
+# Check consensus status
+grep 'new_head\|finalized' shadow.data/hosts/*/*.stderr | tail -20
+
+# Full node logs
+cat shadow.data/hosts/zeam-0/zeam.1000.stderr
+```
+
 ## Client branches
 
 Clients can maintain their own branches to integrated and use binay with their repos as the static targets (check `git diff main zeam_repo`, it has two nodes, both specified to run `zeam` for sim testing in zeam using the quickstart generated genesis).
