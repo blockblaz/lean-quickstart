@@ -76,10 +76,6 @@
     state: directory
     mode: '0755'
 
-- name: Set validator config value
-  set_fact:
-    actual_validator_config: "{{ validator_config if validator_config is defined and validator_config != '' else 'genesis_bootnode' }}"
-
 - name: Deploy Zeam node using Docker
   block:
     - name: Stop existing Zeam container (if any)
@@ -106,7 +102,7 @@
         {{ zeam_global_flags }}
         node
         --custom_genesis /config
-        --validator_config {{ actual_validator_config }}
+        --validator_config /config
         --data-dir /data
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
