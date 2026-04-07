@@ -18,7 +18,7 @@
     - deploy
     - observability
   vars:
-    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+    validator_config_file: "{{ local_validator_config_path | default(genesis_dir + '/validator-config.yaml') }}"
 
   tasks:
     - name: Validate validator-config.yaml exists
@@ -122,10 +122,7 @@
 
     - name: Sync validator-config.yaml to remote host
       copy:
-        # Use the expanded subnet config when --subnets was specified; fall back
-        # to the standard validator-config.yaml otherwise. The destination is
-        # always validator-config.yaml so client roles don't need to change.
-        src: "{{ local_genesis_dir }}/{{ validator_config_basename | default('validator-config.yaml') }}"
+        src: "{{ local_validator_config_path | default(local_genesis_dir + '/validator-config.yaml') }}"
         dest: "{{ genesis_dir }}/validator-config.yaml"
         mode: '0644'
         force: yes

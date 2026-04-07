@@ -9,20 +9,25 @@ clients:
   - url: {{ loki_push_url }}
 
 scrape_configs:
-  - job_name: {{ node_name }}
+  - job_name: {{ ansible_host }}
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
         filters:
           - name: name
-            values: ["{{ node_name }}"]
+            values:
+{% for node in colocated_nodes %}
+              - "{{ node.name }}"
+{% endfor %}
     relabel_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: 'container'
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: 'stream'
-      - target_label: 'node'
-        replacement: '{{ node_name }}'
-      - target_label: 'host'
+      - source_labels: ['container']
+        target_label: 'node'
+      - target_label: 'instance'
         replacement: '{{ ansible_host }}'
+      - target_label: 'network'
+        replacement: '{{ network_name }}'

@@ -2,16 +2,18 @@
 # Observability role: Deploy cadvisor, node_exporter, prometheus, and promtail
 # alongside each lean node on remote hosts.
 
-- name: Extract metricsPort from validator-config.yaml
+- name: Find all nodes on this host
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .metricsPort" "{{ local_genesis_dir }}/validator-config.yaml"
-  register: obs_metrics_port_raw
+    yq eval '[.validators[] | select(.enrFields.ip == "{{ ansible_host }}") | {"name": .name, "metricsPort": .metricsPort}]' \
+      "{{ local_validator_config_path }}" -o=json
+  register: colocated_nodes_raw
   changed_when: false
   delegate_to: localhost
 
-- name: Set metricsPort fact
+- name: Set colocated nodes fact
   set_fact:
-    obs_metrics_port: "{{ obs_metrics_port_raw.stdout | trim }}"
+    colocated_nodes: "{{ colocated_nodes_raw.stdout | from_json }}"
+    is_primary_node: "{{ (colocated_nodes_raw.stdout | from_json)[0].name == node_name }}"
 
 - name: Create observability config directory
   file:
@@ -32,10 +34,13 @@
     mode: '0644'
 
 # --- cadvisor (always recreate to ensure correct flags) ---
+# Only the first colocated node on each machine manages infra containers
+# to avoid parallel rm+run races when multiple nodes share a host.
 
 - name: Remove existing cadvisor container
   command: docker rm -f cadvisor
   failed_when: false
+  when: is_primary_node
 
 - name: Start cadvisor container
   command: >-
@@ -55,12 +60,14 @@
     -v /var/lib/docker/:/var/lib/docker:ro
     {{ cadvisor_image }}
     --port={{ cadvisor_port }}
+  when: is_primary_node
 
 # --- node_exporter (always recreate to ensure correct flags) ---
 
 - name: Remove existing node_exporter container
   command: docker rm -f node_exporter
   failed_when: false
+  when: is_primary_node
 
 - name: Start node_exporter container
   command: >-
@@ -77,6 +84,7 @@
     --path.sysfs=/host/sys
     --path.rootfs=/rootfs
     --web.listen-address=0.0.0.0:{{ node_exporter_port }}
+  when: is_primary_node
 
 # --- prometheus (always recreate to pick up config/mount changes, data persists on host) ---
 
@@ -90,6 +98,7 @@
 - name: Remove existing prometheus container
   command: docker rm -f prometheus
   failed_when: false
+  when: is_primary_node
 
 - name: Start prometheus container
   command: >-
@@ -103,12 +112,14 @@
     --config.file=/etc/prometheus/prometheus.yml
     --storage.tsdb.retention.time=15d
     --web.listen-address=0.0.0.0:{{ prometheus_port }}
+  when: is_primary_node
 
 # --- promtail (always recreate to pick up config/mount changes) ---
 
 - name: Remove existing promtail container
   command: docker rm -f promtail
   failed_when: false
+  when: is_primary_node
 
 - name: Start promtail container
   command: >-
@@ -122,3 +133,4 @@
     {{ promtail_image }}
     -config.file=/etc/promtail/config.yml
     -server.http-listen-port={{ promtail_port }}
+  when: is_primary_node

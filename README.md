@@ -249,6 +249,11 @@ Every Ansible deployment automatically deploys an observability stack alongside 
       - `tmp/local-run-DD-MM-YYYY-HH-MM.log` for local deployments
       - `tmp/ansible-run-DD-MM-YYYY-HH-MM.log` for Ansible deployments
     - Example: `NETWORK_DIR=local-devnet ./spin-node.sh --node all --logs`
+19. `--network` sets the network name label attached to every metric and log stream scraped by the observability stack (Ansible mode only).
+   - Default: `devnet-3`, set in `parse-env.sh` after argument parsing
+   - Propagated to Ansible as the `network_name` variable, which is used in `prometheus.yml.j2` and `promtail.yml.j2` templates
+   - Appears as the `network` label on all Prometheus scrape targets (app, node_exporter, cadvisor) and all Promtail log streams, so you can filter by network in Grafana across multiple environments
+   - Example: `--network devnet-x`
 
 ### Preparing remote servers
 
