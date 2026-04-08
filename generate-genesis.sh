@@ -162,8 +162,8 @@ if ! command -v docker &> /dev/null; then
 fi
 echo "  ✅ docker found: $(which docker)"
 
-# Hash-sig-cli Docker image
-HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet2"
+# Hash-sig-cli Docker image (devnet4: separate attester + proposer keys per validator)
+HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet4"
 echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
 
 echo ""
@@ -211,8 +211,18 @@ if [ ! -f "$MANIFEST_FILE" ]; then
     KEYS_EXIST=false
 else
     for ((i=0; i<VALIDATOR_COUNT; i++)); do
-        if [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_pk.json" ] || \
-           [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_sk.json" ]; then
+        # devnet4+: proposer + attester key files per index
+        if [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_proposer_key_pk.json" ] && \
+           [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_attester_key_pk.json" ]; then
+            if [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_proposer_key_sk.json" ] || \
+               [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_attester_key_sk.json" ]; then
+                KEYS_EXIST=false
+                break
+            fi
+        elif [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_pk.json" ] && \
+             [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_sk.json" ]; then
+            :
+        else
             KEYS_EXIST=false
             break
         fi
@@ -282,9 +292,9 @@ else
     fi
 
     echo "   ✅ Generated keys for $VALIDATOR_COUNT validators"
-    echo "   ✅ Files created:"
+    echo "   ✅ Files created (per validator: proposer + attester pk/sk):"
     for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
-        echo "      - validator_${i}_pk.json and validator_${i}_sk.json"
+        echo "      - validator_${i}_proposer_key_{pk,sk}.json validator_${i}_attester_key_{pk,sk}.json"
     done
 
     echo ""
@@ -306,40 +316,55 @@ if [ ! -f "$MANIFEST_FILE" ]; then
     exit 1
 fi
 
-# Detect the field name used by hash-sig-cli (pubkey_hex, public_key_file, or publicKey)
-# Check first validator entry to determine field name
+# Detect dual-key manifest (devnet4 / hash-sig-cli) vs legacy single pubkey_hex
 FIRST_VALIDATOR_FIELDS=$(yq eval '.validators[0] | keys | .[]' "$MANIFEST_FILE" 2>/dev/null)
+DUAL_KEY_MODE=false
 PUBKEY_FIELD=""
-if echo "$FIRST_VALIDATOR_FIELDS" | grep -q "pubkey_hex"; then
+if echo "$FIRST_VALIDATOR_FIELDS" | grep -q "attester_key_pubkey_hex" && \
+   echo "$FIRST_VALIDATOR_FIELDS" | grep -q "proposer_key_pubkey_hex"; then
+    DUAL_KEY_MODE=true
+elif echo "$FIRST_VALIDATOR_FIELDS" | grep -q "pubkey_hex"; then
     PUBKEY_FIELD="pubkey_hex"
 elif echo "$FIRST_VALIDATOR_FIELDS" | grep -q "public_key_file"; then
     PUBKEY_FIELD="public_key_file"
 elif echo "$FIRST_VALIDATOR_FIELDS" | grep -q "publicKey"; then
     PUBKEY_FIELD="publicKey"
 else
-    echo "   ❌ Error: Could not determine pubkey field name in manifest"
-    echo "   Expected 'pubkey_hex', 'public_key_file', or 'publicKey' field"
+    echo "   ❌ Error: Could not determine manifest pubkey layout"
+    echo "   Expected dual keys (attester_key_pubkey_hex + proposer_key_pubkey_hex) or legacy pubkey_hex / public_key_file / publicKey"
     exit 1
 fi
 
-# Verify that manifest contains hex bytes (not file names)
-FIRST_PUBKEY=$(yq eval ".validators[0].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
-if [ -z "$FIRST_PUBKEY" ]; then
-    echo "   ❌ Error: Could not read pubkey from manifest"
-    exit 1
+if [ "$DUAL_KEY_MODE" = true ]; then
+    ATTEST_PUB=$(yq eval '.validators[0].attester_key_pubkey_hex' "$MANIFEST_FILE" 2>/dev/null)
+    PROP_PUB=$(yq eval '.validators[0].proposer_key_pubkey_hex' "$MANIFEST_FILE" 2>/dev/null)
+    if [ -z "$ATTEST_PUB" ] || [ -z "$PROP_PUB" ]; then
+        echo "   ❌ Error: Could not read attester/proposer pubkeys from manifest"
+        exit 1
+    fi
+    for pk in "$ATTEST_PUB" "$PROP_PUB"; do
+        if [[ ! "$pk" =~ ^0x[0-9a-fA-F]+$ ]]; then
+            echo "   ❌ Error: Manifest does not contain hex pubkeys (dual-key mode)"
+            echo "   Found: $pk"
+            exit 1
+        fi
+    done
+    echo "   ✅ Manifest verified - dual-key format (attester + proposer)"
+else
+    FIRST_PUBKEY=$(yq eval ".validators[0].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
+    if [ -z "$FIRST_PUBKEY" ]; then
+        echo "   ❌ Error: Could not read pubkey from manifest"
+        exit 1
+    fi
+    if [[ ! "$FIRST_PUBKEY" =~ ^0x[0-9a-fA-F]+$ ]]; then
+        echo "   ❌ Error: Manifest does not contain hex pubkeys"
+        echo "   Found: $FIRST_PUBKEY"
+        echo "   Expected format: 0x[hex bytes]"
+        exit 1
+    fi
+    echo "   ✅ Manifest verified - contains hex pubkeys (legacy)"
+    echo "   Detected pubkey field: $PUBKEY_FIELD"
 fi
-
-# Check if it's hex format (starts with 0x)
-if [[ ! "$FIRST_PUBKEY" =~ ^0x[0-9a-fA-F]+$ ]]; then
-    echo "   ❌ Error: Manifest does not contain hex pubkeys"
-    echo "   Found: $FIRST_PUBKEY"
-    echo "   Expected format: 0x[hex bytes]"
-    echo "   Make sure hash-sig-cli generates manifest with hex bytes"
-    exit 1
-fi
-
-echo "   ✅ Manifest verified - contains hex pubkeys"
-echo "   Detected pubkey field: $PUBKEY_FIELD"
 
 echo ""
 
@@ -390,10 +415,19 @@ done < <(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE")
 
 echo "   Total validator count: $TOTAL_VALIDATORS"
 
+# Optional chain setting (defaults to 4 for devnet4-style configs)
+ATTESTATION_COMMITTEE_COUNT=$(yq eval '.config.attestation_committee_count // 4' "$VALIDATOR_CONFIG_FILE" 2>/dev/null)
+if [ -z "$ATTESTATION_COMMITTEE_COUNT" ] || [ "$ATTESTATION_COMMITTEE_COUNT" == "null" ]; then
+    ATTESTATION_COMMITTEE_COUNT=4
+fi
+
 # Generate config.yaml from scratch
 cat > "$CONFIG_FILE" << EOF
 # Genesis Settings
 GENESIS_TIME: $GENESIS_TIME
+
+# Chain Settings
+ATTESTATION_COMMITTEE_COUNT: $ATTESTATION_COMMITTEE_COUNT
 
 # Key Settings
 ACTIVE_EPOCH: $ACTIVE_EPOCH
@@ -477,43 +511,59 @@ VALIDATOR_ENTRY_INDEX=0
 # Create temporary file for genesis_validators YAML
 GENESIS_VALIDATORS_TMP=$(mktemp)
 
-# Debug: show manifest file and pubkey field
+# Debug: show manifest file and layout
 echo "   Reading pubkeys from: $MANIFEST_FILE"
-echo "   Using pubkey field: $PUBKEY_FIELD"
+if [ "$DUAL_KEY_MODE" = true ]; then
+    echo "   Layout: dual-key (attestation_pubkey + proposal_pubkey in config.yaml)"
+else
+    echo "   Using pubkey field: $PUBKEY_FIELD"
+fi
 
 # Iterate through validators in validator-config.yaml
 while IFS= read -r validator_name; do
     COUNT=$(yq eval ".validators[$VALIDATOR_ENTRY_INDEX].count" "$VALIDATOR_CONFIG_FILE")
-    
-    # Read hex pubkey directly from manifest (hash-sig-cli now generates hex)
-    PUBKEY_HEX=$(yq eval ".validators[$VALIDATOR_ENTRY_INDEX].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
-    
-    # Debug output
-    echo "   Validator $VALIDATOR_ENTRY_INDEX ($validator_name): count=$COUNT, pubkey=${PUBKEY_HEX:0:20}..."
-    
-    if [ -z "$PUBKEY_HEX" ] || [ "$PUBKEY_HEX" == "null" ]; then
-        echo "   ❌ Error: Could not read pubkey for validator $VALIDATOR_ENTRY_INDEX from manifest"
-        rm -f "$GENESIS_VALIDATORS_TMP"
-        exit 1
-    fi
-    
-    # Verify it's hex format
-    if [[ ! "$PUBKEY_HEX" =~ ^0x[0-9a-fA-F]+$ ]]; then
-        echo "   ❌ Error: Invalid pubkey format for validator $VALIDATOR_ENTRY_INDEX"
-        echo "   Found: $PUBKEY_HEX"
-        echo "   Expected format: 0x[hex bytes]"
-        rm -f "$GENESIS_VALIDATORS_TMP"
-        exit 1
-    fi
-    
-    # For each validator index this entry represents
+    echo "   Node $VALIDATOR_ENTRY_INDEX ($validator_name): count=$COUNT"
+
+    # For each global validator index this node owns
     for ((idx=0; idx<COUNT; idx++)); do
         ACTUAL_INDEX=$((CUMULATIVE_INDEX + idx))
-        # Build YAML structure in temp file
-        # strip 0x from PUBKEY_HEX
-        echo "    - \"${PUBKEY_HEX#0x}\"" >> "$GENESIS_VALIDATORS_TMP"
+        if [ "$DUAL_KEY_MODE" = true ]; then
+            AH=$(yq eval ".validators[$ACTUAL_INDEX].attester_key_pubkey_hex" "$MANIFEST_FILE" 2>/dev/null)
+            PH=$(yq eval ".validators[$ACTUAL_INDEX].proposer_key_pubkey_hex" "$MANIFEST_FILE" 2>/dev/null)
+            echo "      index $ACTUAL_INDEX: attester=${AH:0:12}..., proposer=${PH:0:12}..."
+            if [ -z "$AH" ] || [ "$AH" == "null" ] || [ -z "$PH" ] || [ "$PH" == "null" ]; then
+                echo "   ❌ Error: Could not read attester/proposer pubkeys for manifest index $ACTUAL_INDEX"
+                rm -f "$GENESIS_VALIDATORS_TMP"
+                exit 1
+            fi
+            for pk in "$AH" "$PH"; do
+                if [[ ! "$pk" =~ ^0x[0-9a-fA-F]+$ ]]; then
+                    echo "   ❌ Error: Invalid pubkey format for validator index $ACTUAL_INDEX"
+                    echo "   Found: $pk"
+                    rm -f "$GENESIS_VALIDATORS_TMP"
+                    exit 1
+                fi
+            done
+            echo "  - attestation_pubkey: \"${AH#0x}\"" >> "$GENESIS_VALIDATORS_TMP"
+            echo "    proposal_pubkey: \"${PH#0x}\"" >> "$GENESIS_VALIDATORS_TMP"
+        else
+            PK=$(yq eval ".validators[$ACTUAL_INDEX].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
+            echo "      index $ACTUAL_INDEX: pubkey=${PK:0:20}..."
+            if [ -z "$PK" ] || [ "$PK" == "null" ]; then
+                echo "   ❌ Error: Could not read pubkey for manifest index $ACTUAL_INDEX"
+                rm -f "$GENESIS_VALIDATORS_TMP"
+                exit 1
+            fi
+            if [[ ! "$PK" =~ ^0x[0-9a-fA-F]+$ ]]; then
+                echo "   ❌ Error: Invalid pubkey format for validator index $ACTUAL_INDEX"
+                echo "   Found: $PK"
+                rm -f "$GENESIS_VALIDATORS_TMP"
+                exit 1
+            fi
+            echo "    - \"${PK#0x}\"" >> "$GENESIS_VALIDATORS_TMP"
+        fi
     done
-    
+
     CUMULATIVE_INDEX=$((CUMULATIVE_INDEX + COUNT))
     VALIDATOR_ENTRY_INDEX=$((VALIDATOR_ENTRY_INDEX + 1))
 done < <(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE")
@@ -522,7 +572,7 @@ done < <(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE")
 if [ -s "$GENESIS_VALIDATORS_TMP" ]; then
     # Append directly to config.yaml (simpler and more reliable than yq merge)
     echo "" >> "$CONFIG_FILE"
-    echo "# Genesis Validator Pubkeys" >> "$CONFIG_FILE"
+    echo "# List of Genesis Validators' Public Keys (attestation + proposal)" >> "$CONFIG_FILE"
     echo "GENESIS_VALIDATORS:" >> "$CONFIG_FILE"
     cat "$GENESIS_VALIDATORS_TMP" >> "$CONFIG_FILE"
     
@@ -602,22 +652,40 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
 
         ENTRY_FOUND=true
 
-        PUBKEY_HEX_VALUE=$(yq eval ".validators[$raw_index].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
-
-        if [ -z "$PUBKEY_HEX_VALUE" ] || [ "$PUBKEY_HEX_VALUE" == "null" ]; then
-            echo "   ❌ Error: Missing pubkey for validator index $raw_index in manifest"
-            rm -f "$NODE_ASSIGNMENTS_TMP"
-            exit 1
-        fi
-
-        PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
-        PRIVKEY_FILENAME="validator_${raw_index}_sk.ssz"
-
-        cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
+        if [ "$DUAL_KEY_MODE" = true ]; then
+            ATTEST_HEX_VALUE=$(yq eval ".validators[$raw_index].attester_key_pubkey_hex" "$MANIFEST_FILE" 2>/dev/null)
+            PROP_HEX_VALUE=$(yq eval ".validators[$raw_index].proposer_key_pubkey_hex" "$MANIFEST_FILE" 2>/dev/null)
+            if [ -z "$ATTEST_HEX_VALUE" ] || [ "$ATTEST_HEX_VALUE" == "null" ] || \
+               [ -z "$PROP_HEX_VALUE" ] || [ "$PROP_HEX_VALUE" == "null" ]; then
+                echo "   ❌ Error: Missing attester/proposer pubkey for validator index $raw_index in manifest"
+                rm -f "$NODE_ASSIGNMENTS_TMP"
+                exit 1
+            fi
+            ATTEST_NO_PREFIX="${ATTEST_HEX_VALUE#0x}"
+            PROP_NO_PREFIX="${PROP_HEX_VALUE#0x}"
+            cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
+  - index: $raw_index
+    pubkey_hex: $ATTEST_NO_PREFIX
+    privkey_file: validator_${raw_index}_attester_key_sk.ssz
+  - index: $raw_index
+    pubkey_hex: $PROP_NO_PREFIX
+    privkey_file: validator_${raw_index}_proposer_key_sk.ssz
+EOF
+        else
+            PUBKEY_HEX_VALUE=$(yq eval ".validators[$raw_index].$PUBKEY_FIELD" "$MANIFEST_FILE" 2>/dev/null)
+            if [ -z "$PUBKEY_HEX_VALUE" ] || [ "$PUBKEY_HEX_VALUE" == "null" ]; then
+                echo "   ❌ Error: Missing pubkey for validator index $raw_index in manifest"
+                rm -f "$NODE_ASSIGNMENTS_TMP"
+                exit 1
+            fi
+            PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
+            PRIVKEY_FILENAME="validator_${raw_index}_sk.ssz"
+            cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
   - index: $raw_index
     pubkey_hex: $PUBKEY_HEX_NO_PREFIX
     privkey_file: $PRIVKEY_FILENAME
 EOF
+        fi
     done < <(yq eval "$INDEX_QUERY" "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
 
     if [ "$ENTRY_FOUND" = false ]; then
@@ -710,8 +778,13 @@ done
 echo ""
 echo "🔐 Hash-Sig Validator Keys:"
 for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
-    echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_pk.json"
-    echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_sk.json"
+    if [ -f "$GENESIS_DIR/hash-sig-keys/validator_${i}_proposer_key_pk.json" ]; then
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_proposer_key_{pk,sk}.json"
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_attester_key_{pk,sk}.json"
+    else
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_pk.json"
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_sk.json"
+    fi
 done
 echo ""
 echo "🎯 Next steps:"
