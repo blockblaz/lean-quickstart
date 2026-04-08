@@ -233,7 +233,7 @@ echo "Detected nodes: ${nodes[@]}"
 spin_nodes=()
 restart_with_checkpoint_sync=false
 
-# Aggregator selection — one randomly chosen aggregator per subnet.
+# Aggregator selection — one aggregator per subnet.
 #
 # Skipped entirely for --restart-client: restarting a single node must not
 # disturb the existing isAggregator assignments for the rest of the network.
@@ -244,11 +244,26 @@ restart_with_checkpoint_sync=false
 # default to subnet 0 regardless of their name suffix.
 #
 # When --aggregator is specified, that node is used as the aggregator for
-# its own subnet; all other subnets still get a random selection.
+# its own subnet; all other subnets still get a random selection (still
+# excluding that node's client type from pools on other subnets).
+#
+# Default random mode (no --aggregator): aggregators are unique by CLIENT
+# (prefix before the first '_', e.g. zeam from zeam_0). Example with 5 subnets:
+# if zeam_* is chosen for subnet 0, no zeam_* node may be aggregator on
+# subnets 1–4. If subnets outnumber distinct clients, the pool is exhausted
+# and we fall back to unrestricted random with a warning.
 
 # Helper: get the subnet index for a node from the config (defaults to 0).
 _node_subnet() {
   yq eval ".validators[] | select(.name == \"$1\") | .subnet // 0" "$validator_config_file"
+}
+
+# Helper: client type prefix (matches generate-subnet-config.py _client_name).
+_client_prefix() {
+  case "$1" in
+    *_*) printf '%s\n' "${1%%_*}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
 }
 
 if [ -n "$restartClient" ]; then
@@ -302,7 +317,9 @@ else
 
   # Select one aggregator per subnet and set the flag.
   # Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
+  # _used_agg_prefixes: client types already chosen (default random / preset / --aggregator).
   _aggregator_summary=()
+  _used_agg_prefixes=" "
   for _subnet_idx in "${_unique_subnets[@]}"; do
     _subnet_nodes=()
     for _node in "${nodes[@]}"; do
@@ -324,15 +341,45 @@ else
       done
       if [[ "$_preset_valid" == "true" ]]; then
         _selected_agg="$_preset"
+        # Default mode: one client type at most once across subnets — drop conflicting presets.
+        if [ -z "$aggregatorNode" ]; then
+          _pp="$(_client_prefix "$_selected_agg")"
+          if [[ "$_used_agg_prefixes" == *" $_pp "* ]]; then
+            echo "Warning: preset aggregator '$_preset' (client $_pp) already aggregates another subnet; selecting randomly in subnet $_subnet_idx." >&2
+            _selected_agg=""
+          fi
+        fi
       else
         # Preset node no longer exists — fall back to random and warn.
         echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
-        _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
+        _selected_agg=""
       fi
-    else
-      # 3. No preference set — pick randomly.
-      _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
     fi
+
+    # 3. Random (or preset fallback): prefer client types not yet used as aggregator.
+    if [ -z "$_selected_agg" ]; then
+      _eligible_aggs=()
+      for _n in "${_subnet_nodes[@]}"; do
+        _np="$(_client_prefix "$_n")"
+        case "$_used_agg_prefixes" in
+          *" $_np "*) : ;;
+          *) _eligible_aggs+=("$_n") ;;
+        esac
+      done
+      if [ ${#_eligible_aggs[@]} -eq 0 ] && [ ${#_subnet_nodes[@]} -gt 0 ]; then
+        echo "Warning: subnet $_subnet_idx — no unused client type left for aggregator (subnets > distinct clients?); picking among all nodes in this subnet." >&2
+        _eligible_aggs=("${_subnet_nodes[@]}")
+      fi
+      if [ ${#_eligible_aggs[@]} -gt 0 ]; then
+        _selected_agg="${_eligible_aggs[$((RANDOM % ${#_eligible_aggs[@]}))]}"
+      else
+        echo "Error: subnet $_subnet_idx has no nodes to select an aggregator from." >&2
+        exit 1
+      fi
+    fi
+
+    _sel_pref="$(_client_prefix "$_selected_agg")"
+    _used_agg_prefixes+="$_sel_pref "
 
     if [ "$dryRun" != "true" ]; then
       yq eval -i "(.validators[] | select(.name == \"$_selected_agg\") | .isAggregator) = true" "$validator_config_file"
