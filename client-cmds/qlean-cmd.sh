@@ -33,6 +33,16 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
+# Hash-sig paths inside container (devnet4: proposer + attester key files; legacy: single pk/sk)
+_hs_idx="${hashSigKeyIndex:-0}"
+if [ -f "$configDir/hash-sig-keys/validator_${_hs_idx}_proposer_key_pk.json" ]; then
+    hash_sig_pk_docker="/config/hash-sig-keys/validator_${_hs_idx}_proposer_key_pk.json"
+    hash_sig_sk_docker="/config/hash-sig-keys/validator_${_hs_idx}_proposer_key_sk.json"
+else
+    hash_sig_pk_docker="/config/hash-sig-keys/validator_${_hs_idx}_pk.json"
+    hash_sig_sk_docker="/config/hash-sig-keys/validator_${_hs_idx}_sk.json"
+fi
+
 node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --modules-dir $scriptDir/qlean/build/src/modules \
       --genesis $configDir/config.yaml \
@@ -58,8 +68,8 @@ node_docker="$QLEAN_IMAGE \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \
-      --xmss-pk /config/hash-sig-keys/validator_${hashSigKeyIndex}_pk.json \
-      --xmss-sk /config/hash-sig-keys/validator_${hashSigKeyIndex}_sk.json \
+      --xmss-pk $hash_sig_pk_docker \
+      --xmss-sk $hash_sig_sk_docker \
       --bootnodes /config/nodes.yaml \
       --data-dir /data \
       --node-id $item --node-key /config/$privKeyPath \

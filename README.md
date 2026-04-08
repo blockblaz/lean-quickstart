@@ -427,6 +427,7 @@ shuffle: roundrobin
 config:
   activeEpoch: 18              # Required: Exponent for active epochs (2^18 = 262,144 signatures)
   keyType: "hash-sig"          # Required: Network-wide signature scheme (hash-sig for post-quantum security)
+  attestation_committee_count: 4   # Optional; defaults to 4 in generated config.yaml (devnet4)
 validators:                    # validator nodes specification 
   - name: "zeam_0"             # a 0rth zeam node
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
@@ -441,13 +442,14 @@ validators:                    # validator nodes specification
 - `shuffle`: Validator assignment (to nodes) shuffle algorithm (e.g., `roundrobin`)
 - `config.activeEpoch`: Exponent for active epochs used in hash-sig key generation (2^activeEpoch signatures per active period)
 - `config.keyType`: Network-wide signature scheme - must be `"hash-sig"` for post-quantum security
+- `config.attestation_committee_count` (optional): Written to `config.yaml` as `ATTESTATION_COMMITTEE_COUNT` (default **4** if omitted)
 
 ### Step 1 - Genesis Generation
 
 The `spin-node.sh` triggers genesis generator (`generate-genesis.sh`) which generates the following files based on `validator-config.yaml`:
 
 1. **post-quantum secure validator keypairs** in `genesis/hash-sig-keys` unless already generated or forced with `--forceKeyGen`
-2. **config.yaml** - With the updated genesis time in short future and pubkeys of the generated keypairs
+2. **config.yaml** - Updated genesis time, `ATTESTATION_COMMITTEE_COUNT`, and `GENESIS_VALIDATORS` with **attestation** and **proposal** public keys per validator (devnet4 / `hash-sig-cli:devnet4`)
 3. **validators.yaml** - Validator index assignments using round-robin distribution
 4. **nodes.yaml** - ENR (Ethereum Node Records) for peer discovery
 5. **genesis.json** - Genesis state in JSON format
@@ -469,21 +471,26 @@ You can also run the generator standalone:
 
 #### Hash-Based Signature (Post-Quantum) Scheme Validator Keys
 
-**Tool's Docker Image**: `HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"`
+**Tool's Docker Image**: `HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet4"`
 **Source**: https://github.com/blockblaz/hash-sig-cli
 
 Using the above docker tool the following files are generated (unless already generated or forced via `--forceKeyGen` flag):
 
-**Generated files:**
+**Generated files (devnet4 — two roles per validator index):**
 ```
 local-devnet/genesis/hash-sig-keys/
-├── validator-keys-manifest.yaml    # Metadata for all keys
-├── validator_0_pk.json             # Public key for validator 0
-├── validator_0_sk.json             # Secret key for validator 0
-├── validator_1_pk.json             # Public key for validator 1
-├── validator_1_sk.json             # Secret key for validator 1
-└── ...                             # Keys for additional validators
+├── validator-keys-manifest.yaml              # Metadata (attester + proposer pubkeys per index)
+├── validator_0_proposer_key_pk.json          # Proposer public key (validator 0)
+├── validator_0_proposer_key_sk.json          # Proposer secret key
+├── validator_0_attester_key_pk.json          # Attester (attestation) public key
+├── validator_0_attester_key_sk.json        # Attester secret key
+├── validator_1_proposer_key_pk.json
+├── validator_1_proposer_key_sk.json
+├── validator_1_attester_key_pk.json
+├── validator_1_attester_key_sk.json
+└── ...                                       # Same pattern for additional validators
 ```
+Older **single-key** layouts (`validator_N_pk.json` / `validator_N_sk.json` only) are still recognized when regenerating from an existing manifest.
 
 **Signature Scheme:**
 The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based signature scheme, which provides:
@@ -494,26 +501,30 @@ The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based sign
 - **Stateful signatures**: Uses hierarchical signature tree structure
 
 
-**Validator Fields:**
-Hash-sig key files are automatically indexed based on the validator index (first validator uses `validator_0_*.json`, second uses `validator_1_*.json`, etc.)
+**Validator index:** Files are named by global validator index (`validator_0_*`, `validator_1_*`, …). Each index has **proposer** and **attester** keypairs (see manifest field names `proposer_key_pubkey_hex` / `attester_key_pubkey_hex`).
 
 #### Genesis config files
 
 **Tool's Docker Image**: `PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"`
 **Source**: https://github.com/ethpandaops/eth-beacon-genesis/pull/36
 
-`config.yaml` is generated with the appropriate genesis time (in short future) along with the list pubkeys of the validators in the correct sequence. For e.g:
+`config.yaml` is generated with the appropriate genesis time (in the near future), `ATTESTATION_COMMITTEE_COUNT`, and **`GENESIS_VALIDATORS`** as a list of objects with **`attestation_pubkey`** and **`proposal_pubkey`** (104 hex chars each, no `0x` prefix), in validator order. Example:
 
 ```yaml
 # Genesis Settings
 GENESIS_TIME: 1763712794
+# Chain Settings
+ATTESTATION_COMMITTEE_COUNT: 4
 # Key Settings
 ACTIVE_EPOCH: 10
 # Validator Settings  
 VALIDATOR_COUNT: 2
+# List of Genesis Validators' Public Keys (attestation + proposal)
 GENESIS_VALIDATORS:
-  - "4b3c31094bcc9b45446b2028eae5ad192b2df16778837b10230af102255c9c5f72d7ba43eae30b2c6a779f47367ebf5a42f6c959"
-  - "8df32a54d2fbdf3a88035b2fe3931320cb900d364d6e7c56b19c0f3c6006ce5b3ebe802a65fe1b420183f62e830a953cb33b7804"
+  - attestation_pubkey: "4b3c31094bcc9b45446b2028eae5ad192b2df16778837b10230af102255c9c5f72d7ba43eae30b2c6a779f47367ebf5a42f6c959"
+    proposal_pubkey: "8df32a54d2fbdf3a88035b2fe3931320cb900d364d6e7c56b19c0f3c6006ce5b3ebe802a65fe1b420183f62e830a953cb33b7804"
+  - attestation_pubkey: "5b15f72f90bd655b039f9839c36951454b89c605f8c334581cfa832bdd0c994a1350094f7e22617d77607b067b0aa2439e0ead7d"
+    proposal_pubkey: "71bf8f73980591574de34a0db471da74f5cfd84d4731d53f47bf3023b26c2638ac5bd24993ea71492fedbd6c4afe5c299213b76b"
 ```
 
 This `config.yaml` is consumed by the clients to directly generate the genesis `in-client`. Note that clients are supposed to ignore `genesis.ssz` and `genesis.json` as their formats have not been updated.
@@ -531,30 +542,24 @@ qlean_0:
     - 2
 ```
 
-**Recommended:** `annotated_validators.yaml` is also generated and should be preferred by client software as it includes public keys and private key file references directly, eliminating the need for clients to derive key filenames from validator indices:
+**Recommended:** `annotated_validators.yaml` is also generated and should be preferred by client software as it includes public keys and private key file references directly, eliminating the need for clients to derive key filenames from validator indices. On **devnet4**, each validator index appears **twice** (attester + proposer SSZ keys):
 
 ```yaml
 zeam_0:
   - index: 0
     pubkey_hex: 4b3c31094bcc9b45446b2028eae5ad192b2df16778837b10230af102255c9c5f72d7ba43eae30b2c6a779f47367ebf5a42f6c959
-    privkey_file: validator_0_sk.json
-  - index: 3
+    privkey_file: validator_0_attester_key_sk.ssz
+  - index: 0
     pubkey_hex: 8df32a54d2fbdf3a88035b2fe3931320cb900d364d6e7c56b19c0f3c6006ce5b3ebe802a65fe1b420183f62e830a953cb33b7804
-    privkey_file: validator_3_sk.json
-
-ream_0:
-  - index: 1
-    pubkey_hex: 5b15f72f90bd655b039f9839c36951454b89c605f8c334581cfa832bdd0c994a1350094f7e22617d77607b067b0aa2439e0ead7d
-    privkey_file: validator_1_sk.json
-  - index: 4
-    pubkey_hex: 71bf8f73980591574de34a0db471da74f5cfd84d4731d53f47bf3023b26c2638ac5bd24993ea71492fedbd6c4afe5c299213b76b
-    privkey_file: validator_4_sk.json
-
-qlean_0:
-  - index: 2
-    pubkey_hex: b87e69568a347d1aa811cc158634fb1f4e247c5509ad2b1652a8d758ec0ab0796954e307b97dd6284fbb30088c2e595546fdf663
-    privkey_file: validator_2_sk.json
+    privkey_file: validator_0_proposer_key_sk.ssz
+  - index: 3
+    pubkey_hex: ...
+    privkey_file: validator_3_attester_key_sk.ssz
+  - index: 3
+    pubkey_hex: ...
+    privkey_file: validator_3_proposer_key_sk.ssz
 ```
+(Legacy single-row-per-index entries with `validator_N_sk.ssz` may still appear when using an older manifest.)
 
 `nodes.yaml` provide enrs of all the nodes so that clients don't have to run a discovery protocol:
 
@@ -568,7 +573,7 @@ qlean_0:
 Post genesis generation, the quickstarts loads and calls the appropriate node's client cmd from `client-cmds` folder where either `docker` or `binary` cmd is picked as per the `node_setup` mode. (Generally `binary` mode is handy for local interop debugging for a client).
 
 **Client Integration:**
-Your client implementation should read these environment variables and use the hash-sig keys for validator operations.
+Your client implementation should read these environment variables and use the hash-sig keys for validator operations. After `parse-vc.sh` runs, **`$HASH_SIG_PK_PATH` / `$HASH_SIG_SK_PATH`** point at the **proposer** JSON keys when using devnet4 dual-key files; **`$HASH_SIG_ATTESTER_PK_PATH`** / **`$HASH_SIG_ATTESTER_SK_PATH`** (and proposer-specific `HASH_SIG_PROPOSER_*`) are set when those files exist.
 
  - `$item` - the node name for which this cmd is being executed, index into `validator-config.yaml` for its configuration
  - `$configDir` - the abs folder housing `genesis` configuration (same as `NETWORK_DIR` env variable provided while executing shell command), already mapped to `/config` in the docker mode
@@ -646,7 +651,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --forceKeyG
 ### Key Security
 
 **Secret keys are highly sensitive:**
-- ⚠️ **Never commit** `validator_*_sk.json` files to version control
+- ⚠️ **Never commit** `validator_*_*_sk.json` or `validator_*_sk.json` secret key files to version control
 - ⚠️ **Never share** secret keys
 - ✅ **Backup** secret keys in secure, encrypted storage
 - ✅ **Restrict permissions** on key files (e.g., `chmod 600`)
@@ -674,21 +679,27 @@ num_validators: 2
 
 validators:
   - index: 0
-    pubkey_hex: 0x4b3c31094bcc9b45446b2028eae5ad192b2df16778837b10230af102255c9c5f72d7ba43eae30b2c6a779f47367ebf5a42f6c959
-    privkey_file: validator_0_sk.json
+    attester_key_pubkey_hex: 0x...
+    attester_key_privkey_file: validator_0_attester_key_sk.ssz
+    proposer_key_pubkey_hex: 0x...
+    proposer_key_privkey_file: validator_0_proposer_key_sk.ssz
 
   - index: 1
-    pubkey_hex: 0x8df32a54d2fbdf3a88035b2fe3931320cb900d364d6e7c56b19c0f3c6006ce5b3ebe802a65fe1b420183f62e830a953cb33b7804
-    privkey_file: validator_1_sk.json
+    attester_key_pubkey_hex: 0x...
+    attester_key_privkey_file: validator_1_attester_key_sk.ssz
+    proposer_key_pubkey_hex: 0x...
+    proposer_key_privkey_file: validator_1_proposer_key_sk.ssz
 
 ```
+(See [hash-sig-cli](https://github.com/blockblaz/hash-sig-cli) for the exact manifest schema.)
 
 ## Troubleshooting
 
 **Problem**: Hash-sig keys not loading during node startup
 ```
-Warning: Hash-sig public key not found at genesis/hash-sig-keys/validator_0_pk.json
+Warning: Hash-sig public key not found at genesis/hash-sig-keys/validator_0_proposer_key_pk.json
 ```
+(or `validator_0_pk.json` when using a legacy single-key tree)
 
 **Solution**: Run the genesis generator to create keys:
 ```sh
@@ -703,8 +714,9 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 
 **Problem**: Hash-sig key file not found
 ```
-Warning: Hash-sig secret key not found at genesis/hash-sig-keys/validator_5_sk.json
+Warning: Hash-sig secret key not found at genesis/hash-sig-keys/validator_5_proposer_key_sk.json
 ```
+(or `validator_5_sk.json` in legacy layouts)
 
 **Solution**: This usually means you have more validators configured than hash-sig keys generated. Regenerate genesis files:
 ```sh

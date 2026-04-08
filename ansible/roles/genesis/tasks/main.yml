@@ -39,6 +39,8 @@
     content: |
       # Genesis Settings
       GENESIS_TIME: {{ genesis_time }}
+      # Chain Settings
+      ATTESTATION_COMMITTEE_COUNT: 4
       # Validator Settings
       VALIDATOR_COUNT: {{ total_validators }}
     dest: "{{ genesis_dir }}/config.yaml"
