@@ -224,7 +224,7 @@
 
     - name: Read all node entries for this host from the active validator config
       vars:
-        _vc_file: "{{ _genesis_dir + '/' + (validator_config_basename | default('validator-config.yaml')) }}"
+        _vc_file: "{{ local_validator_config_path | default(_genesis_dir + '/validator-config.yaml') }}"
         _vc: "{{ lookup('file', _vc_file) | from_yaml }}"
         _entries: "{{ _vc.validators | selectattr('enrFields.ip', 'equalto', ansible_host) | list }}"
       set_fact:

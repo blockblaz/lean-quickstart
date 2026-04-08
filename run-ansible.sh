@@ -31,6 +31,7 @@ skipGenesis="${10}"  # Set to "true" to skip genesis generation (e.g. when resta
 checkpointSyncUrl="${11}"  # URL for checkpoint sync (when restarting with --restart-client)
 dryRun="${12}"  # Set to "true" to run Ansible with --check --diff (no changes applied)
 syncAllHosts="${13}"  # Set to "true" to sync config yamls to all hosts (used after --replace-with)
+networkName="${14}"  # Network label applied to all metrics (e.g. devnet-3, testnet, mainnet)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -115,10 +116,9 @@ if [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ]; th
   EXTRA_VARS="$EXTRA_VARS validator_config=$validatorConfig"
 fi
 
-# Pass the basename of the active validator config file so deploy-nodes.yml
-# can sync the correct file (e.g. validator-config-subnets-2.yaml) to remotes.
-validator_config_basename=$(basename "$validator_config_file")
-EXTRA_VARS="$EXTRA_VARS validator_config_basename=$validator_config_basename"
+# Pass the full local path of the active validator config so deploy-nodes.yml
+# can sync the correct file regardless of where it lives on disk.
+EXTRA_VARS="$EXTRA_VARS local_validator_config_path=$validator_config_file"
 
 if [ -n "$coreDumps" ]; then
   EXTRA_VARS="$EXTRA_VARS enable_core_dumps=$coreDumps"
@@ -135,6 +135,8 @@ fi
 if [ "$syncAllHosts" == "true" ]; then
   EXTRA_VARS="$EXTRA_VARS sync_all_hosts=true"
 fi
+
+EXTRA_VARS="$EXTRA_VARS network_name=$networkName"
 
 # Determine deployment mode (docker/binary) - read default from group_vars/all.yml
 # Default to 'docker' if not specified in group_vars
