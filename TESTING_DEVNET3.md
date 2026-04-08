@@ -50,7 +50,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node "zeam_0 ream_0" --generateGenesis
 ### Test with Attestation Committee Count Override
 ```bash
 # 1. Uncomment attestation_committee_count in local-devnet/genesis/validator-config.yaml
-# 2. Set desired value (e.g., attestation_committee_count: 4)
+# 2. Set desired value (default/spec is 1; e.g., attestation_committee_count: 4 for multi-committee tests)
 # 3. Run:
 NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --cleanData
 ```
@@ -64,15 +64,15 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node zeam_0 --generateGenesis --cleanD
 4. zeam command includes `--is-aggregator` flag for aggregator only
 
 ### Attestation Committee Count
-**When NOT set (default):**
+**When NOT set in validator-config.yaml:**
 - parse-vc.sh does NOT display "Attestation Committee Count"
 - zeam command does NOT include `--attestation-committee-count` flag
-- Client uses its hardcoded default
+- zeam reads `ATTESTATION_COMMITTEE_COUNT` from `config.yaml` if present; otherwise chain default **1** (matches leanSpec)
 
-**When set (e.g., to 4):**
+**When set in validator-config (e.g., to 4):**
 - parse-vc.sh displays: "Attestation Committee Count: 4"
 - zeam command includes: `--attestation-committee-count 4`
-- Client uses the specified value
+- Client uses the specified value (overrides `config.yaml` when passed)
 
 ## Verification
 

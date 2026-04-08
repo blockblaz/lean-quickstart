@@ -427,7 +427,7 @@ shuffle: roundrobin
 config:
   activeEpoch: 18              # Required: Exponent for active epochs (2^18 = 262,144 signatures)
   keyType: "hash-sig"          # Required: Network-wide signature scheme (hash-sig for post-quantum security)
-  attestation_committee_count: 4   # Optional; defaults to 4 in generated config.yaml (devnet4)
+  attestation_committee_count: 1   # Optional; defaults to 1 (leanSpec chain config)
 validators:                    # validator nodes specification 
   - name: "zeam_0"             # a 0rth zeam node
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
@@ -442,7 +442,7 @@ validators:                    # validator nodes specification
 - `shuffle`: Validator assignment (to nodes) shuffle algorithm (e.g., `roundrobin`)
 - `config.activeEpoch`: Exponent for active epochs used in hash-sig key generation (2^activeEpoch signatures per active period)
 - `config.keyType`: Network-wide signature scheme - must be `"hash-sig"` for post-quantum security
-- `config.attestation_committee_count` (optional): Written to `config.yaml` as `ATTESTATION_COMMITTEE_COUNT` (default **4** if omitted)
+- `config.attestation_committee_count` (optional): Written to `config.yaml` as `ATTESTATION_COMMITTEE_COUNT` (default **1** if omitted, matching leanSpec `ATTESTATION_COMMITTEE_COUNT`)
 
 ### Step 1 - Genesis Generation
 
@@ -514,7 +514,7 @@ The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based sign
 # Genesis Settings
 GENESIS_TIME: 1763712794
 # Chain Settings
-ATTESTATION_COMMITTEE_COUNT: 4
+ATTESTATION_COMMITTEE_COUNT: 1
 # Key Settings
 ACTIVE_EPOCH: 10
 # Validator Settings  
