@@ -21,6 +21,8 @@
 #   REMOTE_UPSTREAMS_PATH   Remote path for upstreams.json (default: /etc/leanpoint/upstreams.json)
 #   LEANPOINT_CONTAINER     Docker container name (default: leanpoint)
 #   LEANPOINT_IMAGE         Docker image to pull and run (default: 0xpartha/leanpoint:latest)
+#   LEANPOINT_HOST_PORT     Host port published for leanpoint HTTP (default: 5555).
+#   NEMO_HOST_PORT          Used only for clash check (default 5053); must differ from LEANPOINT_HOST_PORT.
 #   LEANPOINT_SYNC_DISABLED Set to 1 to skip (e.g. when tooling server is not used)
 
 set -e
@@ -37,6 +39,13 @@ LEANPOINT_DIR="${LEANPOINT_DIR:-$scriptDir}"
 REMOTE_UPSTREAMS_PATH="${REMOTE_UPSTREAMS_PATH:-/etc/leanpoint/upstreams.json}"
 LEANPOINT_CONTAINER="${LEANPOINT_CONTAINER:-leanpoint}"
 LEANPOINT_IMAGE="${LEANPOINT_IMAGE:-0xpartha/leanpoint:latest}"
+LEANPOINT_HOST_PORT="${LEANPOINT_HOST_PORT:-5555}"
+NEMO_HOST_PORT="${NEMO_HOST_PORT:-5053}"
+
+if [ "${LEANPOINT_HOST_PORT}" = "${NEMO_HOST_PORT}" ]; then
+  echo "Error: LEANPOINT_HOST_PORT (${LEANPOINT_HOST_PORT}) must not equal NEMO_HOST_PORT (Nemo also binds that host port)." >&2
+  exit 1
+fi
 
 if [ "${LEANPOINT_SYNC_DISABLED:-0}" = "1" ]; then
   echo "Leanpoint sync disabled (LEANPOINT_SYNC_DISABLED=1), skipping."
@@ -65,9 +74,10 @@ if [ -n "$local_data_dir" ]; then
   docker pull "$LEANPOINT_IMAGE"
   docker stop "$LEANPOINT_CONTAINER" 2>/dev/null || true
   docker rm "$LEANPOINT_CONTAINER" 2>/dev/null || true
-  docker run -d --name "$LEANPOINT_CONTAINER" --restart unless-stopped -p 5555:5555 \
+  docker run -d --name "$LEANPOINT_CONTAINER" --restart unless-stopped \
+    -p "${LEANPOINT_HOST_PORT}:5555" \
     -v "$local_upstreams:/etc/leanpoint/upstreams.json:ro" "$LEANPOINT_IMAGE"
-  echo "Leanpoint deployed locally at http://localhost:5555 (upstreams: $local_upstreams)."
+  echo "Leanpoint deployed locally at http://localhost:${LEANPOINT_HOST_PORT} (upstreams: $local_upstreams)."
   exit 0
 fi
 
@@ -93,6 +103,6 @@ remote_dir=$(dirname "$REMOTE_UPSTREAMS_PATH")
 $ssh_cmd "$remote_target" "mkdir -p $remote_dir"
 rsync -e "$ssh_cmd" "$out_file" "${remote_target}:${REMOTE_UPSTREAMS_PATH}"
 
-$ssh_cmd "$remote_target" "docker pull $LEANPOINT_IMAGE && docker stop $LEANPOINT_CONTAINER 2>/dev/null || true; docker rm $LEANPOINT_CONTAINER 2>/dev/null || true; docker run -d --name $LEANPOINT_CONTAINER --restart unless-stopped -p 5555:5555 -v $REMOTE_UPSTREAMS_PATH:/etc/leanpoint/upstreams.json:ro $LEANPOINT_IMAGE"
+$ssh_cmd "$remote_target" "docker pull $LEANPOINT_IMAGE && docker stop $LEANPOINT_CONTAINER 2>/dev/null || true; docker rm $LEANPOINT_CONTAINER 2>/dev/null || true; docker run -d --name $LEANPOINT_CONTAINER --restart unless-stopped -p ${LEANPOINT_HOST_PORT}:5555 -v $REMOTE_UPSTREAMS_PATH:/etc/leanpoint/upstreams.json:ro $LEANPOINT_IMAGE"
 
 echo "Leanpoint upstreams synced to $TOOLING_SERVER, image $LEANPOINT_IMAGE pulled, container '$LEANPOINT_CONTAINER' recreated."

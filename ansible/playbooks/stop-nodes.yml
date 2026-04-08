@@ -7,7 +7,7 @@
   connection: local
   gather_facts: yes
   vars:
-    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+    validator_config_file: "{{ local_validator_config_path | default(genesis_dir + '/validator-config.yaml') }}"
 
   tasks:
     - name: Validate validator-config.yaml exists
@@ -109,4 +109,8 @@
       debug:
         msg: "Container {{ node_name }} not found (may already be stopped)"
       when: container_check.stdout != node_name
+
+    - name: Clean node data directory
+      raw: rm -rf {{ remote_data_dir | default('/opt/lean-quickstart/data') }}/{{ node_name }}
+      when: clean_data | default(false) | bool
 

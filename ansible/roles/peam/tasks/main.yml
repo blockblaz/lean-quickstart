@@ -1,0 +1,155 @@
+---
+# Peam role: Deploy and manage Peam nodes
+# Converts client-cmds/peam-cmd.sh logic to Ansible tasks
+
+- name: Extract docker image from client-cmd.sh
+  shell: |
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_docker=' "$project_root/client-cmds/peam-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+  register: peam_docker_image_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract deployment mode from client-cmd.sh
+  shell: |
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    grep -E '^node_setup=' "$project_root/client-cmds/peam-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
+  register: peam_deployment_mode_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set docker image and deployment mode from client-cmd.sh
+  set_fact:
+    peam_docker_image: "{{ peam_docker_image_raw.stdout | trim | default('ghcr.io/malik672/peam:devnet3') }}"
+    deployment_mode: "{{ peam_deployment_mode_raw.stdout | trim | default('docker') }}"
+
+- name: Extract node configuration from validator-config.yaml
+  shell: |
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ local_validator_config_path }}"
+  register: peam_node_config
+  changed_when: false
+  delegate_to: localhost
+  loop:
+    - enrFields.quic
+    - metricsPort
+    - apiPort
+    - isAggregator
+    - devnet
+  when: node_name is defined
+
+- name: Set node ports and Peam flags
+  set_fact:
+    peam_quic_port: "{{ peam_node_config.results[0].stdout }}"
+    peam_metrics_port: "{{ peam_node_config.results[1].stdout }}"
+    peam_api_port: "{{ peam_node_config.results[2].stdout }}"
+    peam_is_aggregator: "{{ 'true' if (peam_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
+    peam_topic_domain: "{{ peam_node_config.results[4].stdout | default('') | trim | default('devnet0', true) }}"
+  when: peam_node_config is defined
+
+- name: Extract local validator index from validator-config ordering
+  shell: |
+    yq eval '.validators[].name' "{{ local_validator_config_path }}" | nl -v0 | awk '$2=="{{ node_name }}" {print $1; exit}'
+  register: peam_validator_index
+  changed_when: false
+  delegate_to: localhost
+
+- name: Fail if Peam node index was not resolved
+  fail:
+    msg: "Could not resolve validator index for {{ node_name }} from validator-config.yaml"
+  when: peam_validator_index.stdout | trim == ""
+
+- name: Extract genesis time from generated config.yaml
+  shell: |
+    yq eval '.GENESIS_TIME // .genesis_time' "{{ genesis_dir }}/config.yaml"
+  register: peam_genesis_time
+  changed_when: false
+
+- name: Extract total validator count from validator-config.yaml
+  shell: |
+    yq eval '.validators[].count // 1' "{{ local_validator_config_path }}" | awk '{sum += $1} END {print sum + 0}'
+  register: peam_total_validator_count
+  changed_when: false
+  delegate_to: localhost
+
+- name: Extract attestation committee count from validator-config.yaml
+  shell: |
+    yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}"
+  register: peam_attestation_committee_count_raw
+  changed_when: false
+  delegate_to: localhost
+
+- name: Set attestation committee count
+  set_fact:
+    peam_attestation_committee_count: "{{ peam_attestation_committee_count_raw.stdout | trim | default('1', true) }}"
+
+- name: Ensure node key file exists
+  stat:
+    path: "{{ genesis_dir }}/{{ node_name }}.key"
+  register: node_key_stat
+
+- name: Fail if node key file is missing
+  fail:
+    msg: "Node key file {{ node_name }}.key not found in {{ genesis_dir }}"
+  when: not (node_key_stat.stat.exists | default(false))
+
+- name: Create node data directory
+  file:
+    path: "{{ data_dir }}/{{ node_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Write Peam runtime config
+  copy:
+    dest: "{{ data_dir }}/{{ node_name }}/peam.conf"
+    mode: "0644"
+    content: |
+      genesis_time={{ peam_genesis_time.stdout | trim }}
+      metrics=true
+      metrics_address=0.0.0.0
+      metrics_port={{ peam_metrics_port }}
+      http_api=true
+      listen_addr=/ip4/0.0.0.0/udp/{{ peam_quic_port }}/quic-v1
+      node_key_path=/config/{{ node_name }}.key
+      bootnodes_file=/config/nodes.yaml
+      validator_count={{ peam_total_validator_count.stdout | trim }}
+      local_validator_index={{ peam_validator_index.stdout | trim }}
+      attestation_committee_count={{ peam_attestation_committee_count }}
+      validator_config_path=/config/validator-config.yaml
+      allowed_topics=/leanconsensus/{{ peam_topic_domain }}/block/ssz_snappy,/leanconsensus/{{ peam_topic_domain }}/aggregation/ssz_snappy{% for subnet in range(peam_attestation_committee_count | int) %},/leanconsensus/{{ peam_topic_domain }}/attestation_{{ subnet }}/ssz_snappy{% endfor %}
+      topic_scores=/leanconsensus/{{ peam_topic_domain }}/block/ssz_snappy:2,/leanconsensus/{{ peam_topic_domain }}/aggregation/ssz_snappy:1{% for subnet in range(peam_attestation_committee_count | int) %},/leanconsensus/{{ peam_topic_domain }}/attestation_{{ subnet }}/ssz_snappy:1{% endfor %}
+      topic_validators=/leanconsensus/{{ peam_topic_domain }}/block/ssz_snappy=block,/leanconsensus/{{ peam_topic_domain }}/aggregation/ssz_snappy=aggregation{% for subnet in range(peam_attestation_committee_count | int) %},/leanconsensus/{{ peam_topic_domain }}/attestation_{{ subnet }}/ssz_snappy=attestation{% endfor %}
+      metrics_node_name={{ node_name }}
+      metrics_client_name=peam
+
+- name: Deploy Peam node using Docker
+  block:
+    - name: Stop existing Peam container (if any)
+      command: docker rm -f {{ node_name }}
+      register: peam_stop
+      failed_when: false
+      changed_when: peam_stop.rc == 0
+
+    - name: Start Peam container
+      command: >-
+        docker run -d
+        --pull=always
+        --name {{ node_name }}
+        --restart unless-stopped
+        --network host
+        {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
+        -v {{ genesis_dir }}:/config:ro
+        -v {{ data_dir }}/{{ node_name }}:/data
+        {{ peam_docker_image }}
+        --run
+        --config /data/peam.conf
+        --data-dir /data
+        --node-id {{ node_name }}
+        --validator-keys /config/hash-sig-keys
+        --api-port {{ peam_api_port }}
+        {{ '--is-aggregator' if (peam_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
+      register: peam_container
+      changed_when: peam_container.rc == 0
+  when: deployment_mode == 'docker'

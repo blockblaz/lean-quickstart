@@ -7,6 +7,9 @@ if [ "$scriptDir" == "." ]; then
   scriptDir="$currentDir"
 fi
 
+# Save original args before parse-env.sh shifts them
+_original_args="$*"
+
 # 0. parse env and args
 source "$(dirname $0)/parse-env.sh"
 
@@ -68,10 +71,141 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
+# Set up logging if --logs flag is enabled
+if [ "$enableLogs" == "true" ]; then
+    _log_dir="$scriptDir/tmp"
+    mkdir -p "$_log_dir"
+    _log_start=$(date -u +%s)
+    _ts=$(date -u '+%d-%m-%Y-%H-%M')
+    if [ "$deployment_mode" == "ansible" ]; then
+        _log_prefix="ansible-run"
+        _config_prefix="ansible"
+    else
+        _log_prefix="local-run"
+        _config_prefix="local"
+    fi
+    _log_file="$_log_dir/${_log_prefix}-${_ts}.log"
+    echo "$(date -u '+%Y-%m-%d %H:%M:%S') START spin-node.sh $_original_args" >> "$_log_dir/devnet.log"
+    trap 'echo "$(date -u '\''+%Y-%m-%d %H:%M:%S'\'') END   spin-node.sh ($(( $(date -u +%s) - _log_start ))s) -> '"$_log_file"'" >> "'"$_log_dir"'/devnet.log"' EXIT
+    exec > >(tee -a "$_log_file") 2>&1
+    echo "Logging to $_log_file"
+    # Copy validator config with timestamped name matching the run log
+    if [ -n "$replaceWith" ]; then
+        _config_copy="$_log_dir/${_config_prefix}-${networkName}-validator-config-replace-${_ts}.yaml"
+    else
+        _config_copy="$_log_dir/${_config_prefix}-${networkName}-validator-config-${_ts}.yaml"
+    fi
+    cp "$validator_config_file" "$_config_copy"
+    echo "Validator config copied to $_config_copy"
+fi
+
+# If --subnets N is specified, expand the validator config template into a new
+# file with N nodes per client (same IP, unique incremented ports and keys).
+# This must run after configDir/validator_config_file are resolved so the
+# generated file lands in the correct genesis directory.
+if [ -n "$subnets" ] && [ "$subnets" -ge 1 ] 2>/dev/null; then
+  if ! [[ "$subnets" =~ ^[0-9]+$ ]] || [ "$subnets" -lt 1 ] || [ "$subnets" -gt 5 ]; then
+    echo "Error: --subnets requires an integer between 1 and 5, got: $subnets"
+    exit 1
+  fi
+
+  if ! command -v python3 &> /dev/null; then
+    echo "Error: python3 is required to generate the subnet config."
+    exit 1
+  fi
+
+  expanded_config="${configDir}/validator-config-subnets-${subnets}.yaml"
+  [ "$dryRun" == "true" ] && echo "[DRY RUN] Generating subnet config preview (no deployment will occur)"
+  echo "Generating subnet config ($subnets subnet(s) per client) → $expanded_config"
+
+  if ! python3 "$scriptDir/generate-subnet-config.py" \
+      "$validator_config_file" "$subnets" "$expanded_config"; then
+    echo "❌ Failed to generate subnet config."
+    exit 1
+  fi
+
+  validator_config_file="$expanded_config"
+  echo "Using expanded config: $validator_config_file"
+fi
+
+# Handle --prepare mode: verify and install required software on all remote servers.
+# Must run after deployment_mode is resolved but before genesis setup.
+if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
+  if [ "$deployment_mode" != "ansible" ]; then
+    echo "Error: --prepare can only be used in ansible mode."
+    echo "Set deployment_mode: ansible in your validator-config.yaml or pass --deploymentMode ansible"
+    exit 1
+  fi
+
+  # Reject flags that have no meaning in prepare mode.
+  ignored_flags=()
+  [ -n "$node" ]                && ignored_flags+=("--node")
+  [ -n "$cleanData" ]           && ignored_flags+=("--cleanData")
+  [ -n "$generateGenesis" ]     && ignored_flags+=("--generateGenesis")
+  [ -n "$FORCE_KEYGEN_FLAG" ]   && ignored_flags+=("--forceKeyGen")
+  [ -n "$stopNodes" ]           && ignored_flags+=("--stop")
+  [ -n "$restartClient" ]       && ignored_flags+=("--restart-client")
+  [ -n "$checkpointSyncUrl" ]   && ignored_flags+=("--checkpoint-sync-url")
+  [ -n "$dockerTag" ]           && ignored_flags+=("--tag")
+  [ -n "$aggregatorNode" ]      && ignored_flags+=("--aggregator")
+  [ -n "$coreDumps" ]           && ignored_flags+=("--coreDumps")
+  [ -n "$enableMetrics" ]       && ignored_flags+=("--metrics")
+  [ -n "$popupTerminal" ]       && ignored_flags+=("--popupTerminal")
+  [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
+  [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
+  [ -n "$skipNemo" ]            && ignored_flags+=("--skip-nemo")
+  [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ] \
+                                && ignored_flags+=("--validatorConfig")
+
+  if [ ${#ignored_flags[@]} -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                        ❌  ERROR                            ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  --prepare does not accept the following flag(s):           ║"
+    for flag in "${ignored_flags[@]}"; do
+      printf  "║    %-60s║\n" "• $flag"
+    done
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  Allowed flags with --prepare:                              ║"
+    echo "║    • --sshKey / --private-key                               ║"
+    echo "║    • --useRoot                                              ║"
+    echo "║    • --deploymentMode ansible                               ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
+
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed."
+    echo "Install Ansible: brew install ansible (macOS) or pip install ansible"
+    exit 1
+  fi
+
+  if [ "$dryRun" == "true" ]; then
+    echo "[DRY RUN] Would prepare remote servers — running Ansible with --check --diff"
+  else
+    echo "Preparing remote servers (verifying and installing required software)..."
+  fi
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" "" "$dryRun" "" "$networkName"; then
+    echo "❌ Server preparation failed."
+    exit 1
+  fi
+
+  [ "$dryRun" == "true" ] && echo "✅ Dry-run complete — no changes were made." || echo "✅ All remote servers are prepared."
+  exit 0
+fi
+
 #1. setup genesis params and run genesis generator
-source "$(dirname $0)/set-up.sh"
-# ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
-# Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
+if [ "$dryRun" == "true" ]; then
+  echo "[DRY RUN] Skipping genesis generation (set-up.sh would run here)"
+  node_setup="${node_setup:-docker}"  # ensure local-loop variable has a default
+else
+  source "$(dirname $0)/set-up.sh"
+  # ✅ Genesis generator implemented using PK's eth-beacon-genesis tool
+  # Generates: validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
+fi
 
 # 2. collect the nodes that the user has asked us to spin and perform setup
 
@@ -99,42 +233,149 @@ echo "Detected nodes: ${nodes[@]}"
 spin_nodes=()
 restart_with_checkpoint_sync=false
 
-# Aggregator selection logic (1 aggregator per subnet)
-# If user specified --aggregator, use that; otherwise randomly select one
-if [ -n "$aggregatorNode" ]; then
-  # Validate that the specified aggregator exists in the validator list
-  aggregator_found=false
-  for available_node in "${nodes[@]}"; do
-    if [[ "$aggregatorNode" == "$available_node" ]]; then
-      selected_aggregator="$aggregatorNode"
-      aggregator_found=true
-      echo "Using user-specified aggregator: $selected_aggregator"
-      break
+# Aggregator selection — one randomly chosen aggregator per subnet.
+#
+# Skipped entirely for --restart-client: restarting a single node must not
+# disturb the existing isAggregator assignments for the rest of the network.
+#
+# Subnet membership is read from the explicit 'subnet:' field in the config,
+# which generate-subnet-config.py writes when --subnets N is used.
+# Nodes without a 'subnet' field (standard single-subnet configs) all
+# default to subnet 0 regardless of their name suffix.
+#
+# When --aggregator is specified, that node is used as the aggregator for
+# its own subnet; all other subnets still get a random selection.
+
+# Helper: get the subnet index for a node from the config (defaults to 0).
+_node_subnet() {
+  yq eval ".validators[] | select(.name == \"$1\") | .subnet // 0" "$validator_config_file"
+}
+
+if [ -n "$restartClient" ]; then
+  echo "Note: skipping aggregator selection — --restart-client retains existing isAggregator assignments."
+  _aggregator_summary=()
+else
+
+  # If --aggregator was given, validate it exists before doing anything else.
+  if [ -n "$aggregatorNode" ]; then
+    aggregator_found=false
+    for available_node in "${nodes[@]}"; do
+      if [[ "$aggregatorNode" == "$available_node" ]]; then
+        aggregator_found=true
+        break
+      fi
+    done
+    if [[ "$aggregator_found" == false ]]; then
+      echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
+      echo "Available nodes: ${nodes[@]}"
+      exit 1
+    fi
+  fi
+
+  # Collect unique subnet indices from the 'subnet' field (0 when absent).
+  _subnet_indices=()
+  for _node in "${nodes[@]}"; do
+    _subnet_indices+=("$(_node_subnet "$_node")")
+  done
+  _unique_subnets=($(printf '%s\n' "${_subnet_indices[@]}" | sort -un))
+
+  echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
+
+  # Snapshot which nodes already have isAggregator: true before we reset anything.
+  # This lets us honour manual edits in the YAML when no --aggregator flag was passed.
+  # Uses dynamic variable names (_preset_agg_<subnet>) for bash 3.2 compatibility
+  # (bash 3.2 ships with macOS and does not support declare -A).
+  for _node in "${nodes[@]}"; do
+    _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+    if [[ "$_is_agg" == "true" ]]; then
+      _sn="$(_node_subnet "$_node")"
+      _varname="_preset_agg_${_sn}"
+      # Keep the first preset aggregator found per subnet.
+      [[ -z "${!_varname:-}" ]] && printf -v "$_varname" '%s' "$_node"
     fi
   done
-  
-  if [[ "$aggregator_found" == false ]]; then
-    echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
-    echo "Available nodes: ${nodes[@]}"
-    exit 1
+
+  # Reset every node's isAggregator flag (skipped in dry-run).
+  if [ "$dryRun" != "true" ]; then
+    yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
   fi
-else
-  # Randomly select one node as aggregator
-  # Get the number of nodes
-  num_nodes=${#nodes[@]}
-  # Generate random index (0 to num_nodes-1)
-  random_index=$((RANDOM % num_nodes))
-  selected_aggregator="${nodes[$random_index]}"
-  echo "Randomly selected aggregator: $selected_aggregator (index $random_index out of $num_nodes nodes)"
+
+  # Select one aggregator per subnet and set the flag.
+  # Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
+  _aggregator_summary=()
+  for _subnet_idx in "${_unique_subnets[@]}"; do
+    _subnet_nodes=()
+    for _node in "${nodes[@]}"; do
+      [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]] && _subnet_nodes+=("$_node")
+    done
+
+    _selected_agg=""
+
+    if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
+      # 1. Explicit --aggregator flag.
+      _selected_agg="$aggregatorNode"
+    elif _pv="_preset_agg_${_subnet_idx}"; [ -n "${!_pv:-}" ]; then
+      # 2. A node had isAggregator: true in the config — respect the manual choice.
+      _preset="${!_pv}"
+      # Validate the preset node is still in the active nodes list.
+      _preset_valid=false
+      for _n in "${_subnet_nodes[@]}"; do
+        [[ "$_n" == "$_preset" ]] && _preset_valid=true && break
+      done
+      if [[ "$_preset_valid" == "true" ]]; then
+        _selected_agg="$_preset"
+      else
+        # Preset node no longer exists — fall back to random and warn.
+        echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
+        _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
+      fi
+    else
+      # 3. No preference set — pick randomly.
+      _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
+    fi
+
+    if [ "$dryRun" != "true" ]; then
+      yq eval -i "(.validators[] | select(.name == \"$_selected_agg\") | .isAggregator) = true" "$validator_config_file"
+    fi
+    _aggregator_summary+=("subnet $_subnet_idx → $_selected_agg")
+  done
+
+  # Verify the invariant: exactly 1 aggregator per subnet (skipped in dry-run).
+  if [ "$dryRun" != "true" ]; then
+    _verify_failed=false
+    for _subnet_idx in "${_unique_subnets[@]}"; do
+      _agg_count=0
+      for _node in "${nodes[@]}"; do
+        if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
+          _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+          [[ "$_is_agg" == "true" ]] && _agg_count=$((_agg_count + 1))
+        fi
+      done
+      if [ "$_agg_count" -ne 1 ]; then
+        echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
+        _verify_failed=true
+      fi
+    done
+    if [ "$_verify_failed" == "true" ]; then
+      echo "Aggregator invariant check failed. Aborting." >&2
+      exit 1
+    fi
+  fi
+
+fi  # end: aggregator selection (skipped for --restart-client)
+
+# Print a prominent aggregator summary banner (only when aggregator selection ran).
+if [ ${#_aggregator_summary[@]} -gt 0 ]; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║               🗳  Aggregator Selection                      ║"
+  echo "╠══════════════════════════════════════════════════════════════╣"
+  for _line in "${_aggregator_summary[@]}"; do
+    printf "║  %-60s║\n" "$_line"
+  done
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
 fi
-
-# Update the validator-config.yaml to set isAggregator flag
-# First, reset all nodes to isAggregator: false
-yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
-
-# Then set the selected aggregator to isAggregator: true
-yq eval -i "(.validators[] | select(.name == \"$selected_aggregator\") | .isAggregator) = true" "$validator_config_file"
-echo "Set $selected_aggregator as aggregator in $validator_config_file"
 
 # When --restart-client is specified, use it as the node list and enable checkpoint sync mode
 if [[ -n "$restartClient" ]]; then
@@ -163,6 +404,115 @@ if [[ -n "$restartClient" ]]; then
   echo "Restarting with checkpoint sync: ${spin_nodes[*]} from $checkpointSyncUrl"
   cleanData=true  # Clear data when restarting with checkpoint sync
   node_present=true
+
+  # --- Handle --replace-with: swap client implementations ---
+  # Uses parallel arrays (bash 3.x compatible, no associative arrays)
+  if [[ -n "$replaceWith" ]]; then
+    IFS=',' read -r -a replace_nodes <<< "$replaceWith"
+
+    # Build replacement pairs as parallel arrays
+    replace_old_names=()
+    replace_new_names=()
+    has_replacements=false
+    i=0
+    for old_name in "${requested_nodes[@]}"; do
+      new_name=""
+      if [ $i -lt ${#replace_nodes[@]} ]; then
+        new_name=$(echo "${replace_nodes[$i]}" | xargs)  # trim whitespace
+      fi
+      if [ -n "$new_name" ] && [ "$new_name" != "$old_name" ]; then
+        replace_old_names+=("$old_name")
+        replace_new_names+=("$new_name")
+        has_replacements=true
+        echo "Will replace: $old_name → $new_name"
+      fi
+      i=$((i + 1))
+    done
+
+    # Warn about extra --replace-with entries beyond --restart-client count
+    if [ ${#replace_nodes[@]} -gt ${#requested_nodes[@]} ]; then
+      echo "Warning: --replace-with has more entries (${#replace_nodes[@]}) than --restart-client (${#requested_nodes[@]}). Extra entries ignored."
+    fi
+
+    if [ "$has_replacements" = true ]; then
+      # 1. Stop old containers and clean data BEFORE config changes (inventory still resolves to old names)
+      echo "Stopping old containers and cleaning data before replacement..."
+      for idx in "${!replace_old_names[@]}"; do
+        old_name="${replace_old_names[$idx]}"
+        if [ "$deployment_mode" == "ansible" ]; then
+          echo "Stopping $old_name and cleaning remote data via Ansible..."
+          "$scriptDir/run-ansible.sh" "$configDir" "$old_name" "true" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "" "true" "" "" "" "$networkName" || {
+            echo "Warning: Failed to stop $old_name via Ansible, continuing..."
+          }
+        else
+          echo "Stopping local container $old_name..."
+          if [ -n "$dockerWithSudo" ]; then
+            sudo docker rm -f "$old_name" 2>/dev/null || true
+          else
+            docker rm -f "$old_name" 2>/dev/null || true
+          fi
+          # Remove old local data directory (different clients have different data structures)
+          old_data_dir="$dataDir/$old_name"
+          if [ -d "$old_data_dir" ]; then
+            rm -rf "$old_data_dir"
+            echo "  Removed data dir $old_name"
+          fi
+        fi
+      done
+
+      # 2. Update config files (rename old → new)
+      for idx in "${!replace_old_names[@]}"; do
+        old_name="${replace_old_names[$idx]}"
+        new_name="${replace_new_names[$idx]}"
+        echo "Updating config files: $old_name → $new_name"
+
+        # validator-config.yaml: rename .validators[].name
+        yq eval -i "(.validators[] | select(.name == \"$old_name\") | .name) = \"$new_name\"" "$validator_config_file"
+
+        # validators.yaml: rename top-level key (two steps: copy then delete, single expression doesn't work)
+        validators_file="$configDir/validators.yaml"
+        if [ -f "$validators_file" ]; then
+          yq eval -i ".$new_name = .$old_name" "$validators_file"
+          yq eval -i "del(.$old_name)" "$validators_file"
+        fi
+
+        # annotated_validators.yaml: rename top-level key
+        annotated_file="$configDir/annotated_validators.yaml"
+        if [ -f "$annotated_file" ]; then
+          yq eval -i ".$new_name = .$old_name" "$annotated_file"
+          yq eval -i "del(.$old_name)" "$annotated_file"
+        fi
+
+        # Rename key file (overwrite if destination exists from a previous run)
+        if [ -f "$configDir/$old_name.key" ]; then
+          mv -f "$configDir/$old_name.key" "$configDir/$new_name.key"
+          echo "  Renamed $old_name.key → $new_name.key"
+        fi
+      done
+
+      # 3. Update spin_nodes array with new names
+      for i in "${!spin_nodes[@]}"; do
+        old="${spin_nodes[$i]}"
+        for idx in "${!replace_old_names[@]}"; do
+          if [ "$old" = "${replace_old_names[$idx]}" ]; then
+            spin_nodes[$i]="${replace_new_names[$idx]}"
+            break
+          fi
+        done
+      done
+
+      # Re-read nodes from updated config (needed for aggregator and downstream logic)
+      nodes=($(yq eval '.validators[].name' "$validator_config_file"))
+
+      # Ensure inventory is regenerated on next run-ansible.sh call
+      # (the stop call may have regenerated it with old names)
+      touch "$validator_config_file"
+
+      echo "Updated spin_nodes: ${spin_nodes[*]}"
+      echo "Config files updated successfully."
+    fi
+  fi
+
 # Parse comma-separated or space-separated node names or handle single node/all
 elif [[ "$node" == "all" ]]; then
   # Spin all nodes
@@ -232,6 +582,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   fi
 
   # Determine skip_genesis for Ansible (true when restarting with checkpoint sync)
+  # deploy-nodes.yml syncs config files to the target host, so copy-genesis to all hosts is not needed
   ansible_skip_genesis="false"
   [[ "$restart_with_checkpoint_sync" == "true" ]] && ansible_skip_genesis="true"
 
@@ -242,24 +593,55 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis" ""; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis" "" "$dryRun" "" "$networkName"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
     exit 0
   fi
   
+  # When --replace-with already cleaned data in the stop step, don't pass clean_data to deploy
+  # (the old node name no longer exists in config, so clean-node-data.yml would fail resolving it)
+  ansible_clean_data="$cleanData"
+  [[ "${has_replacements:-false}" = "true" ]] && ansible_clean_data=""
+
   # Call separate Ansible execution script
   # If Ansible deployment fails, exit immediately (don't fall through to local deployment)
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url"; then
+  if [ "$dryRun" == "true" ]; then
+    echo "[DRY RUN] Would deploy via Ansible — running playbook with --check --diff"
+  fi
+  ansible_sync_all_hosts=""
+  [[ "${has_replacements:-false}" = "true" ]] && ansible_sync_all_hosts="true"
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$ansible_clean_data" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url" "$dryRun" "$ansible_sync_all_hosts" "$networkName"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
 
-  if [ -z "$skipLeanpoint" ]; then
+  if [ -z "$skipLeanpoint" ] && { [ "$restart_with_checkpoint_sync" != "true" ] || [ "${has_replacements:-false}" = "true" ]; }; then
     # Sync leanpoint upstreams to tooling server and restart remote container (no 5th arg = remote)
     if ! "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
       echo "Warning: leanpoint sync failed. If the tooling server requires a specific SSH key, run with: --sshKey <path-to-key>"
+    fi
+  fi
+
+  if [ -z "$skipNemo" ]; then
+    _nemo_reset_db=0
+    [ -n "$generateGenesis" ] && _nemo_reset_db=1
+    if ! NEMO_RESET_DB="$_nemo_reset_db" "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot"; then
+      echo "Warning: Nemo tooling sync failed. Pass --sshKey <path-to-key> if the tooling server requires it, or use --skip-nemo to skip."
+    fi
+  fi
+
+  # Push genesis time metric to Pushgateway if available
+  _pushgateway_url="${PUSHGATEWAY_URL:-http://46.225.10.32:9091}"
+  _genesis_config="$configDir/config.yaml"
+  if [ -f "$_genesis_config" ]; then
+    _genesis_time=$(grep "GENESIS_TIME:" "$_genesis_config" | awk '{print $2}')
+    if [ -n "$_genesis_time" ]; then
+      echo "lean_genesis_time $_genesis_time" | curl -s --data-binary @- \
+        "$_pushgateway_url/metrics/job/lean-quickstart/network/$networkName" || \
+        echo "Warning: Failed to push lean_genesis_time to Pushgateway."
     fi
   fi
 
@@ -315,8 +697,10 @@ if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
   # Stop local leanpoint container if running
   if [ -n "$dockerWithSudo" ]; then
     sudo docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
+    sudo docker rm -f nemo 2>/dev/null || echo "  Container nemo not found or already stopped"
   else
     docker rm -f leanpoint 2>/dev/null || echo "  Container leanpoint not found or already stopped"
+    docker rm -f nemo 2>/dev/null || echo "  Container nemo not found or already stopped"
   fi
 
   echo "✅ Local nodes stopped successfully!"
@@ -447,9 +831,14 @@ for item in "${spin_nodes[@]}"; do
     execCmd="$popupTerminalCmd $execCmd"
   fi;
 
-  echo "$execCmd"
-  eval "$execCmd" &
-  pid=$!
+  if [ "$dryRun" == "true" ]; then
+    echo "[DRY RUN] Would execute: $execCmd"
+    pid=0
+  else
+    echo "$execCmd"
+    eval "$execCmd" &
+    pid=$!
+  fi
   spinned_pids+=($pid)
 done;
 
@@ -479,12 +868,25 @@ if [ -n "$enableMetrics" ] && [ "$enableMetrics" == "true" ]; then
 fi
 
 # Deploy leanpoint: locally (local devnet) or sync to tooling server (Ansible), unless --skip-leanpoint
+# Skip leanpoint during checkpoint sync restart (node list hasn't changed)
 local_leanpoint_deployed=0
-if [ -z "$skipLeanpoint" ]; then
+if [ -z "$skipLeanpoint" ] && { [ "$restart_with_checkpoint_sync" != "true" ] || [ "${has_replacements:-false}" = "true" ]; }; then
   if "$scriptDir/sync-leanpoint-upstreams.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
     local_leanpoint_deployed=1
   else
     echo "Warning: leanpoint deploy failed. For remote sync, pass --sshKey <path-to-key> if the tooling server requires it."
+  fi
+fi
+
+# Nemo explorer: same tooling server (Ansible) or local Docker; DB reset only with --generateGenesis
+local_nemo_deployed=0
+if [ -z "$skipNemo" ]; then
+  _nemo_reset_db=0
+  [ -n "$generateGenesis" ] && _nemo_reset_db=1
+  if NEMO_RESET_DB="$_nemo_reset_db" "$scriptDir/sync-nemo-tooling.sh" "$validator_config_file" "$scriptDir" "$sshKeyFile" "$useRoot" "$dataDir"; then
+    local_nemo_deployed=1
+  else
+    echo "Warning: Nemo deploy failed. Pass --sshKey if needed, or --skip-nemo to skip."
   fi
 fi
 
@@ -507,6 +909,12 @@ cleanup() {
 
   if [ "${local_leanpoint_deployed:-0}" = "1" ]; then
     execCmd="docker rm -f leanpoint"
+    [ -n "$dockerWithSudo" ] && execCmd="sudo $execCmd"
+    eval "$execCmd" 2>/dev/null || true
+  fi
+
+  if [ "${local_nemo_deployed:-0}" = "1" ]; then
+    execCmd="docker rm -f nemo"
     [ -n "$dockerWithSudo" ] && execCmd="sudo $execCmd"
     eval "$execCmd" 2>/dev/null || true
   fi

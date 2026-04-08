@@ -1,0 +1,354 @@
+---
+# Prepare playbook: Verify and install the software required to run lean nodes,
+# then open and persist the firewall rules each host needs.
+#
+# Three software prerequisites on every remote server:
+#
+#   1. python3       — Ansible requires Python on managed nodes before any task
+#                      can run. It cannot self-bootstrap this.
+#   2. Docker CE     — every node client (zeam, ream, qlean, lantern, lighthouse,
+#                      grandine, ethlambda) and the full observability stack run as
+#                      Docker containers. The Compose plugin is required for the
+#                      metrics stack. Docker's systemd service must be running.
+#   3. yq            — the common role (which runs at every deploy) hard-fails if
+#                      `yq --version` is not available on the remote host.
+#
+# Firewall rules opened per host (read from the active validator config,
+# which is the --subnets-expanded file when --subnets N was given):
+#
+#   - quicPort  (UDP) — QUIC/P2P transport for inter-node communication
+#   - metricsPort (TCP) — Prometheus metrics scrape endpoint
+#   - apiPort / httpPort (TCP) — REST API
+#
+# With --subnets N, a server runs N nodes with ports base, base+1, …, base+N-1.
+# All N port ranges are opened because the entries are matched by IP address,
+# collecting every node entry that lives on the current host.
+#
+# Observability ports opened on every host (fixed, from observability role defaults):
+#
+#   - 9090/tcp  — prometheus
+#   - 9080/tcp  — promtail
+#   - 9098/tcp  — cadvisor
+#   - 9100/tcp  — node_exporter
+#
+# SSH (22/tcp) is always allowed before ufw is enabled to prevent lockout.
+# All rules are persisted by ufw on disk and survive reboots.
+#
+# Usage (via spin-node.sh):
+#   ./spin-node.sh --prepare [--sshKey ~/.ssh/id_ed25519] [--useRoot]
+#
+# Only runs on remote hosts (localhost is excluded).
+
+- name: Prepare remote servers
+  hosts: all:!localhost
+  gather_facts: yes
+  vars:
+    # network_dir is passed as an extra var by run-ansible.sh; fall back to
+    # ansible-devnet relative to the playbook if running the playbook directly.
+    _genesis_dir: "{{ network_dir | default(playbook_dir + '/../../ansible-devnet') }}/genesis"
+
+  tasks:
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 1. python3 — must already be present; Ansible cannot install it itself
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Check python3 is available
+      command: python3 --version
+      register: python3_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail early if python3 is missing
+      fail:
+        msg: >-
+          python3 is not installed on {{ inventory_hostname }}.
+          Install it manually (e.g. apt install python3) before running --prepare.
+      when: python3_check.rc != 0
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 2. Docker CE + Compose plugin
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Check if docker is already installed
+      command: which docker
+      register: docker_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Install Docker CE (Debian/Ubuntu)
+      when:
+        - ansible_os_family == "Debian"
+        - docker_pre.rc != 0
+      block:
+        - name: Install apt prerequisites for Docker repository
+          apt:
+            name:
+              - ca-certificates
+              - curl
+              - gnupg
+              - lsb-release
+            state: present
+            update_cache: yes
+          become: yes
+
+        - name: Create /etc/apt/keyrings directory
+          file:
+            path: /etc/apt/keyrings
+            state: directory
+            mode: '0755'
+          become: yes
+
+        - name: Download Docker GPG key
+          get_url:
+            url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+            dest: /etc/apt/keyrings/docker.asc
+            mode: '0644'
+            force: no
+          become: yes
+
+        - name: Add Docker apt repository
+          apt_repository:
+            repo: >-
+              deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}
+              signed-by=/etc/apt/keyrings/docker.asc]
+              https://download.docker.com/linux/{{ ansible_distribution | lower }}
+              {{ ansible_distribution_release }} stable
+            state: present
+            filename: docker
+          become: yes
+
+        - name: Install Docker packages
+          apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-compose-plugin
+            state: present
+            update_cache: yes
+          become: yes
+
+    - name: Ensure Docker service is started and enabled
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+      become: yes
+      when: ansible_os_family == "Debian"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 3. yq — the common role hard-fails at every deploy if this is absent
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Check if yq is already installed
+      command: which yq
+      register: yq_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Install yq binary
+      when: yq_pre.rc != 0
+      block:
+        - name: Resolve architecture suffix for yq
+          set_fact:
+            yq_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
+
+        - name: Download yq from GitHub releases
+          get_url:
+            url: "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_{{ yq_arch }}"
+            dest: /usr/local/bin/yq
+            mode: '0755'
+            force: no
+          become: yes
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 4. jq — used by several client-cmd scripts to parse JSON responses
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Check if jq is already installed
+      command: which jq
+      register: jq_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Install jq
+      when: jq_pre.rc != 0
+      apt:
+        name: jq
+        state: present
+        update_cache: yes
+      become: yes
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 5. Firewall rules (iptables + ufw)
+    #
+    # iptables is the kernel-level packet filter; ufw is the management
+    # frontend that writes iptables rules and persists them across reboots.
+    # Both are checked and installed if absent before any rules are applied.
+    #
+    # Port lookup uses the active validator config file, which is the
+    # --subnets-expanded file (e.g. validator-config-subnets-3.yaml) when
+    # --subnets N was passed, or validator-config.yaml otherwise.
+    # validator_config_basename is injected by run-ansible.sh.
+    #
+    # Entries are matched by IP (ansible_host) rather than by hostname so
+    # that all subnet nodes sharing a server are found in one pass.
+    # With N subnets, a server has N entries and all N × 3 ports are opened.
+    #
+    # Lantern uses httpPort instead of apiPort — both are handled via the
+    # per-entry default() chain.
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Check if iptables is already installed
+      command: which iptables
+      register: iptables_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Check if ufw is already installed
+      command: which ufw
+      register: ufw_pre
+      changed_when: false
+      failed_when: false
+
+    - name: Install iptables and ufw
+      apt:
+        name:
+          - iptables
+          - ufw
+        state: present
+        update_cache: "{{ 'yes' if (iptables_pre.rc != 0 or ufw_pre.rc != 0) else 'no' }}"
+      become: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Read all node entries for this host from the active validator config
+      vars:
+        _vc_file: "{{ local_validator_config_path | default(_genesis_dir + '/validator-config.yaml') }}"
+        _vc: "{{ lookup('file', _vc_file) | from_yaml }}"
+        _entries: "{{ _vc.validators | selectattr('enrFields.ip', 'equalto', ansible_host) | list }}"
+      set_fact:
+        fw_node_entries: "{{ _entries }}"
+        fw_nodes_found:  "{{ (_entries | length) > 0 }}"
+
+    - name: Warn if no entries found for this host in the validator config
+      debug:
+        msg: >-
+          Warning: no validator entries found for {{ ansible_host }} ({{ inventory_hostname }})
+          in the active config. Node-specific firewall rules will be skipped.
+      when: not fw_nodes_found | bool
+
+    # SSH must be allowed before enabling ufw, or we lock ourselves out.
+    - name: Allow SSH (22/tcp)
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        comment: "SSH"
+      become: yes
+
+    - name: Open QUIC P2P ports (UDP) for all subnet nodes on this host
+      ufw:
+        rule: allow
+        port: "{{ item.enrFields.quic | string }}"
+        proto: udp
+        comment: "lean-quickstart QUIC ({{ item.name }})"
+      become: yes
+      loop: "{{ fw_node_entries }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: fw_nodes_found | bool
+
+    - name: Open metrics ports (TCP) for all subnet nodes on this host
+      ufw:
+        rule: allow
+        port: "{{ item.metricsPort | string }}"
+        proto: tcp
+        comment: "lean-quickstart metrics ({{ item.name }})"
+      become: yes
+      loop: "{{ fw_node_entries }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: fw_nodes_found | bool
+
+    - name: Open API ports (TCP) for all subnet nodes on this host
+      ufw:
+        rule: allow
+        port: "{{ (item.apiPort | default(item.httpPort | default(5055))) | string }}"
+        proto: tcp
+        comment: "lean-quickstart API ({{ item.name }})"
+      become: yes
+      loop: "{{ fw_node_entries }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: fw_nodes_found | bool
+
+    - name: Open observability stack ports (TCP)
+      ufw:
+        rule: allow
+        port: "{{ item.port }}"
+        proto: tcp
+        comment: "{{ item.name }}"
+      become: yes
+      loop:
+        - { port: "9090", name: "prometheus" }
+        - { port: "9080", name: "promtail" }
+        - { port: "9098", name: "cadvisor" }
+        - { port: "9100", name: "node_exporter" }
+
+    - name: Enable ufw with default deny incoming (persists across reboots)
+      ufw:
+        state: enabled
+        default: deny
+        direction: incoming
+      become: yes
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 5. Verification summary
+    # ──────────────────────────────────────────────────────────────────────────
+
+    - name: Verify all required tools
+      command: "{{ item.cmd }}"
+      register: verify_results
+      loop:
+        - { name: "python3",        cmd: "python3 --version" }
+        - { name: "docker",         cmd: "docker --version" }
+        - { name: "docker compose", cmd: "docker compose version" }
+        - { name: "yq",             cmd: "yq --version" }
+        - { name: "iptables",       cmd: "iptables --version" }
+        - { name: "ufw",            cmd: "ufw --version" }
+      changed_when: false
+      failed_when: false
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Show firewall rules summary
+      command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+      become: yes
+
+    - name: Print per-tool status
+      debug:
+        msg: >-
+          [{{ inventory_hostname }}]
+          {{ item.item.name }}:
+          {{ '✅  ' + (item.stdout_lines[0] | default('ok')) if item.rc == 0
+             else '❌  NOT AVAILABLE (exit ' + (item.rc | string) + ')' }}
+      loop: "{{ verify_results.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Print firewall status
+      debug:
+        msg: "{{ ufw_status.stdout_lines }}"
+
+    - name: Fail if any required tool is still missing
+      fail:
+        msg: >-
+          Required tool '{{ item.item.name }}' is not available on
+          {{ inventory_hostname }} after preparation. Check the output above.
+      loop: "{{ verify_results.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.rc != 0

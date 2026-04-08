@@ -90,3 +90,23 @@ validators:
     apiPort: 8087
     isAggregator: false
     count: 1
+
+  - name: "gean_0"
+    privkey: "5e4f4cd02d1c06f715e02ca9939e22ecbca063ad188e080cda4f0786f50367a0"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9008
+    metricsPort: 8088
+    apiPort: 5058
+    isAggregator: false
+    count: 1
+
+  - name: "peam_0"
+    privkey: "8c7b62f4c4a35d134649817f44d2839ad15bcfa1fe6b87991f64d6f54f3ef2a1"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9009
+    metricsPort: 8089
+    apiPort: 5059
+    isAggregator: false
+    count: 1

@@ -11,7 +11,7 @@ A single command line quickstart to spin up lean node(s)
     - Uses PK's `eth-beacon-genesis` docker tool (not custom tooling)
     - Generates PQ keys based on specified configuration in `validator-config.yaml`
         - Force regen with flag `--forceKeyGen` when supplied with `generateGenesis`
-- ✅ Integrates zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
+- ✅ Integrates zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, gean, nlean, peam
 - ✅ Configure to run clients in docker or binary mode for easy development
 - ✅ Linux & Mac compatible & tested
 - ✅ Option to operate on single or multiple nodes or `all`
@@ -100,14 +100,14 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregato
 
 After validator nodes are spun up, leanpoint is deployed so it can monitor them. Behavior depends on deployment mode:
 
-- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at http://localhost:5555. The container is removed on Ctrl+C cleanup or when you run with `--stop`.
+- **Local deployment** (`NETWORK_DIR=local-devnet`, `deployment_mode: local`): Leanpoint runs **locally**. `sync-leanpoint-upstreams.sh` generates `upstreams.json` (with `--docker` so the container can reach host validators at `host.docker.internal`), writes it to `<NETWORK_DIR>/data/upstreams.json`, pulls the latest image, and starts a local Docker container. UI at **http://localhost:5555** (host port **`LEANPOINT_HOST_PORT`**, default **5555** — kept separate from Nemo’s default host port **5455**). The container is removed on Ctrl+C cleanup or when you run with `--stop`.
 - **Ansible/remote deployment**: Leanpoint is updated on the **tooling server**. The script rsyncs `upstreams.json` to the server, pulls the latest image there, and recreates the remote container.
 
 **What runs:**
 1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
 2. `sync-leanpoint-upstreams.sh` either deploys leanpoint locally (local devnet) or syncs to the tooling server and recreates the remote container (Ansible).
 
-**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`. Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`, published port **5555→5555** (`LEANPOINT_HOST_PORT`, default **5555**). Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
 
 **SSH key for remote sync:** When using Ansible deployment, the tooling server may require a specific SSH key. Pass `--sshKey ~/.ssh/id_ed25519_github` (or `--private-key`) so the sync can succeed.
 
@@ -123,6 +123,22 @@ python3 convert-validator-config.py local-devnet/genesis/validator-config.yaml u
 ```
 
 Requires Python 3 and PyYAML (`pip install pyyaml`).
+
+### Nemo (block explorer) on the tooling server
+
+After validators are up, **Nemo** (Lean consensus block/slot explorer; image `0xpartha/nemo:latest`) can run on the same **tooling server** as leanpoint (`46.225.10.32` by default). **Ports:** leanpoint uses host **5555** by default; Nemo publishes host **5455** → container **5053** by default — they do not overlap. If you change either port, set **`NEMO_HOST_PORT`** and **`LEANPOINT_HOST_PORT`** so they stay different; `sync-nemo-tooling.sh` exits with an error if they match. **HTTPS / nginx:** see [`docs/tooling-server-nemo-nginx.md`](docs/tooling-server-nemo-nginx.md) and [`tooling/nginx-nemo.conf.example`](tooling/nginx-nemo.conf.example).
+
+It uses **`LEAN_API_URL`**: a comma-separated list of `http://<validator-ip>:<apiPort>` for **every** entry in `validator-config.yaml` (same IPs/ports as the devnet HTTP APIs). Rows with **empty `enrFields.ip`** are skipped (e.g. placeholder nodes until an IP is set).
+
+- **Ansible deploy:** `sync-nemo-tooling.sh` writes `/etc/nemo/nemo.env`, runs **`docker pull`** on **`NEMO_IMAGE`** (default `0xpartha/nemo:latest`), then **`docker run --pull=always`** and recreates the `nemo` container. The SQLite data dir is **cleared only when `spin-node.sh` is run with `--generateGenesis`** (or when you set **`NEMO_RESET_DB=1`** manually). Otherwise the existing DB under **`/opt/nemo/data`** is reused. When **`NEMO_IMAGE`** is a **multi-arch** manifest that lists the host CPU (`linux/arm64` or `linux/amd64`), the script passes **`--platform`** for that arch so Docker pulls the matching variant (no platform-mismatch warning). For **single-arch** tags, it omits **`--platform`** so pull/run still succeed. Optional **`NEMO_DOCKER_PLATFORM`** overrides the detected platform when the manifest includes it.
+- **Local devnet:** Same pull + `--pull=always` behavior; Nemo runs in Docker with `host.docker.internal` and data under `<NETWORK_DIR>/data/nemo-data` (wiped only with **`--generateGenesis`**, same as remote).
+
+UI: `http://<tooling-host>:5455` (override with `NEMO_HOST_PORT`). Skip with **`--skip-nemo`** or **`NEMO_SYNC_DISABLED=1`**. Env vars: see `sync-nemo-tooling.sh`.
+
+```sh
+# Print LEAN_API_URL for the current ansible devnet config
+python3 convert-validator-config.py --print-lean-api-url ansible-devnet/genesis/validator-config.yaml
+```
 
 ### Remote Observability Stack
 
@@ -209,6 +225,101 @@ Every Ansible deployment automatically deploys an observability stack alongside 
    - Example: Without flag, a random node will be selected automatically
 13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
+15. `--prepare` verify and install the software required to run lean nodes on every remote server, and open + persist the necessary firewall ports.
+   - **Ansible mode only** — fails with an error if `deployment_mode` is not `ansible`
+   - Installs: `python3` (Ansible requirement), Docker CE + Compose plugin (all clients run as containers), `yq` (required by the `common` role at every deploy)
+   - Opens per-node ports (`quicPort`/UDP, `metricsPort`/TCP, `apiPort`/TCP) read from the active validator config, plus fixed observability ports (9090, 9080, 9098, 9100). With `--subnets N`, all N nodes' port ranges are opened per host. Enables `ufw` with default deny incoming (persisted across reboots).
+   - Prints a per-tool, per-host status summary (`✅ ok` / `❌ missing`) and `ufw status verbose`
+   - `--node` is not required; passing unsupported flags alongside `--prepare` produces a prominent error — only `--sshKey` and `--useRoot` are accepted
+   - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot`
+16. `--subnets N` expand the validator config to deploy N nodes of each client on the same server, where N is 1–5.
+   - Generates `validator-config-subnets-N.yaml` from the template (without modifying the original)
+   - Each subnet node gets a unique name (`{client}_0`, `{client}_1`, …), ports incremented by the subnet index, and a fresh P2P identity key for subnets > 0
+   - Subnet assignment rule: each server contributes **exactly one node per subnet** — nodes on the same server are never in the same subnet
+   - Every subnet contains the same set of client types
+   - `N=1` renames nodes to `{client}_0` with no port changes (useful for canonical naming)
+   - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 --sshKey ~/.ssh/id_ed25519 --useRoot`
+17. `--replace-with` comma-separated list of replacement node names, positionally matched 1:1 with `--restart-client`. Swaps client implementations while keeping the same validator slot, keys, and server. Updates `validator-config.yaml`, `validators.yaml`, `annotated_validators.yaml`, and renames `.key` files. Leanpoint is re-synced when replacements occur.
+    - Example: `--restart-client zeam_0 --replace-with ream_0` → replaces zeam_0 with ream_0
+    - Example: `--restart-client zeam_0,ream_0 --replace-with ream_1` → ream_1 replaces zeam_0, ream_0 just restarts
+    - Empty entries skip that position: `--restart-client zeam_0,ream_0 --replace-with ,ream_1` → zeam_0 restarts, ream_0 replaced with ream_1
+18. `--logs` enables run logging. When specified:
+    - Appends UTC-timestamped START/END entries with duration and log file path to `tmp/devnet.log`
+    - Duplicates console output to a timestamped log file in `tmp/`:
+      - `tmp/local-run-DD-MM-YYYY-HH-MM.log` for local deployments
+      - `tmp/ansible-run-DD-MM-YYYY-HH-MM.log` for Ansible deployments
+    - Example: `NETWORK_DIR=local-devnet ./spin-node.sh --node all --logs`
+19. `--network` sets the network name label attached to every metric and log stream scraped by the observability stack (Ansible mode only).
+   - Default: `devnet-3`, set in `parse-env.sh` after argument parsing
+   - Propagated to Ansible as the `network_name` variable, which is used in `prometheus.yml.j2` and `promtail.yml.j2` templates
+   - Appears as the `network` label on all Prometheus scrape targets (app, node_exporter, cadvisor) and all Promtail log streams, so you can filter by network in Grafana across multiple environments
+   - Example: `--network devnet-x`
+
+### Preparing remote servers
+
+Before deploying nodes to fresh remote servers for the first time, run `--prepare` to verify and install the three things every remote host needs:
+
+- **`python3`** — Ansible requires Python on managed nodes before any task can run; it cannot self-bootstrap this. If missing, `--prepare` fails immediately with a clear message.
+- **Docker CE + Compose plugin** — every node client and the full observability stack runs as a Docker container.
+- **`yq`** — the `common` role (which runs at every deploy) hard-fails if `yq` is not on the remote host.
+
+Prints a `✅` / `❌` status line per tool per host at the end. Fails if any required tool is still missing after the run.
+
+```sh
+# Prepare all remote servers using the default SSH key
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare
+
+# With a custom SSH key and root user
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+**Constraints:**
+- Only works in ansible mode (`deployment_mode: ansible` in your config, or `--deploymentMode ansible`)
+- Passing unsupported flags (e.g. `--node`, `--generateGenesis`) alongside `--prepare` produces a prominent error — only `--sshKey` and `--useRoot` are accepted
+- `--node` is not required; the playbook runs on all remote hosts in the inventory
+
+Once preparation succeeds, proceed with the normal deploy command:
+
+```sh
+NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+### Deploying multiple subnets
+
+Use `--subnets N` to run N independent copies of each client on the same server. This is useful for testing multi-subnet P2P scenarios without provisioning additional machines.
+
+```sh
+# Deploy 3 subnets of every client (ansible)
+NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 \
+  --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+**How it works:**
+
+`--subnets N` generates `validator-config-subnets-N.yaml` from the template (the original file is never modified). For each client in the template it creates N entries:
+
+| Subnet index | Name | quicPort | metricsPort | apiPort |
+|---|---|---|---|---|
+| 0 | `zeam_0` | base | base | base |
+| 1 | `zeam_1` | base+1 | base+1 | base+1 |
+| … | … | … | … | … |
+| N-1 | `zeam_N-1` | base+N-1 | base+N-1 | base+N-1 |
+
+**Rules enforced:**
+- `N` must be between 1 and 5
+- Each server contributes exactly one node per subnet (nodes on the same server are never in the same subnet)
+- Every subnet contains the same set of client types
+- Each node beyond subnet 0 gets a fresh P2P identity key
+
+**Running `--prepare` with subnets:**
+
+Always run `--prepare` with the same `--subnets N` value before deploying, so the firewall opens all N port ranges per host:
+
+```sh
+# Prepare firewall for 3 subnets
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --subnets 3 \
+  --sshKey ~/.ssh/id_ed25519 --useRoot
+```
 
 ### Checkpoint sync
 
@@ -238,11 +349,21 @@ NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0 \
 2. Data directories are cleared
 3. Clients are started with `--checkpoint-sync-url` so they sync from the remote checkpoint instead of genesis
 
+**Replacing a client during restart:**
+
+```sh
+# Replace zeam_0 with ream_0 (same validator slot, keys, and server)
+NETWORK_DIR=ansible-devnet ./spin-node.sh --restart-client zeam_0 --replace-with ream_0 --useRoot
+
+# Replace first node, just restart second
+NETWORK_DIR=local-devnet ./spin-node.sh --restart-client zeam_0,ream_0 --replace-with qlean_0
+```
+
 **Deployment modes:**
 - **Local** (`NETWORK_DIR=local-devnet`): Uses Docker directly
 - **Ansible** (`NETWORK_DIR=ansible-devnet`): Uses Ansible to deploy to remote hosts
 
-**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda
+**Supported clients:** zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, gean, nlean, peam
 
 > **Note:** All clients accept `--checkpoint-sync-url`. Client implementations may use different parameter names internally; update client-cmd scripts if parameters change.
 
@@ -256,8 +377,14 @@ Current following clients are supported:
 4. Lantern
 5. Lighthouse
 6. Grandine
+7. Ethlambda
+8. Gean
+9. Nlean
+10. Peam
 
-However adding a lean client to this setup is very easy. Feel free to do the PR or reach out to the maintainers.
+Adding a new client requires 6 small, well-defined steps. See the full integration guide:
+
+📖 **[Adding a New Client](docs/adding-a-new-client.md)**
 
 ## How It Works
 
@@ -620,6 +747,7 @@ This quickstart includes automated configuration parsing:
 
 - **Official Genesis Generation**: Uses PK's `eth-beacon-genesis` docker tool from [PR #36](https://github.com/ethpandaops/eth-beacon-genesis/pull/36)
 - **Leanpoint upstreams sync**: After nodes are spun up, `convert-validator-config.py` and `sync-leanpoint-upstreams.sh` generate `upstreams.json` from `validator-config.yaml`, rsync it to the tooling server, and restart the leanpoint container (see [Leanpoint upstreams sync](#leanpoint-upstreams-sync-tooling-server))
+- **Nemo tooling sync**: `sync-nemo-tooling.sh` builds `LEAN_API_URL` for all validators, deploys Nemo on the tooling server (or locally), and clears its SQLite data on each restart (see [Nemo (block explorer) on the tooling server](#nemo-block-explorer-on-the-tooling-server))
 - **Complete File Set**: Generates `validators.yaml`, `nodes.yaml`, `genesis.json`, `genesis.ssz`, and `.key` files
 - **QUIC Port Detection**: Automatically extracts QUIC ports from `validator-config.yaml` using `yq`
 - **Node Detection**: Dynamically discovers available nodes from the validator configuration
@@ -768,6 +896,7 @@ ansible/
 │       └── all.yml           # Global variables
 ├── playbooks/
 │   ├── site.yml             # Main playbook (clean + copy genesis + deploy)
+│   ├── prepare.yml          # Bootstrap: install Docker CE, yq; open firewall ports
 │   ├── clean-node-data.yml  # Clean node data directories
 │   ├── generate-genesis.yml # Generate genesis files
 │   ├── copy-genesis.yml     # Copy genesis files to remote hosts
@@ -786,6 +915,45 @@ ansible/
     ├── grandine/            # Grandine node role
     └── ethlambda/           # EthLambda node role    
 ```
+
+### Bootstrapping remote servers
+
+Fresh servers need Docker, build tools, and utilities installed before any lean node can be deployed. Run `--prepare` once per set of servers:
+
+```sh
+NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot
+```
+
+The command runs `ansible/playbooks/prepare.yml` against all remote hosts in the inventory (localhost is excluded). It installs exactly what is required for lean-quickstart ansible deployments and opens the necessary firewall ports:
+
+**Software installed:**
+
+| Tool | Why it is needed |
+|---|---|
+| `python3` | Ansible requires Python on managed nodes — cannot self-bootstrap |
+| Docker CE + `docker-compose-plugin` | Every node client and observability container runs via Docker |
+| `yq` | The `common` role hard-fails at every deploy if `yq` is absent on the remote |
+
+**Firewall rules opened (via `ufw`):**
+
+Ports are read from the active validator config (the `--subnets`-expanded file when `--subnets N` is used, or `validator-config.yaml` otherwise). Entries are matched by IP address, so all N subnet nodes on a server are found and all their ports are opened:
+
+| Port | Protocol | Source |
+|---|---|---|
+| `quicPort` … `quicPort+N-1` | UDP | Per-node — QUIC/P2P transport (e.g. 9001–9003 for N=3) |
+| `metricsPort` … `metricsPort+N-1` | TCP | Per-node — Prometheus scrape endpoint |
+| `apiPort`/`httpPort` … `+N-1` | TCP | Per-node — REST API |
+| 9090 | TCP | Observability — Prometheus |
+| 9080 | TCP | Observability — Promtail |
+| 9098 | TCP | Observability — cAdvisor |
+| 9100 | TCP | Observability — Node Exporter |
+| 22 | TCP | SSH — always allowed before `ufw` is enabled |
+
+`ufw` is enabled with `default: deny incoming` and rules are written to disk, so they survive reboots. SSH (22/tcp) is explicitly allowed before `ufw` is activated to prevent lockout.
+
+After each run, a per-host software status summary and the full `ufw status verbose` output are printed. The playbook fails if any required tool is still missing.
+
+Run `--prepare` again at any time — it is fully idempotent. Already-installed tools and existing firewall rules are skipped.
 
 ### Remote Deployment
 
@@ -843,7 +1011,7 @@ The inventory generator will automatically:
   - Use `--useRoot` flag to connect as root user (defaults to current user)
   - Or manually add `ansible_user` and `ansible_ssh_private_key_file` to the generated inventory
   - Or configure in `ansible/ansible.cfg` (see `private_key_file` option)
-- Docker is installed on remote hosts (or use `deployment_mode: binary` in group_vars)
+- Required software is installed on remote hosts — run `--prepare` first on fresh servers (see [Bootstrapping remote servers](#bootstrapping-remote-servers))
 - Required ports are open (QUIC ports, metrics ports)
 - Genesis files are accessible (copied or mounted)
 

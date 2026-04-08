@@ -15,7 +15,7 @@ PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"
 # ========================================
 show_usage() {
     cat << EOF
-Usage: $0 <genesis-directory> [--mode local|ansible] [--offset <seconds>] [--forceKeyGen]
+Usage: $0 <genesis-directory> [--mode local|ansible] [--offset <seconds>] [--forceKeyGen] [--validator-config <path>]
 
 Generate genesis configuration files using PK's eth-beacon-genesis tool.
 Generates: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
@@ -31,6 +31,7 @@ Options:
                        - ansible: GENESIS_TIME = now + 360 seconds (default)
   --offset <seconds>   Override genesis time offset in seconds (overrides mode defaults)
   --forceKeyGen        Force regeneration of hash-sig validator keys
+  --validator-config   Path to a custom validator-config.yaml (default: <genesis-directory>/validator-config.yaml)
 
 Examples:
   $0 local-devnet/genesis                      # Local mode (30s offset)
@@ -115,6 +116,15 @@ while [[ $# -gt 0 ]]; do
                 shift 2
             else
                 echo "❌ Error: --offset requires a value (positive integer)"
+                exit 1
+            fi
+            ;;
+        --validator-config)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                VALIDATOR_CONFIG_FILE="$2"
+                shift 2
+            else
+                echo "❌ Error: --validator-config requires a path"
                 exit 1
             fi
             ;;
@@ -402,6 +412,14 @@ echo "🔧 Step 3: Running PK's eth-beacon-genesis tool..."
 echo "   Docker image: $PK_DOCKER_IMAGE"
 echo "   Command: leanchain"
 echo ""
+
+# If validator config is external (not already inside genesis dir), copy it in
+# so the Docker container can find it at the expected /data/genesis/validator-config.yaml path
+GENESIS_VALIDATOR_CONFIG="$GENESIS_DIR/validator-config.yaml"
+if [ "$VALIDATOR_CONFIG_FILE" != "$GENESIS_VALIDATOR_CONFIG" ]; then
+    cp "$VALIDATOR_CONFIG_FILE" "$GENESIS_VALIDATOR_CONFIG"
+    echo "   Copied external validator config to genesis dir"
+fi
 
 # Convert to absolute path for docker volume mount
 GENESIS_DIR_ABS="$(cd "$GENESIS_DIR" && pwd)"
