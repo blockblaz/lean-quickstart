@@ -415,10 +415,10 @@ done < <(yq eval '.validators[].name' "$VALIDATOR_CONFIG_FILE")
 
 echo "   Total validator count: $TOTAL_VALIDATORS"
 
-# Optional chain setting (defaults to 4 for devnet4-style configs)
-ATTESTATION_COMMITTEE_COUNT=$(yq eval '.config.attestation_committee_count // 4' "$VALIDATOR_CONFIG_FILE" 2>/dev/null)
+# Optional chain setting; default matches leanSpec ATTESTATION_COMMITTEE_COUNT (Uint64(1))
+ATTESTATION_COMMITTEE_COUNT=$(yq eval '.config.attestation_committee_count // 1' "$VALIDATOR_CONFIG_FILE" 2>/dev/null)
 if [ -z "$ATTESTATION_COMMITTEE_COUNT" ] || [ "$ATTESTATION_COMMITTEE_COUNT" == "null" ]; then
-    ATTESTATION_COMMITTEE_COUNT=4
+    ATTESTATION_COMMITTEE_COUNT=1
 fi
 
 # Generate config.yaml from scratch
