@@ -137,9 +137,14 @@ if [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ]; th
   EXTRA_VARS="$EXTRA_VARS validator_config=$validatorConfig"
 fi
 
-# Pass the full local path of the active validator config so deploy-nodes.yml
-# can sync the correct file regardless of where it lives on disk.
-EXTRA_VARS="$EXTRA_VARS local_validator_config_path=$validator_config_file"
+# Pass the absolute path of the active validator config. ansible-playbook runs
+# with cwd ansible/; lookup('file', ...) treats relative paths as relative to
+# that directory, so a path like ansible-devnet/genesis/foo.yaml would break.
+_local_vc_path="$validator_config_file"
+if [[ "$_local_vc_path" != /* ]]; then
+  _local_vc_path="$scriptDir/$_local_vc_path"
+fi
+EXTRA_VARS="$EXTRA_VARS local_validator_config_path=$_local_vc_path"
 
 if [ -n "$coreDumps" ]; then
   EXTRA_VARS="$EXTRA_VARS enable_core_dumps=$coreDumps"
