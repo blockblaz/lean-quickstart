@@ -17,6 +17,7 @@ hash-sig-keys/
 
 # Auto-generated Ansible inventory (generated from validator-config.yaml)
 hosts.yml
+hosts-prepare.yml
 
 # Temporary cache files
 tmp/

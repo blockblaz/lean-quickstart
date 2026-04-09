@@ -54,39 +54,60 @@ echo "SSH user for remote connections: $sshUser"
 # Generate ansible inventory from validator-config.yaml
 ANSIBLE_DIR="$scriptDir/ansible"
 INVENTORY_FILE="$ANSIBLE_DIR/inventory/hosts.yml"
+PREPARE_INVENTORY="$ANSIBLE_DIR/inventory/hosts-prepare.yml"
 
-# Generate inventory if it doesn't exist or if validator config is newer
-if [ ! -f "$INVENTORY_FILE" ] || [ "$validator_config_file" -nt "$INVENTORY_FILE" ]; then
+# Regenerate if main inventory missing, prepare inventory missing, or validator config is newer
+_regen_inv=false
+if [ ! -f "$INVENTORY_FILE" ]; then
+  _regen_inv=true
+fi
+if [ ! -f "$PREPARE_INVENTORY" ]; then
+  _regen_inv=true
+fi
+if [ -f "$validator_config_file" ] && [ -f "$INVENTORY_FILE" ] && [ "$validator_config_file" -nt "$INVENTORY_FILE" ]; then
+  _regen_inv=true
+fi
+if [ "$_regen_inv" = true ]; then
   echo "Generating Ansible inventory from validator-config.yaml..."
   "$scriptDir/generate-ansible-inventory.sh" "$validator_config_file" "$INVENTORY_FILE"
 fi
 
-# Update inventory with SSH key file and user if provided
+# prepare.yml: one play per physical host (deduped by IP). Deploy still uses full hosts.yml.
+EFFECTIVE_INVENTORY="$INVENTORY_FILE"
+if [ "$action" == "prepare" ] && [ -f "$PREPARE_INVENTORY" ]; then
+  EFFECTIVE_INVENTORY="$PREPARE_INVENTORY"
+fi
+
+# Update inventory file(s) with SSH key file and user if provided
 if command -v yq &> /dev/null; then
-  # Derive the group list dynamically from the inventory so newly added clients
-  # (e.g. gean_nodes, lean_nodes) are automatically included without needing to
-  # update this hardcoded list every time a new client type is added.
-  all_groups=$(yq eval '.all.children | keys | .[]' "$INVENTORY_FILE" 2>/dev/null || echo "")
-  for group in $all_groups; do
-    # Get all hosts in this group
-    hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$INVENTORY_FILE" 2>/dev/null || echo "")
-    for host in $hosts; do
-      # Only update if it's a remote host (has ansible_host but not ansible_connection: local)
-      connection=$(yq eval ".all.children.$group.hosts.$host.ansible_connection // \"\"" "$INVENTORY_FILE" 2>/dev/null)
-      if [ -z "$connection" ] || [ "$connection" != "local" ]; then
-        # Set SSH user (defaults to current user, or root if --useRoot flag is set)
-        yq eval -i ".all.children.$group.hosts.$host.ansible_user = \"$sshUser\"" "$INVENTORY_FILE"
-        
-        # Set SSH key file if provided
-        if [ -n "$sshKeyFile" ]; then
-          # Expand ~ to home directory if needed
-          if [[ "$sshKeyFile" == ~* ]]; then
-            sshKeyFile="${sshKeyFile/#\~/$HOME}"
+  _inv_files=("$INVENTORY_FILE")
+  [ -f "$PREPARE_INVENTORY" ] && _inv_files+=("$PREPARE_INVENTORY")
+  for _inv in "${_inv_files[@]}"; do
+    # Derive the group list dynamically from the inventory so newly added clients
+    # (e.g. gean_nodes, lean_nodes) are automatically included without needing to
+    # update this hardcoded list every time a new client type is added.
+    all_groups=$(yq eval '.all.children | keys | .[]' "$_inv" 2>/dev/null || echo "")
+    for group in $all_groups; do
+      # Get all hosts in this group
+      hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$_inv" 2>/dev/null || echo "")
+      for host in $hosts; do
+        # Only update if it's a remote host (has ansible_host but not ansible_connection: local)
+        connection=$(yq eval ".all.children.$group.hosts.$host.ansible_connection // \"\"" "$_inv" 2>/dev/null)
+        if [ -z "$connection" ] || [ "$connection" != "local" ]; then
+          # Set SSH user (defaults to current user, or root if --useRoot flag is set)
+          yq eval -i ".all.children.$group.hosts.\"$host\".ansible_user = \"$sshUser\"" "$_inv"
+
+          # Set SSH key file if provided
+          if [ -n "$sshKeyFile" ]; then
+            # Expand ~ to home directory if needed
+            if [[ "$sshKeyFile" == ~* ]]; then
+              sshKeyFile="${sshKeyFile/#\~/$HOME}"
+            fi
+            yq eval -i ".all.children.$group.hosts.\"$host\".ansible_ssh_private_key_file = \"$sshKeyFile\"" "$_inv"
+            echo "Setting SSH private key file for $host: $sshKeyFile"
           fi
-          yq eval -i ".all.children.$group.hosts.$host.ansible_ssh_private_key_file = \"$sshKeyFile\"" "$INVENTORY_FILE"
-          echo "Setting SSH private key file for $host: $sshKeyFile"
         fi
-      fi
+      done
     done
   done
 else
@@ -164,7 +185,7 @@ fi
 
 # Build ansible-playbook command
 ANSIBLE_CMD="ansible-playbook"
-ANSIBLE_CMD="$ANSIBLE_CMD -i $INVENTORY_FILE"
+ANSIBLE_CMD="$ANSIBLE_CMD -i $EFFECTIVE_INVENTORY"
 ANSIBLE_CMD="$ANSIBLE_CMD $PLAYBOOK"
 ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
 
