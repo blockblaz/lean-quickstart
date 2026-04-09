@@ -154,8 +154,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
   [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
   [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
   [ -n "$skipNemo" ]            && ignored_flags+=("--skip-nemo")
-  [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ] \
-                                && ignored_flags+=("--validatorConfig")
+  # --validatorConfig is allowed: inventory and prepare targets must match the chosen config.
 
   if [ ${#ignored_flags[@]} -gt 0 ]; then
     echo ""
@@ -168,6 +167,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
     done
     echo "╠══════════════════════════════════════════════════════════════╣"
     echo "║  Allowed flags with --prepare:                              ║"
+    echo "║    • --validatorConfig <path>                               ║"
     echo "║    • --sshKey / --private-key                               ║"
     echo "║    • --useRoot                                              ║"
     echo "║    • --deploymentMode ansible                               ║"

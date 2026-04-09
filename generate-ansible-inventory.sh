@@ -99,6 +99,28 @@ for node_name in "${nodes[@]}"; do
     fi
 done
 
+# One inventory host per remote IP for prepare.yml — avoids N parallel SSH/apt sessions
+# to the same machine when validator-config lists zeam_0..zeam_4 on one IP.
+PREPARE_FILE="${OUTPUT_DIR}/hosts-prepare.yml"
+cat > "$PREPARE_FILE" << 'EOF'
+---
+# Deduplicated inventory for prepare.yml only (generated; do not edit manually).
+all:
+  children:
+    prepare_hosts:
+      hosts: {}
+EOF
+
+while IFS= read -r ip; do
+    [ -z "$ip" ] || [ "$ip" = "null" ] && continue
+    if [[ "$ip" == "127.0.0.1" ]] || [[ "$ip" == "localhost" ]]; then
+        continue
+    fi
+    inv_id="prep_${ip//./_}"
+    yq eval -i ".all.children.prepare_hosts.hosts.\"$inv_id\".ansible_host = \"$ip\"" "$PREPARE_FILE"
+done < <(yq eval '.validators[].enrFields.ip' "$VALIDATOR_CONFIG" | sort -u)
+
 echo "✅ Generated Ansible inventory at: $OUTPUT_FILE"
+echo "✅ Generated prepare inventory (one host per IP) at: $PREPARE_FILE"
 echo "   Processed ${#nodes[@]} node(s): ${nodes[*]}"
 
