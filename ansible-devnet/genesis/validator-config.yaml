@@ -136,18 +136,19 @@ validators:
   #   isAggregator: false
   #   count: 1
 
-  # - name: "peam_0"
-  #   # node id 23537364cc6e2547f1ed53909e08e933c53aaed1c32a991e78cdcbc8e62c61cb
-  #   # peer id 16Uiu2HAmVSWJiHJMtfuLkyr8Du4BxTLg9rpgR32QHu1u3YuhcM3R
-  #   privkey: "8c7b62f4c4a35d134649817f44d2839ad15bcfa1fe6b87991f64d6f54f3ef2a1"
-  #   enrFields:
-  #     # verify /ip4/95.216.173.151/udp/9001/quic-v1/p2p/16Uiu2HAmVSWJiHJMtfuLkyr8Du4BxTLg9rpgR32QHu1u3YuhcM3R
-  #     ip: "95.216.173.151"
-  #     quic: 9001
-  #   metricsPort: 9095
-  #   apiPort: 5055
-  #   isAggregator: false
-  #   count: 1
+  - name: "peam_0"
+    # node id 23537364cc6e2547f1ed53909e08e933c53aaed1c32a991e78cdcbc8e62c61cb
+    # peer id 16Uiu2HAmVSWJiHJMtfuLkyr8Du4BxTLg9rpgR32QHu1u3YuhcM3R
+    privkey: "8c7b62f4c4a35d134649817f44d2839ad15bcfa1fe6b87991f64d6f54f3ef2a1"
+    devnet: "devnet0"
+    enrFields:
+      # verify /ip4/95.216.173.151/udp/9001/quic-v1/p2p/16Uiu2HAmVSWJiHJMtfuLkyr8Du4BxTLg9rpgR32QHu1u3YuhcM3R
+      ip: "95.216.173.151"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
 
   # - name: "node_0"
   #   # node id 4a27002fe8c79b68acf1e8af321fd4f3407492ab626de16174105234b4e726a7
