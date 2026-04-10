@@ -3,11 +3,11 @@
 # Note: These are fallback defaults. Actual values are extracted from client-cmds/zeam-cmd.sh
 # in the tasks/main.yml file. These defaults are used if extraction fails.
 
-zeam_docker_image: "blockblaz/zeam:devnet3"
+zeam_docker_image: "blockblaz/zeam:devnet4"
 zeam_binary_path: "{{ playbook_dir }}/../zig-out/bin/zeam"
 deployment_mode: docker  # docker or binary
 
-# Global zeam CLI flags before `node`. Empty by default: published devnet3 image lacks these options.
+# Global zeam CLI flags before `node`. Empty by default: published devnet4 image lacks these options.
 # Override when using a zeam build that supports them, e.g. "--console-log-level debug"
 zeam_global_flags: ""
 

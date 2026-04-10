@@ -7,9 +7,9 @@
 # Platform-specific qlean image
 ARCH=$(uname -m)
 if [ "$ARCH" = "x86_64" ]; then
-    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-3-amd64"
+    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-4-amd64"
 elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-3-arm64"
+    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-4-arm64"
 else
     echo "Unsupported architecture: $ARCH"
     exit 1

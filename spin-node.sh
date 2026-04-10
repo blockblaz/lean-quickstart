@@ -114,9 +114,9 @@ if [ -n "$subnets" ] && [ "$subnets" -ge 1 ] 2>/dev/null; then
     exit 1
   fi
 
-  expanded_config="${configDir}/validator-config-subnets-${subnets}.yaml"
+  expanded_config="${configDir}/validator-config-expanded.yaml"
   [ "$dryRun" == "true" ] && echo "[DRY RUN] Generating subnet config preview (no deployment will occur)"
-  echo "Generating subnet config ($subnets subnet(s) per client) → $expanded_config"
+  echo "Generating subnet config ($subnets subnet(s)) → $expanded_config"
 
   if ! python3 "$scriptDir/generate-subnet-config.py" \
       "$validator_config_file" "$subnets" "$expanded_config"; then
@@ -168,9 +168,11 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
     echo "╠══════════════════════════════════════════════════════════════╣"
     echo "║  Allowed flags with --prepare:                              ║"
     echo "║    • --validatorConfig <path>                               ║"
+    echo "║    • --subnets N                                            ║"
     echo "║    • --sshKey / --private-key                               ║"
     echo "║    • --useRoot                                              ║"
     echo "║    • --deploymentMode ansible                               ║"
+    echo "║    • --network, --dry-run, --logs                           ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo ""
     exit 1

@@ -3,6 +3,5 @@
 # Note: These are fallback defaults. Actual values are extracted from client-cmds/peam-cmd.sh
 # in the tasks/main.yml file. These defaults are used if extraction fails.
 
-peam_docker_image: "ghcr.io/malik672/peam:devnet3"
-peam_devnet_id: "devnet0"
+peam_docker_image: "ghcr.io/malik672/peam:devnet4"
 deployment_mode: docker  # docker or binary

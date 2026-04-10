@@ -22,6 +22,9 @@ hosts-prepare.yml
 # Temporary cache files
 tmp/
 
+logs/
+monitoring/
+
 ansible-deployment*.log
 
 # Generated Prometheus config (created by generate-prometheus-config.sh)

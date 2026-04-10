@@ -31,7 +31,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    zeam_docker_image: "{{ zeam_docker_image_raw.stdout | trim | default('blockblaz/zeam:latest') }}"
+    zeam_docker_image: "{{ zeam_docker_image_raw.stdout | trim | default('blockblaz/zeam:devnet4') }}"
     deployment_mode: "{{ zeam_deployment_mode_raw.stdout | trim | default('docker') }}"
   delegate_to: localhost
   run_once: true
