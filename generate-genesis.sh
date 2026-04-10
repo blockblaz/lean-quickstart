@@ -162,7 +162,7 @@ if ! command -v docker &> /dev/null; then
 fi
 echo "  ✅ docker found: $(which docker)"
 
-# Hash-sig-cli Docker image (devnet4: separate attester + proposer keys per validator)
+# Hash-sig-cli Docker image (separate attester + proposer keys per validator when using dual-key manifest)
 HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet4"
 echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
 
@@ -316,7 +316,7 @@ if [ ! -f "$MANIFEST_FILE" ]; then
     exit 1
 fi
 
-# Detect dual-key manifest (devnet4 / hash-sig-cli) vs legacy single pubkey_hex
+# Detect dual-key manifest (hash-sig-cli) vs legacy single pubkey_hex
 FIRST_VALIDATOR_FIELDS=$(yq eval '.validators[0] | keys | .[]' "$MANIFEST_FILE" 2>/dev/null)
 DUAL_KEY_MODE=false
 PUBKEY_FIELD=""

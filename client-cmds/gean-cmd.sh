@@ -47,7 +47,7 @@ node_binary="$gean_bin \
       $aggregator_flag"
 
 # Docker command (assumes image entrypoint handles the binary)
-node_docker="ghcr.io/geanlabs/gean:devnet3 \
+node_docker="ghcr.io/geanlabs/gean:devnet4 \
       --data-dir /data \
       --genesis /config/config.yaml \
       --bootnodes /config/nodes.yaml \

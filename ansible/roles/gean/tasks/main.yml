@@ -22,7 +22,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    gean_docker_image: "{{ gean_docker_image_raw.stdout | trim | default('ghcr.io/geanlabs/gean:devnet3') }}"
+    gean_docker_image: "{{ gean_docker_image_raw.stdout | trim | default('ghcr.io/geanlabs/gean:devnet4') }}"
     deployment_mode: "{{ gean_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml

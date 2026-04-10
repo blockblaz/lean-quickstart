@@ -22,7 +22,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    nlean_docker_image: "{{ nlean_docker_image_raw.stdout | trim | default('ghcr.io/nleaneth/nlean:latest') }}"
+    nlean_docker_image: "{{ nlean_docker_image_raw.stdout | trim | default('ghcr.io/nleaneth/nlean:devnet4') }}"
     deployment_mode: "{{ nlean_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml

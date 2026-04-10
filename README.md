@@ -230,10 +230,11 @@ Every Ansible deployment automatically deploys an observability stack alongside 
    - Installs: `python3` (Ansible requirement), Docker CE + Compose plugin (all clients run as containers), `yq` (required by the `common` role at every deploy)
    - Opens per-node ports (`quicPort`/UDP, `metricsPort`/TCP, `apiPort`/TCP) read from the active validator config, plus fixed observability ports (9090, 9080, 9098, 9100). With `--subnets N`, all N nodes' port ranges are opened per host. Enables `ufw` with default deny incoming (persisted across reboots).
    - Prints a per-tool, per-host status summary (`✅ ok` / `❌ missing`) and `ufw status verbose`
-   - `--node` is not required; passing unsupported flags alongside `--prepare` produces a prominent error — only `--sshKey` and `--useRoot` are accepted
+   - **Allowed with `--prepare`:** `--validatorConfig` (path to the template you deploy from), `--subnets N` (so the expanded config and firewall match deploy), `--sshKey` / `--private-key`, `--useRoot`, `--deploymentMode ansible`, `--network`, `--dry-run`, `--logs`, and `NETWORK_DIR`. Other deploy-only flags (`--node`, `--generateGenesis`, `--stop`, …) are rejected.
    - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot`
+   - Example with a custom template and subnets: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --subnets 3 --validatorConfig ansible-devnet/genesis/test-validator-config.yaml --sshKey ~/.ssh/id_ed25519 --useRoot`
 16. `--subnets N` expand the validator config to deploy N nodes of each client on the same server, where N is 1–5.
-   - Generates `validator-config-subnets-N.yaml` from the template (without modifying the original)
+   - Writes `validator-config-expanded.yaml` under the network genesis dir (without modifying the original template; the file is overwritten on each run with the chosen N)
    - Each subnet node gets a unique name (`{client}_0`, `{client}_1`, …), ports incremented by the subnet index, and a fresh P2P identity key for subnets > 0
    - Subnet assignment rule: each server contributes **exactly one node per subnet** — nodes on the same server are never in the same subnet
    - Every subnet contains the same set of client types
@@ -275,8 +276,8 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 -
 
 **Constraints:**
 - Only works in ansible mode (`deployment_mode: ansible` in your config, or `--deploymentMode ansible`)
-- Passing unsupported flags (e.g. `--node`, `--generateGenesis`) alongside `--prepare` produces a prominent error — only `--sshKey` and `--useRoot` are accepted
-- `--node` is not required; the playbook runs on all remote hosts in the inventory
+- Passing deploy-only flags (e.g. `--node`, `--generateGenesis`, `--stop`, `--metrics`) alongside `--prepare` produces a prominent error. Use `--validatorConfig`, `--subnets N`, `--sshKey`, `--useRoot`, `--deploymentMode ansible`, `--network`, `--dry-run`, or `--logs` when needed so inventory and firewall match your deploy.
+- `--node` is not required; the prepare playbook runs on **one play per unique IP** (deduplicated inventory) so parallel prepares do not fight over the same host
 
 Once preparation succeeds, proceed with the normal deploy command:
 
@@ -286,17 +287,16 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis --sshKey 
 
 ### Deploying multiple subnets
 
-Use `--subnets N` to run N independent copies of each client on the same server. This is useful for testing multi-subnet P2P scenarios without provisioning additional machines.
+Use `--subnets N` to set `config.attestation_committee_count` to **N** and write **`validator-config-expanded.yaml`** in the genesis directory from your template (the original file is never modified; the expanded file is overwritten each time). The repository includes an example expanded file at `ansible-devnet/genesis/validator-config-expanded.yaml` (regenerate locally when you change the template or `N`). The generator picks one of two layouts:
+
+**A — Replicate mode (unique IP per template row)**  
+Use this when each template row is a different machine and each client type appears once. Every row is cloned **N** times on that IP (names `client_0` … `client_{N-1}`), ports increase by subnet index, and subnet 1+ get new P2P keys. Good when one physical server runs **N** copies of the **same** client.
 
 ```sh
 # Deploy 3 subnets of every client (ansible)
 NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 \
   --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
 ```
-
-**How it works:**
-
-`--subnets N` generates `validator-config-subnets-N.yaml` from the template (the original file is never modified). For each client in the template it creates N entries:
 
 | Subnet index | Name | quicPort | metricsPort | apiPort |
 |---|---|---|---|---|
@@ -305,11 +305,14 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 \
 | … | … | … | … | … |
 | N-1 | `zeam_N-1` | base+N-1 | base+N-1 | base+N-1 |
 
-**Rules enforced:**
-- `N` must be between 1 and 5
-- Each server contributes exactly one node per subnet (nodes on the same server are never in the same subnet)
-- Every subnet contains the same set of client types
-- Each node beyond subnet 0 gets a fresh P2P identity key
+**B — Shared-host mode (duplicate IPs in the template)**  
+Use this when several validator rows share an IP (one box runs multiple processes). The template is **not** cloned: **one output row per input row**. Subnet index comes from each row’s **`subnet`** field, or—if only **one** client type uses that IP—from the numeric suffix in **`name`** (`zeam_0` → subnet 0, `zeam_4` → subnet 4). If **more than one client type** shares an IP (e.g. zeam and ream on the same host), every row for that IP **must** set an explicit integer **`subnet`** (0 … N-1). Ports and keys stay as you defined them; you must avoid collisions.
+
+**Rules enforced (both modes):**
+- `N` must be between 1 and 5; every subnet index used must satisfy `0 <= subnet < N`
+- Replicate mode: unique IP per row and each client type at most once in the template
+- Shared-host mode: for a given IP, each subnet index appears at most once; the same client cannot appear twice in the same subnet on the same IP
+- Replicate mode only: each node beyond subnet 0 gets a fresh P2P identity key
 
 **Running `--prepare` with subnets:**
 
@@ -449,7 +452,7 @@ validators:                    # validator nodes specification
 The `spin-node.sh` triggers genesis generator (`generate-genesis.sh`) which generates the following files based on `validator-config.yaml`:
 
 1. **post-quantum secure validator keypairs** in `genesis/hash-sig-keys` unless already generated or forced with `--forceKeyGen`
-2. **config.yaml** - Updated genesis time, `ATTESTATION_COMMITTEE_COUNT`, and `GENESIS_VALIDATORS` with **attestation** and **proposal** public keys per validator (devnet4 / `hash-sig-cli:devnet4`)
+2. **config.yaml** - Updated genesis time, `ATTESTATION_COMMITTEE_COUNT`, and `GENESIS_VALIDATORS` with **attestation** and **proposal** public keys per validator (dual-key layout / `hash-sig-cli:devnet4`)
 3. **validators.yaml** - Validator index assignments using round-robin distribution
 4. **nodes.yaml** - ENR (Ethereum Node Records) for peer discovery
 5. **genesis.json** - Genesis state in JSON format
@@ -476,7 +479,7 @@ You can also run the generator standalone:
 
 Using the above docker tool the following files are generated (unless already generated or forced via `--forceKeyGen` flag):
 
-**Generated files (devnet4 — two roles per validator index):**
+**Generated files (dual-key manifest — two roles per validator index):**
 ```
 local-devnet/genesis/hash-sig-keys/
 ├── validator-keys-manifest.yaml              # Metadata (attester + proposer pubkeys per index)
@@ -542,7 +545,7 @@ qlean_0:
     - 2
 ```
 
-**Recommended:** `annotated_validators.yaml` is also generated and should be preferred by client software as it includes public keys and private key file references directly, eliminating the need for clients to derive key filenames from validator indices. On **devnet4**, each validator index appears **twice** (attester + proposer SSZ keys):
+**Recommended:** `annotated_validators.yaml` is also generated and should be preferred by client software as it includes public keys and private key file references directly, eliminating the need for clients to derive key filenames from validator indices. With the dual-key manifest, each validator index appears **twice** (attester + proposer SSZ keys):
 
 ```yaml
 zeam_0:
@@ -573,7 +576,7 @@ zeam_0:
 Post genesis generation, the quickstarts loads and calls the appropriate node's client cmd from `client-cmds` folder where either `docker` or `binary` cmd is picked as per the `node_setup` mode. (Generally `binary` mode is handy for local interop debugging for a client).
 
 **Client Integration:**
-Your client implementation should read these environment variables and use the hash-sig keys for validator operations. After `parse-vc.sh` runs, **`$HASH_SIG_PK_PATH` / `$HASH_SIG_SK_PATH`** point at the **proposer** JSON keys when using devnet4 dual-key files; **`$HASH_SIG_ATTESTER_PK_PATH`** / **`$HASH_SIG_ATTESTER_SK_PATH`** (and proposer-specific `HASH_SIG_PROPOSER_*`) are set when those files exist.
+Your client implementation should read these environment variables and use the hash-sig keys for validator operations. After `parse-vc.sh` runs, **`$HASH_SIG_PK_PATH` / `$HASH_SIG_SK_PATH`** point at the **proposer** JSON keys when using dual-key manifest files; **`$HASH_SIG_ATTESTER_PK_PATH`** / **`$HASH_SIG_ATTESTER_SK_PATH`** (and proposer-specific `HASH_SIG_PROPOSER_*`) are set when those files exist.
 
  - `$item` - the node name for which this cmd is being executed, index into `validator-config.yaml` for its configuration
  - `$configDir` - the abs folder housing `genesis` configuration (same as `NETWORK_DIR` env variable provided while executing shell command), already mapped to `/config` in the docker mode
@@ -600,7 +603,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
       --metrics-port $metricsPort"
 
-node_docker="--platform linux/amd64 qdrvm/qlean-mini:latest \
+node_docker="--platform linux/amd64 qdrvm/qlean-mini:devnet-4-amd64 \
       --genesis /config/config.yaml \
       --validator-registry-path /config/validators.yaml \
       --bootnodes /config/nodes.yaml \

@@ -24,7 +24,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:latest') }}"
+    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:devnet-4-amd64') }}"
     deployment_mode: "{{ qlean_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml

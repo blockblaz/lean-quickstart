@@ -36,7 +36,7 @@ node_binary="$grandine_bin \
         $aggregator_flag \
         $checkpoint_sync_flag"
 
-node_docker="sifrai/lean:devnet-3 \
+node_docker="sifrai/lean:devnet-4 \
         --genesis /config/config.yaml \
         --validator-registry-path /config/validators.yaml \
         --bootnodes /config/nodes.yaml \
