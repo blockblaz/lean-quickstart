@@ -34,9 +34,19 @@
       set_fact:
         project_root: "{{ project_root_result.stdout }}"
 
+    - name: Copy custom validator config to genesis dir if different
+      copy:
+        src: "{{ local_validator_config_path }}"
+        dest: "{{ genesis_dir }}/validator-config.yaml"
+        mode: '0644'
+      when:
+        - local_validator_config_path is defined
+        - local_validator_config_path != genesis_dir + '/validator-config.yaml'
+
     - name: Run generate-genesis.sh script
       shell: |
-        cd "{{ project_root }}" && ./generate-genesis.sh "{{ genesis_dir }}" --mode ansible --offset {{ genesis_time_offset }}
+        cd "{{ project_root }}" && ./generate-genesis.sh "{{ genesis_dir }}" --mode ansible --offset {{ genesis_time_offset }}{% if local_validator_config_path is defined and local_validator_config_path != '' %} --validator-config "{{ local_validator_config_path }}"{% endif %}
+
       register: genesis_result
       args:
         executable: /bin/bash
@@ -55,7 +65,7 @@
 
     - name: Extract node names from validator-config.yaml
       shell: |
-        yq eval '.validators[].name' "{{ genesis_dir }}/validator-config.yaml"
+        yq eval '.validators[].name' "{{ local_validator_config_path | default(genesis_dir + '/validator-config.yaml') }}"
       register: node_names_raw
       changed_when: false
 

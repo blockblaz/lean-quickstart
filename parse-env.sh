@@ -3,18 +3,17 @@
 
 if [ -n "$NETWORK_DIR" ]
 then
-  echo "setting up network from $scriptDir/$NETWORK_DIR"
-  configDir="$scriptDir/$NETWORK_DIR/genesis"
-  dataDir="$scriptDir/$NETWORK_DIR/data"
+  # Support both absolute paths and relative paths (relative to scriptDir)
+  if [[ "$NETWORK_DIR" = /* ]]; then
+    _resolved_network_dir="$NETWORK_DIR"
+  else
+    _resolved_network_dir="$scriptDir/$NETWORK_DIR"
+  fi
+  echo "setting up network from $_resolved_network_dir"
+  configDir="$_resolved_network_dir/genesis"
+  dataDir="$_resolved_network_dir/data"
 else
   echo "set NETWORK_DIR env variable to run"
-  exit
-fi;
-
-# TODO: check for presense of all required files by filenames on configDir
-if [ ! -n "$(ls -A $configDir)" ]
-then
-  echo "no genesis config at path=$configDir, exiting."
   exit
 fi;
 
@@ -104,8 +103,35 @@ while [[ $# -gt 0 ]]; do
       skipLeanpoint=true
       shift
       ;;
+    --skip-nemo)
+      skipNemo=true
+      shift
+      ;;
     --prepare)
       prepareMode=true
+      shift
+      ;;
+    --subnets)
+      subnets="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --dry-run)
+      dryRun=true
+      shift
+      ;;
+    --replace-with)
+      replaceWith="$2"
+      shift
+      shift
+      ;;
+    --network)
+      networkName="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --logs)
+      enableLogs=true
       shift
       ;;
     *)    # unknown option
@@ -121,6 +147,19 @@ then
   exit
 fi;
 
+# Check genesis dir exists and is non-empty, unless --generateGenesis will create it
+if [ "$generateGenesis" != "true" ] && [ ! -n "$(ls -A $configDir 2>/dev/null)" ]
+then
+  echo "no genesis config at path=$configDir, exiting."
+  exit
+fi;
+
+# Validate --replace-with requires --restart-client
+if [[ -n "$replaceWith" ]] && [[ ! -n "$restartClient" ]]; then
+  echo "Warning: --replace-with requires --restart-client. Ignoring --replace-with."
+  replaceWith=""
+fi
+
 # When using --restart-client with checkpoint sync, set default checkpoint URL if not provided
 if [[ -n "$restartClient" ]] && [[ ! -n "$checkpointSyncUrl" ]]; then
   checkpointSyncUrl="https://leanpoint.leanroadmap.org/lean/v0/states/finalized"
@@ -134,6 +173,7 @@ fi;
 
 # freshStart logic removed - now handled by --generateGenesis flag
 
+networkName="${networkName:-devnet-3}"
 
 echo "configDir = $configDir"
 echo "dataDir = $dataDir"
@@ -148,3 +188,8 @@ echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"
 echo "skipLeanpoint = ${skipLeanpoint:-false}"
+echo "skipNemo = ${skipNemo:-false}"
+echo "dryRun = ${dryRun:-false}"
+echo "replaceWith = ${replaceWith:-<not set>}"
+echo "networkName = $networkName"
+echo "enableLogs = ${enableLogs:-false}"

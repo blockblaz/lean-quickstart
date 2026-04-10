@@ -29,6 +29,9 @@ action="$8"   # Action: "stop" to stop nodes, otherwise deploy
 coreDumps="$9"  # Core dump configuration: "all", node names, or client types
 skipGenesis="${10}"  # Set to "true" to skip genesis generation (e.g. when restarting with checkpoint sync)
 checkpointSyncUrl="${11}"  # URL for checkpoint sync (when restarting with --restart-client)
+dryRun="${12}"  # Set to "true" to run Ansible with --check --diff (no changes applied)
+syncAllHosts="${13}"  # Set to "true" to sync config yamls to all hosts (used after --replace-with)
+networkName="${14}"  # Network label applied to all metrics (e.g. devnet-3, testnet, mainnet)
 
 # Determine SSH user: use root if --useRoot flag is set, otherwise use current user
 if [ "$useRoot" == "true" ]; then
@@ -60,8 +63,11 @@ fi
 
 # Update inventory with SSH key file and user if provided
 if command -v yq &> /dev/null; then
-  # Get all remote host groups (zeam_nodes, ream_nodes, qlean_nodes, lantern_nodes, lighthouse_nodes)
-  for group in zeam_nodes ream_nodes qlean_nodes lantern_nodes lighthouse_nodes grandine_nodes ethlambda_nodes; do
+  # Derive the group list dynamically from the inventory so newly added clients
+  # (e.g. gean_nodes, lean_nodes) are automatically included without needing to
+  # update this hardcoded list every time a new client type is added.
+  all_groups=$(yq eval '.all.children | keys | .[]' "$INVENTORY_FILE" 2>/dev/null || echo "")
+  for group in $all_groups; do
     # Get all hosts in this group
     hosts=$(yq eval ".all.children.$group.hosts | keys | .[]" "$INVENTORY_FILE" 2>/dev/null || echo "")
     for host in $hosts; do
@@ -110,6 +116,10 @@ if [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ]; th
   EXTRA_VARS="$EXTRA_VARS validator_config=$validatorConfig"
 fi
 
+# Pass the full local path of the active validator config so deploy-nodes.yml
+# can sync the correct file regardless of where it lives on disk.
+EXTRA_VARS="$EXTRA_VARS local_validator_config_path=$validator_config_file"
+
 if [ -n "$coreDumps" ]; then
   EXTRA_VARS="$EXTRA_VARS enable_core_dumps=$coreDumps"
 fi
@@ -121,6 +131,12 @@ fi
 if [ -n "$checkpointSyncUrl" ]; then
   EXTRA_VARS="$EXTRA_VARS checkpoint_sync_url=$checkpointSyncUrl"
 fi
+
+if [ "$syncAllHosts" == "true" ]; then
+  EXTRA_VARS="$EXTRA_VARS sync_all_hosts=true"
+fi
+
+EXTRA_VARS="$EXTRA_VARS network_name=$networkName"
 
 # Determine deployment mode (docker/binary) - read default from group_vars/all.yml
 # Default to 'docker' if not specified in group_vars
@@ -152,6 +168,11 @@ ANSIBLE_CMD="$ANSIBLE_CMD -i $INVENTORY_FILE"
 ANSIBLE_CMD="$ANSIBLE_CMD $PLAYBOOK"
 ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
 
+# Dry-run: show what Ansible would change without applying anything.
+if [ "$dryRun" == "true" ]; then
+  ANSIBLE_CMD="$ANSIBLE_CMD --check --diff"
+fi
+
 echo "Running Ansible playbook for $ACTION_MSG..."
 echo "Command: $ANSIBLE_CMD"
 echo ""
@@ -161,14 +182,16 @@ cd "$ANSIBLE_DIR"
 eval $ANSIBLE_CMD
 
 EXIT_CODE=$?
+_dry_tag=""
+[ "$dryRun" == "true" ] && _dry_tag=" (dry-run — no changes applied)"
 if [ $EXIT_CODE -eq 0 ]; then
   echo ""
   if [ "$action" == "stop" ]; then
-    echo "✅ Ansible stop operation completed successfully!"
+    echo "✅ Ansible stop operation completed successfully!${_dry_tag}"
   elif [ "$action" == "prepare" ]; then
-    echo "✅ Server preparation completed successfully!"
+    echo "✅ Server preparation completed successfully!${_dry_tag}"
   else
-    echo "✅ Ansible deployment completed successfully!"
+    echo "✅ Ansible deployment completed successfully!${_dry_tag}"
   fi
 else
   echo ""

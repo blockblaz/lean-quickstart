@@ -2,22 +2,34 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: '{{ node_name }}'
+{% for node in colocated_nodes %}
+  - job_name: '{{ node.name }}'
     static_configs:
-      - targets: ['172.17.0.1:{{ obs_metrics_port }}']
+      - targets: ['172.17.0.1:{{ node.metricsPort }}']
         labels:
           type: 'app'
-          node_id: '{{ node_name }}'
+          instance: '{{ ansible_host }}'
+          network: '{{ network_name }}'
+          client_type: '{{ node.name.split("_")[0] }}'
+{% endfor %}
+  - job_name: 'node_exporter'
+    static_configs:
       - targets: ['172.17.0.1:{{ node_exporter_port }}']
         labels:
           type: 'node'
-          node_id: '{{ node_name }}'
+          instance: '{{ ansible_host }}'
+          network: '{{ network_name }}'
+  - job_name: 'cadvisor'
+    static_configs:
       - targets: ['172.17.0.1:{{ cadvisor_port }}']
         labels:
           type: 'docker'
-          node_id: '{{ node_name }}'
-    relabel_configs:
-      - source_labels: [node_id]
-        target_label: instance
+          instance: '{{ ansible_host }}'
+          network: '{{ network_name }}'
+    metric_relabel_configs:
+      - source_labels: [name]
+        regex: '([a-z]+)_.*'
+        target_label: client_type
+        replacement: '$1'
 remote_write:
   - url: {{ remote_write_url }}
