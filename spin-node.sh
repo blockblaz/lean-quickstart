@@ -71,6 +71,13 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
+# --network is required for ansible; defaults to devnet-3 for local
+if [ "$deployment_mode" == "ansible" ] && [ -z "$networkName" ]; then
+    echo "Error: --network is required for ansible deployments."
+    exit 1
+fi
+networkName="${networkName:-devnet-3}"
+
 # Set up logging if --logs flag is enabled
 if [ "$enableLogs" == "true" ]; then
     _log_dir="$scriptDir/tmp"
