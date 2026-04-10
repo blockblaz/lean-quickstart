@@ -45,7 +45,7 @@
     peam_metrics_port: "{{ peam_node_config.results[1].stdout }}"
     peam_api_port: "{{ peam_node_config.results[2].stdout }}"
     peam_is_aggregator: "{{ 'true' if (peam_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
-    peam_topic_domain: "{{ peam_node_config.results[4].stdout | default('') | trim | default('devnet0', true) }}"
+    peam_topic_domain: "{{ peam_node_config.results[4].stdout | default('') | trim | default(peam_devnet_id, true) }}"
   when: peam_node_config is defined
 
 - name: Extract local validator index from validator-config ordering
