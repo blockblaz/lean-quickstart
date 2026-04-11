@@ -6,6 +6,11 @@
 # Metrics enabled by default
 metrics_flag="--metrics_enable"
 
+# Optional global zeam CLI flags before `node` (e.g. --console-log-level debug).
+# Default empty: blockblaz/zeam:devnet3 and older binaries do not support top-level log flags.
+# With a current zeam build: export ZEAM_GLOBAL_FLAGS='--console-log-level debug'
+zeam_global_flags="${ZEAM_GLOBAL_FLAGS:-}"
+
 # Set aggregator flag based on isAggregator value
 aggregator_flag=""
 if [ "$isAggregator" == "true" ]; then
@@ -24,7 +29,7 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
-node_binary="$scriptDir/../zig-out/bin/zeam node \
+node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig \
       --data-dir $dataDir/$item \
@@ -36,7 +41,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam node \
       $aggregator_flag \
       $checkpoint_sync_flag"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 node \
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 $zeam_global_flags node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \

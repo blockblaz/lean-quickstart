@@ -1,0 +1,8 @@
+---
+# Default variables for gean role
+# Note: These are fallback defaults. Actual values are extracted from client-cmds/gean-cmd.sh
+# in the tasks/main.yml file. These defaults are used if extraction fails.
+
+gean_docker_image: "ghcr.io/geanlabs/gean:devnet3"
+deployment_mode: docker  # docker or binary
+gean_devnet_id: "devnet0"

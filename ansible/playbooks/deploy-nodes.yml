@@ -8,7 +8,7 @@
 #   - node key files (*.key)
 #   - config.yaml, validators.yaml, nodes.yaml
 #   - genesis.ssz, genesis.json
-#   - hash-sig-keys/ directory (if exists, for qlean nodes)
+#   - hash-sig-keys/ directory (if exists): only the sk/pk files for this node's validators
 
 - name: Parse and validate node names
   hosts: localhost
@@ -18,7 +18,7 @@
     - deploy
     - observability
   vars:
-    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+    validator_config_file: "{{ local_validator_config_path | default(genesis_dir + '/validator-config.yaml') }}"
 
   tasks:
     - name: Validate validator-config.yaml exists
@@ -122,7 +122,7 @@
 
     - name: Sync validator-config.yaml to remote host
       copy:
-        src: "{{ local_genesis_dir }}/validator-config.yaml"
+        src: "{{ local_validator_config_path | default(local_genesis_dir + '/validator-config.yaml') }}"
         dest: "{{ genesis_dir }}/validator-config.yaml"
         mode: '0644'
         force: yes
@@ -149,6 +149,7 @@
       loop:
         - config.yaml
         - validators.yaml
+        - annotated_validators.yaml
         - nodes.yaml
         - genesis.ssz
         - genesis.json
@@ -165,23 +166,36 @@
         - deploy
         - sync
 
-    - name: Create hash-sig-keys directory on remote
-      file:
-        path: "{{ genesis_dir }}/hash-sig-keys"
-        state: directory
-        mode: '0755'
+    - name: Resolve hash-sig key files for this node
+      vars:
+        _av: "{{ lookup('file', local_genesis_dir + '/annotated_validators.yaml') | from_yaml }}"
+        _assignments: "{{ _av[node_name] | default([]) }}"
+        _base: "{{ _assignments | map(attribute='privkey_file') | map('regex_replace', '_sk\\.ssz$', '') | list }}"
+      set_fact:
+        node_hash_sig_files: "{{ (_base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list) + ['validator-keys-manifest.yaml'] }}"
       when: hash_sig_keys_local.stat.exists
       tags:
         - deploy
         - sync
 
-    - name: Sync hash-sig-keys directory (for qlean nodes)
+    - name: Create hash-sig-keys directory on remote
+      file:
+        path: "{{ genesis_dir }}/hash-sig-keys"
+        state: directory
+        mode: '0755'
+      when: hash_sig_keys_local.stat.exists and (node_hash_sig_files | default([]) | length > 0)
+      tags:
+        - deploy
+        - sync
+
+    - name: Copy hash-sig key files for this node only
       copy:
-        src: "{{ local_genesis_dir }}/hash-sig-keys/"
-        dest: "{{ genesis_dir }}/hash-sig-keys/"
-        mode: '0644'
+        src: "{{ local_genesis_dir }}/hash-sig-keys/{{ item }}"
+        dest: "{{ genesis_dir }}/hash-sig-keys/{{ item }}"
+        mode: '0600'
         force: yes
-      when: hash_sig_keys_local.stat.exists
+      loop: "{{ node_hash_sig_files | default([]) }}"
+      when: hash_sig_keys_local.stat.exists and (node_hash_sig_files | default([]) | length > 0)
       tags:
         - deploy
         - sync
@@ -199,6 +213,8 @@
         - lighthouse
         - grandine
         - ethlambda
+        - gean
+        - nlean
         - peam
         - deploy
 
@@ -224,3 +240,38 @@
       include_tasks: helpers/deploy-single-node.yml
       tags:
         - deploy
+
+# When --replace-with is used, sync updated config yamls to all remote hosts
+- name: Sync updated config files to all hosts after replacement
+  hosts: all:!local
+  gather_facts: no
+  vars:
+    genesis_dir: "{{ remote_genesis_dir | default('/opt/lean-quickstart/genesis') }}"
+    local_genesis_dir: "{{ hostvars['localhost']['local_genesis_dir_path'] }}"
+  tasks:
+    - name: Sync config yamls to all hosts
+      copy:
+        src: "{{ local_genesis_dir }}/{{ item }}"
+        dest: "{{ genesis_dir }}/{{ item }}"
+        mode: '0644'
+        force: yes
+      loop:
+        - validators.yaml
+        - annotated_validators.yaml
+        - nodes.yaml
+        - validator-config.yaml
+      when: sync_all_hosts | default(false) | bool
+      tags:
+        - deploy
+        - sync
+
+    - name: Sync validator-keys-manifest to all hosts
+      copy:
+        src: "{{ local_genesis_dir }}/hash-sig-keys/validator-keys-manifest.yaml"
+        dest: "{{ genesis_dir }}/hash-sig-keys/validator-keys-manifest.yaml"
+        mode: '0644'
+        force: yes
+      when: sync_all_hosts | default(false) | bool
+      tags:
+        - deploy
+        - sync
