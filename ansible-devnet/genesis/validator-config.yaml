@@ -63,7 +63,6 @@ validators:
     metricsPort: 9095
     apiPort: 5055
     isAggregator: false
-    devnet: 1
     count: 1
     subnet: 0
   - name: ream_1
@@ -74,7 +73,6 @@ validators:
     metricsPort: 9096
     apiPort: 5056
     isAggregator: true
-    devnet: 1
     count: 1
     subnet: 1
   - name: ream_2
@@ -85,7 +83,6 @@ validators:
     metricsPort: 9097
     apiPort: 5057
     isAggregator: false
-    devnet: 1
     count: 1
     subnet: 2
   - name: ream_3
@@ -96,7 +93,6 @@ validators:
     metricsPort: 9098
     apiPort: 5058
     isAggregator: false
-    devnet: 1
     count: 1
     subnet: 3
   - name: ream_4
@@ -107,7 +103,6 @@ validators:
     metricsPort: 9099
     apiPort: 5059
     isAggregator: false
-    devnet: 1
     count: 1
     subnet: 4
   - name: ethlambda_0
