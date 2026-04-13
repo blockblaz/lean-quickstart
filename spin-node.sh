@@ -110,29 +110,50 @@ fi
 # file with N nodes per client (same IP, unique incremented ports and keys).
 # This must run after configDir/validator_config_file are resolved so the
 # generated file lands in the correct genesis directory.
+#
+# If the file is already a complete hand-maintained layout (config.attestation_committee_count
+# plus an explicit subnet on every validator row, as in ansible-devnet/genesis/validator-config.yaml),
+# skip expansion and use the file as-is so --subnets does not re-run the template generator.
 if [ -n "$subnets" ] && [ "$subnets" -ge 1 ] 2>/dev/null; then
   if ! [[ "$subnets" =~ ^[0-9]+$ ]] || [ "$subnets" -lt 1 ] || [ "$subnets" -gt 5 ]; then
     echo "Error: --subnets requires an integer between 1 and 5, got: $subnets"
     exit 1
   fi
 
-  if ! command -v python3 &> /dev/null; then
-    echo "Error: python3 is required to generate the subnet config."
-    exit 1
+  _skip_subnet_expand=false
+  if [ -f "$validator_config_file" ]; then
+    _has_ac=$(yq eval '(.config // {}) | has("attestation_committee_count")' "$validator_config_file")
+    _all_subnet=$(yq eval '((.validators // []) | length > 0) and ((.validators // []) | map(has("subnet")) | all)' "$validator_config_file")
+    if [ "$_has_ac" == "true" ] && [ "$_all_subnet" == "true" ]; then
+      _skip_subnet_expand=true
+    fi
   fi
 
-  expanded_config="${configDir}/validator-config-expanded.yaml"
-  [ "$dryRun" == "true" ] && echo "[DRY RUN] Generating subnet config preview (no deployment will occur)"
-  echo "Generating subnet config ($subnets subnet(s)) → $expanded_config"
+  if [ "$_skip_subnet_expand" == "true" ]; then
+    _file_ac=$(yq eval '.config.attestation_committee_count' "$validator_config_file")
+    echo "Validator config already sets config.attestation_committee_count and subnet on every validator; skipping subnet expansion (omit --subnets for the same behavior)."
+    if [ "$_file_ac" != "$subnets" ]; then
+      echo "Warning: --subnets $subnets does not match config.attestation_committee_count ($_file_ac) in $validator_config_file; using the file as-is."
+    fi
+  else
+    if ! command -v python3 &> /dev/null; then
+      echo "Error: python3 is required to generate the subnet config."
+      exit 1
+    fi
 
-  if ! python3 "$scriptDir/generate-subnet-config.py" \
-      "$validator_config_file" "$subnets" "$expanded_config"; then
-    echo "❌ Failed to generate subnet config."
-    exit 1
+    expanded_config="${configDir}/validator-config-expanded.yaml"
+    [ "$dryRun" == "true" ] && echo "[DRY RUN] Generating subnet config preview (no deployment will occur)"
+    echo "Generating subnet config ($subnets subnet(s)) → $expanded_config"
+
+    if ! python3 "$scriptDir/generate-subnet-config.py" \
+        "$validator_config_file" "$subnets" "$expanded_config"; then
+      echo "❌ Failed to generate subnet config."
+      exit 1
+    fi
+
+    validator_config_file="$expanded_config"
+    echo "Using expanded config: $validator_config_file"
   fi
-
-  validator_config_file="$expanded_config"
-  echo "Using expanded config: $validator_config_file"
 fi
 
 # Handle --prepare mode: verify and install required software on all remote servers.
