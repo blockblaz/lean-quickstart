@@ -4,7 +4,7 @@
 
 - name: Set lantern docker image
   set_fact:
-    lantern_docker_image: "piertwo/lantern:v0.0.3"
+    lantern_docker_image: "piertwo/lantern:v0.0.4-test"
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |

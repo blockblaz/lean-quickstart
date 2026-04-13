@@ -61,7 +61,6 @@ validators:
     metricsPort: 9095
     apiPort: 5055
     isAggregator: false
-    devnet: 1
     count: 1
   - name: "ream_1"
     privkey: "01ece82f314ab0a8b4271d2f6a873922d3fb17491d0c8f74fc14ca748ca49b1b"
@@ -71,7 +70,6 @@ validators:
     metricsPort: 9096
     apiPort: 5056
     isAggregator: false
-    devnet: 1
     count: 1
   - name: "ream_2"
     privkey: "d723f0cc94645848bbacf8aea4e01944e2f4a6f9f2c69b17ed1868f492374a7a"
@@ -81,7 +79,6 @@ validators:
     metricsPort: 9097
     apiPort: 5057
     isAggregator: false
-    devnet: 1
     count: 1
   - name: "ream_3"
     privkey: "4701dd38aa11a1affd69b5d95e535210f8c29e720222b906c46bd64cf018f9c7"
@@ -91,7 +88,6 @@ validators:
     metricsPort: 9098
     apiPort: 5058
     isAggregator: false
-    devnet: 1
     count: 1
   - name: "ream_4"
     privkey: "62e6c79311ce4ee1b95ff52c8d6b7cccea0bf0b927fbed595d454858b32c49d6"
@@ -101,7 +97,6 @@ validators:
     metricsPort: 9099
     apiPort: 5059
     isAggregator: false
-    devnet: 1
     count: 1
   - name: "ethlambda_0"
     privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
