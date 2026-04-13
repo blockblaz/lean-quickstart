@@ -275,9 +275,28 @@ restart_with_checkpoint_sync=false
 # subnets 1–4. If subnets outnumber distinct clients, the pool is exhausted
 # and we fall back to unrestricted random with a warning.
 
-# Helper: get the subnet index for a node from the config (defaults to 0).
+# Helper: get the subnet index for a node from the config.
+# If the node has an explicit 'subnet' field, use it.
+# Otherwise derive it from: validator_index % attestation_committee_count.
 _node_subnet() {
-  yq eval ".validators[] | select(.name == \"$1\") | .subnet // 0" "$validator_config_file"
+  local _sn
+  _sn=$(yq eval ".validators[] | select(.name == \"$1\") | .subnet // \"\"" "$validator_config_file")
+  if [ -n "$_sn" ]; then
+    echo "$_sn"
+    return
+  fi
+  local _acc
+  _acc=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
+  local _idx=0
+  local _name
+  for _name in $(yq eval '.validators[].name' "$validator_config_file"); do
+    if [ "$_name" == "$1" ]; then
+      echo $(( _idx % _acc ))
+      return
+    fi
+    _idx=$(( _idx + 1 ))
+  done
+  echo "0"
 }
 
 # Helper: client type prefix (matches generate-subnet-config.py _client_name).
