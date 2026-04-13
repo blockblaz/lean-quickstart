@@ -163,7 +163,7 @@ fi
 echo "  ✅ docker found: $(which docker)"
 
 # Hash-sig-cli Docker image (separate attester + proposer keys per validator when using dual-key manifest)
-HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:devnet4"
+HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"
 echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
 
 echo ""
