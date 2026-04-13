@@ -234,6 +234,7 @@ Every Ansible deployment automatically deploys an observability stack alongside 
    - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 --useRoot`
    - Example with a custom template and subnets: `NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --subnets 3 --validatorConfig ansible-devnet/genesis/test-validator-config.yaml --sshKey ~/.ssh/id_ed25519 --useRoot`
 16. `--subnets N` expand the validator config to deploy N nodes of each client on the same server, where N is 1–5.
+   - **Skipped automatically** when the file's `config.attestation_committee_count` already >= N (the config is already set up for that many subnets). Only needed for template configs where `attestation_committee_count` is 1 or omitted.
    - Writes `validator-config-expanded.yaml` under the network genesis dir (without modifying the original template; the file is overwritten on each run with the chosen N)
    - Each subnet node gets a unique name (`{client}_0`, `{client}_1`, …), ports incremented by the subnet index, and a fresh P2P identity key for subnets > 0
    - Subnet assignment rule: each server contributes **exactly one node per subnet** — nodes on the same server are never in the same subnet
@@ -288,7 +289,38 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis --sshKey 
 
 ### Deploying multiple subnets
 
-Use `--subnets N` to set `config.attestation_committee_count` to **N** and write **`validator-config-expanded.yaml`** in the genesis directory from your template (the original file is never modified; the expanded file is overwritten each time). The repository includes an example expanded file at `ansible-devnet/genesis/validator-config-expanded.yaml` (regenerate locally when you change the template or `N`). The generator picks one of two layouts:
+There are two ways to run a multi-subnet devnet: **template expansion** (let the script generate nodes) or **hand-maintained config** (you list every node yourself).
+
+#### Template config vs. expanded/hand-maintained config
+
+A **template** is a compact `validator-config.yaml` with one row per client (or per host), and `attestation_committee_count` set to **1** (or omitted). You pass `--subnets N` and the script generates `validator-config-expanded.yaml` with N nodes per client, incrementing ports and generating fresh P2P keys. The original file is never modified. See `ansible-devnet/genesis/test-validator-config.yaml` for an example template.
+
+An **expanded** or **hand-maintained** config lists every node explicitly — one row per running process — with `attestation_committee_count` already set to the target value (e.g. 4). These files need no expansion; do **not** pass `--subnets` (or if you do, it is automatically skipped). See `ansible-devnet/genesis/validator-config.yaml` for an example.
+
+**How the script decides whether to expand:**
+
+| `attestation_committee_count` in file | `--subnets N` | Behavior |
+|---|---|---|
+| Missing or **1** | `--subnets N` (N > 1) | Expansion runs, generates `validator-config-expanded.yaml` |
+| **K** (K >= N) | `--subnets N` | Expansion **skipped** — config already covers N subnets |
+| **K** (K >= 1) | *(not passed)* | File used as-is, no expansion |
+
+In short: `--subnets` takes precedence only when it **exceeds** the file's `attestation_committee_count`.
+
+#### Deploying with a hand-maintained config (no `--subnets`)
+
+If you maintain your own config with all nodes listed and `attestation_committee_count` already set, deploy directly without `--subnets`:
+
+```sh
+# Hand-maintained config with attestation_committee_count: 4 and 16 nodes
+NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis \
+  --validatorConfig ~/my-devnet4-config.yaml \
+  --sshKey ~/.ssh/id_ed25519 --useRoot --network devnet-4
+```
+
+#### Expansion modes
+
+When expansion does run, `generate-subnet-config.py` picks one of two layouts based on whether IPs are unique or duplicated in the template. The repository includes an example expanded file at `ansible-devnet/genesis/validator-config-expanded.yaml` (regenerate locally when you change the template or `N`).
 
 **A — Replicate mode (unique IP per template row)**  
 Use this when each template row is a different machine and each client type appears once. Every row is cloned **N** times on that IP (names `client_0` … `client_{N-1}`), ports increase by subnet index, and subnet 1+ get new P2P keys. Good when one physical server runs **N** copies of the **same** client.
