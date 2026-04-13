@@ -467,18 +467,28 @@ if [ ${#_aggregator_summary[@]} -gt 0 ]; then
   echo ""
 fi
 
-# Print deployment summary: subnet count and per-subnet aggregator.
+# Print deployment summary: subnet count and all clients per subnet.
 _print_deployment_summary() {
-  if [ ${#_aggregator_summary[@]} -gt 0 ]; then
+  if [ ${#_unique_subnets[@]} -gt 0 ]; then
     echo ""
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║               📊 Deployment Summary                        ║"
     echo "╠══════════════════════════════════════════════════════════════╣"
-    printf "║  %-60s║\n" "Subnets deployed: ${#_aggregator_summary[@]}"
+    printf "║  %-60s║\n" "Subnets deployed: ${#_unique_subnets[@]}"
     printf "║  %-60s║\n" "Total nodes: ${#nodes[@]}"
-    echo "╠══════════════════════════════════════════════════════════════╣"
-    for _line in "${_aggregator_summary[@]}"; do
-      printf "║  %-60s║\n" "$_line (aggregator)"
+    for _subnet_idx in "${_unique_subnets[@]}"; do
+      echo "╠══════════════════════════════════════════════════════════════╣"
+      printf "║  %-60s║\n" "Subnet $_subnet_idx:"
+      for _node in "${nodes[@]}"; do
+        if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
+          _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+          if [[ "$_is_agg" == "true" ]]; then
+            printf "║    %-58s║\n" "$_node (aggregator)"
+          else
+            printf "║    %-58s║\n" "$_node"
+          fi
+        fi
+      done
     done
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo ""
