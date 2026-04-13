@@ -452,7 +452,7 @@ else
 
 fi  # end: aggregator selection (skipped for --restart-client)
 
-# Print a prominent aggregator summary banner (only when aggregator selection ran).
+# Print aggregator selection summary inline (quick confirmation during setup).
 if [ ${#_aggregator_summary[@]} -gt 0 ]; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
@@ -464,6 +464,24 @@ if [ ${#_aggregator_summary[@]} -gt 0 ]; then
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
 fi
+
+# Print deployment summary: subnet count and per-subnet aggregator.
+_print_deployment_summary() {
+  if [ ${#_aggregator_summary[@]} -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║               📊 Deployment Summary                        ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    printf "║  %-60s║\n" "Subnets deployed: ${#_aggregator_summary[@]}"
+    printf "║  %-60s║\n" "Total nodes: ${#nodes[@]}"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    for _line in "${_aggregator_summary[@]}"; do
+      printf "║  %-60s║\n" "$_line (aggregator)"
+    done
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+  fi
+}
 
 # When --restart-client is specified, use it as the node list and enable checkpoint sync mode
 if [[ -n "$restartClient" ]]; then
@@ -733,7 +751,8 @@ if [ "$deployment_mode" == "ansible" ]; then
     fi
   fi
 
-  # Ansible deployment succeeded, exit normally
+  # Ansible deployment succeeded — print summary and exit.
+  _print_deployment_summary
   exit 0
 fi
 
@@ -1023,6 +1042,8 @@ cleanup() {
     fi
   fi
 }
+
+_print_deployment_summary
 
 trap "echo exit signal received;cleanup" SIGINT SIGTERM
 echo -e "\n\nwaiting for nodes to exit"
