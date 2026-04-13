@@ -205,7 +205,7 @@ Every Ansible deployment automatically deploys an observability stack alongside 
    - If specified, uses `root` user for SSH connections
    - Example: `--useRoot` to connect as root user
 10. `--tag` specifies the Docker image tag to use for zeam, ream, qlean, lantern, lighthouse, grandine and ethlambda containers.
-   - If provided, all clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`, `piertwo/lantern:${tag}`, `hopinheimer/lighthouse:${tag}`, `sifrai/grandine:${tag}`, `ghcr.io/lambdaclass/ethlambda:${tag}`)
+   - If provided, all clients will use this tag (e.g., `blockblaz/zeam:${tag}`, `ghcr.io/reamlabs/ream:${tag}`, `qdrvm/qlean-mini:${tag}`, `piertwo/lantern:${tag}`, `hopinheimer/lighthouse:${tag}`, `sifrai/lean:${tag}`, `ghcr.io/lambdaclass/ethlambda:${tag}`)
    - If not provided, defaults to `latest` for zeam, ream, and lantern, and `dd67521` for qlean
    - The script will automatically pull the specified Docker images before running containers
    - Example: `--tag devnet0` or `--tag devnet1`
