@@ -277,7 +277,9 @@ restart_with_checkpoint_sync=false
 
 # Helper: get the subnet index for a node from the config.
 # If the node has an explicit 'subnet' field, use it.
-# Otherwise derive it from: validator_index % attestation_committee_count.
+# Otherwise derive it from: validator_index % attestation_committee_count,
+# where validator_index is the first validator assigned to this node by the
+# genesis tool (cumulative sum of preceding nodes' 'count' fields).
 _node_subnet() {
   local _sn
   _sn=$(yq eval ".validators[] | select(.name == \"$1\") | .subnet // \"\"" "$validator_config_file")
@@ -287,15 +289,15 @@ _node_subnet() {
   fi
   local _acc
   _acc=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
-  local _idx=0
-  local _name
-  for _name in $(yq eval '.validators[].name' "$validator_config_file"); do
+  local _vi=0
+  local _line
+  while IFS=' ' read -r _name _count; do
     if [ "$_name" == "$1" ]; then
-      echo $(( _idx % _acc ))
+      echo $(( _vi % _acc ))
       return
     fi
-    _idx=$(( _idx + 1 ))
-  done
+    _vi=$(( _vi + _count ))
+  done < <(yq eval '.validators[] | .name + " " + ((.count // 1) | tostring)' "$validator_config_file")
   echo "0"
 }
 
