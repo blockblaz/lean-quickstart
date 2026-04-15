@@ -1,67 +1,50 @@
 #!/bin/bash
 
-# Metrics enabled by default if not strictly disabled
-metrics_flag=""
-if [ "$enableMetrics" != "false" ]; then
-  metrics_flag="--metrics-port $metricsPort"
-fi
+#-----------------------gean setup----------------------
+binary_path="$scriptDir/../gean/bin/gean"
 
 # Set aggregator flag based on isAggregator value
 aggregator_flag=""
 if [ "$isAggregator" == "true" ]; then
-  aggregator_flag="--is-aggregator"
+    aggregator_flag="--is-aggregator"
 fi
 
 # Set attestation committee count flag if explicitly configured
 attestation_committee_flag=""
 if [ -n "$attestationCommitteeCount" ]; then
-  attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
+    attestation_committee_flag="--attestation-committee-count $attestationCommitteeCount"
 fi
 
 # Set checkpoint sync URL when restarting with checkpoint sync
 checkpoint_sync_flag=""
 if [ -n "${checkpoint_sync_url:-}" ]; then
-  checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
+    checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
-# Resolve binary path relative to the script location
-# Fallback to absolute path if scriptDir is not available
-BASE_DIR="${scriptDir:-$(pwd)}"
-gean_bin="$BASE_DIR/../gean/bin/gean"
-
-node_binary="$gean_bin \
-      --data-dir \"$dataDir/$item\" \
-      --genesis \"$configDir/config.yaml\" \
-      --bootnodes \"$configDir/nodes.yaml\" \
-      --validator-registry-path \"$configDir/validators.yaml\" \
-      --node-id \"$item\" \
-      --node-key \"$configDir/$privKeyPath\" \
-      --validator-keys \"$configDir/hash-sig-keys\" \
-      --listen-addr \"/ip4/0.0.0.0/udp/$quicPort/quic-v1\" \
-      --discovery-port $quicPort \
-      --devnet-id \"${devnet:-devnet0}\" \
-      --api-port $apiPort \
-      $metrics_flag \
-      $checkpoint_sync_flag \
-      $attestation_committee_flag \
-      $aggregator_flag"
-
-# Docker command (assumes image entrypoint handles the binary)
-node_docker="ghcr.io/geanlabs/gean:devnet4 \
-      --data-dir /data \
-      --genesis /config/config.yaml \
-      --bootnodes /config/nodes.yaml \
-      --validator-registry-path /config/validators.yaml \
+# Command when running as binary
+node_binary="$binary_path \
+      --custom-network-config-dir $configDir \
+      --gossipsub-port $quicPort \
       --node-id $item \
-      --node-key /config/$privKeyPath \
-      --validator-keys /config/hash-sig-keys \
-      --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
-      --discovery-port $quicPort \
-      --devnet-id ${devnet:-devnet0} \
+      --node-key $configDir/$item.key \
+      --http-address 0.0.0.0 \
       --api-port $apiPort \
-      $metrics_flag \
-      $checkpoint_sync_flag \
+      --metrics-port $metricsPort \
       $attestation_committee_flag \
-      $aggregator_flag"
+      $aggregator_flag \
+      $checkpoint_sync_flag"
+
+# Command when running as docker container
+node_docker="ghcr.io/geanlabs/gean:devnet4 \
+      --custom-network-config-dir /config \
+      --gossipsub-port $quicPort \
+      --node-id $item \
+      --node-key /config/$item.key \
+      --http-address 0.0.0.0 \
+      --api-port $apiPort \
+      --metrics-port $metricsPort \
+      $attestation_committee_flag \
+      $aggregator_flag \
+      $checkpoint_sync_flag"
 
 node_setup="docker"
