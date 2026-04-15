@@ -92,17 +92,14 @@
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ gean_docker_image }}
         --data-dir /data
-        --genesis /config/config.yaml
-        --bootnodes /config/nodes.yaml
-        --validator-registry-path /config/validators.yaml
+        --custom-network-config-dir /config
+        --gossipsub-port {{ gean_quic_port }}
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
-        --validator-keys /config/hash-sig-keys
-        --listen-addr /ip4/0.0.0.0/udp/{{ gean_quic_port }}/quic-v1
-        --discovery-port {{ gean_quic_port }}
-        --devnet-id {{ gean_devnet_id }}
+        --http-address 0.0.0.0
         --api-port {{ gean_api_port }}
         --metrics-port {{ gean_metrics_port }}
+        {{ ('--attestation-committee-count ' + (attestation_committee_count | string)) if (attestation_committee_count is defined and attestation_committee_count | int > 1) else '' }}
         {{ '--is-aggregator' if (gean_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: gean_container
