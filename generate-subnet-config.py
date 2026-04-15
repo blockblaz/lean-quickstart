@@ -2,15 +2,20 @@
 """
 Generate an expanded validator-config.yaml from a template.
 
-Two modes (chosen automatically):
+Two modes (chosen automatically based on whether each client type appears once):
 
-1) **Replicate mode** (default) — unique IP per template row, each client type once.
-   Each row is cloned N times (subnets 0..N-1) on the same IP with port offsets.
-   Same behavior as the original lean-quickstart subnet generator.
+1) **Replicate mode** (default) — each client type appears exactly once in the
+   template. Each row is cloned N times (subnets 0..N-1) with port offsets.
+   Works for both unique-IP deployments (Ansible) and shared-IP deployments
+   (local devnet where all clients run on 127.0.0.1).
 
-2) **Shared-host mode** — template has duplicate IPs (multiple rows, same server).
-   No row cloning; each row is one running node. Subnet membership is taken from
-   each row's ``subnet`` field, or inferred from a numeric name suffix ``client_K``.
+   Port stride is ``i * len(template_validators)`` so no two clones ever
+   collide, even when all rows share the same IP.
+
+2) **Shared-host mode** — template has duplicate client types (multiple rows of
+   the same client, e.g. zeam_0..zeam_4 already present). No row cloning; each
+   row is one running node. Subnet membership is taken from each row's
+   ``subnet`` field, or inferred from a numeric name suffix ``client_K``.
 
    - **One client type per IP, many rows** (e.g. zeam_0..zeam_4 on 37.27.0.1):
      infer ``subnet`` from the suffix K in ``name`` unless ``subnet`` is set.
@@ -43,9 +48,10 @@ def _client_name(node_name: str) -> str:
     return node_name.split("_")[0]
 
 
-def _has_duplicate_ips(validators: list[dict]) -> bool:
-    ips = [v["enrFields"]["ip"] for v in validators]
-    return any(n > 1 for n in Counter(ips).values())
+def _has_duplicate_clients(validators: list[dict]) -> bool:
+    """Return True when any client type appears more than once (shared-host template)."""
+    clients = [_client_name(v["name"]) for v in validators]
+    return any(n > 1 for n in Counter(clients).values())
 
 
 def _subnet_from_name(name: str) -> int:
@@ -142,34 +148,24 @@ def _expand_shared_host(template: dict, n_subnets: int) -> dict:
 
 
 def _validate_replicate_template(validators: list[dict]) -> None:
-    """
-    Enforce one-server-one-row for replicate mode:
-      - No two entries share the same IP address.
-      - No two entries share the same client type (name prefix).
-    """
-    ips = [v["enrFields"]["ip"] for v in validators]
+    """Each client type must appear exactly once (replicate mode clones them)."""
     clients = [_client_name(v["name"]) for v in validators]
-
-    duplicate_ips = [ip for ip, n in Counter(ips).items() if n > 1]
-    if duplicate_ips:
-        raise ValueError(
-            "Internal error: replicate template must have unique IPs "
-            f"(duplicates: {duplicate_ips})"
-        )
-
     duplicate_clients = [c for c, n in Counter(clients).items() if n > 1]
     if duplicate_clients:
         raise ValueError(
             "Template validator-config.yaml has multiple entries for the same "
             f"client type: {duplicate_clients}. Each client type must appear "
-            "exactly once in the template when using unique IPs, or use a "
-            "shared-IP layout (multiple rows per IP) instead."
+            "exactly once in the template, or use a shared-host layout "
+            "(multiple rows per client type) instead."
         )
 
 
 def expand_replicate(template: dict, n_subnets: int) -> dict:
     """
-    Replicate mode: each template row becomes N nodes (subnets 0..N-1) on that IP.
+    Replicate mode: each template row becomes N nodes (subnets 0..N-1).
+
+    Port stride is ``i * len(validators)`` so no two clones collide, even when
+    all template rows share the same IP (e.g. a local devnet on 127.0.0.1).
     """
     validators = template["validators"]
     _validate_replicate_template(validators)
@@ -180,9 +176,11 @@ def expand_replicate(template: dict, n_subnets: int) -> dict:
         result["config"] = {}
     result["config"]["attestation_committee_count"] = n_subnets
 
+    stride = len(validators)
     expanded: list[dict] = []
 
     for i in range(n_subnets):
+        offset = i * stride
         for validator in validators:
             client = _client_name(validator["name"])
             entry = copy.deepcopy(validator)
@@ -193,12 +191,12 @@ def expand_replicate(template: dict, n_subnets: int) -> dict:
             if i > 0:
                 entry["privkey"] = secrets.token_hex(32)
 
-            entry["enrFields"]["quic"] = validator["enrFields"]["quic"] + i
-            entry["metricsPort"] = validator["metricsPort"] + i
+            entry["enrFields"]["quic"] = validator["enrFields"]["quic"] + offset
+            entry["metricsPort"] = validator["metricsPort"] + offset
             if "apiPort" in entry:
-                entry["apiPort"] = validator["apiPort"] + i
+                entry["apiPort"] = validator["apiPort"] + offset
             if "httpPort" in entry:
-                entry["httpPort"] = validator["httpPort"] + i
+                entry["httpPort"] = validator["httpPort"] + offset
 
             entry["isAggregator"] = False
 
@@ -209,7 +207,7 @@ def expand_replicate(template: dict, n_subnets: int) -> dict:
 
 
 def expand(template: dict, n_subnets: int) -> dict:
-    if _has_duplicate_ips(template["validators"]):
+    if _has_duplicate_clients(template["validators"]):
         return _expand_shared_host(template, n_subnets)
     return expand_replicate(template, n_subnets)
 
@@ -251,7 +249,7 @@ def main() -> None:
 
     n_in = len(template["validators"])
     n_out = len(expanded["validators"])
-    mode = "shared-host" if _has_duplicate_ips(template["validators"]) else "replicate"
+    mode = "shared-host" if _has_duplicate_clients(template["validators"]) else "replicate"
     print(
         f"Generated {output_path}:\n"
         f"  mode = {mode}\n"

@@ -236,8 +236,8 @@ Every Ansible deployment automatically deploys an observability stack alongside 
 16. `--subnets N` expand the validator config to deploy N nodes of each client on the same server, where N is 1–5.
    - **Skipped automatically** when the file's `config.attestation_committee_count` already >= N (the config is already set up for that many subnets). Only needed for template configs where `attestation_committee_count` is 1 or omitted.
    - Writes `validator-config-expanded.yaml` under the network genesis dir (without modifying the original template; the file is overwritten on each run with the chosen N)
-   - Each subnet node gets a unique name (`{client}_0`, `{client}_1`, …), ports incremented by the subnet index, and a fresh P2P identity key for subnets > 0
-   - Subnet assignment rule: each server contributes **exactly one node per subnet** — nodes on the same server are never in the same subnet
+   - Each subnet node gets a unique name (`{client}_0`, `{client}_1`, …), ports offset by `i × number_of_template_rows` (collision-free even on localhost), and a fresh P2P identity key for subnets > 0
+   - Subnet assignment rule: each client type appears exactly once per subnet
    - Every subnet contains the same set of client types
    - `N=1` renames nodes to `{client}_0` with no port changes (useful for canonical naming)
    - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 --sshKey ~/.ssh/id_ed25519 --useRoot`
@@ -320,30 +320,35 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --generateGenesis \
 
 #### Expansion modes
 
-When expansion does run, `generate-subnet-config.py` picks one of two layouts based on whether IPs are unique or duplicated in the template. The repository includes an example expanded file at `ansible-devnet/genesis/validator-config-expanded.yaml` (regenerate locally when you change the template or `N`).
+When expansion does run, `generate-subnet-config.py` picks one of two layouts based on whether each client type appears exactly once in the template. The repository includes an example expanded file at `ansible-devnet/genesis/validator-config-expanded.yaml` (regenerate locally when you change the template or `N`).
 
-**A — Replicate mode (unique IP per template row)**  
-Use this when each template row is a different machine and each client type appears once. Every row is cloned **N** times on that IP (names `client_0` … `client_{N-1}`), ports increase by subnet index, and subnet 1+ get new P2P keys. Good when one physical server runs **N** copies of the **same** client.
+**A — Replicate mode (each client type appears exactly once)**  
+Use this when each client type has one template row. Every row is cloned **N** times (names `client_0` … `client_{N-1}`), ports are offset by `i × number_of_template_rows`, and subnet 1+ get new P2P keys. Works for both Ansible deployments (unique IPs) and local devnets (all clients on `127.0.0.1`); the stride-based offset prevents port collisions in either case.
 
 ```sh
 # Deploy 3 subnets of every client (ansible)
 NETWORK_DIR=ansible-devnet ./spin-node.sh --node all --subnets 3 \
   --generateGenesis --sshKey ~/.ssh/id_ed25519 --useRoot
+
+# Deploy 3 subnets of every client (local devnet)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --subnets 3 --generateGenesis
 ```
 
 | Subnet index | Name | quicPort | metricsPort | apiPort |
 |---|---|---|---|---|
 | 0 | `zeam_0` | base | base | base |
-| 1 | `zeam_1` | base+1 | base+1 | base+1 |
+| 1 | `zeam_1` | base + stride | base + stride | base + stride |
 | … | … | … | … | … |
-| N-1 | `zeam_N-1` | base+N-1 | base+N-1 | base+N-1 |
+| N-1 | `zeam_{N-1}` | base + (N-1)×stride | base + (N-1)×stride | base + (N-1)×stride |
 
-**B — Shared-host mode (duplicate IPs in the template)**  
-Use this when several validator rows share an IP (one box runs multiple processes). The template is **not** cloned: **one output row per input row**. Subnet index comes from each row’s **`subnet`** field, or—if only **one** client type uses that IP—from the numeric suffix in **`name`** (`zeam_0` → subnet 0, `zeam_4` → subnet 4). If **more than one client type** shares an IP (e.g. zeam and ream on the same host), every row for that IP **must** set an explicit integer **`subnet`** (0 … N-1). Ports and keys stay as you defined them; you must avoid collisions.
+Where `stride = number of rows in the template`. With 9 clients on localhost and N=3, subnet 1 starts at base+9 and subnet 2 at base+18, so no two processes share a port.
+
+**B — Shared-host mode (duplicate client types in the template)**  
+Use this when several validator rows share the same client type (e.g. `zeam_0..zeam_4` already listed). The template is **not** cloned: **one output row per input row**. Subnet index comes from each row’s **`subnet`** field, or—if only **one** client type uses that IP—from the numeric suffix in **`name`** (`zeam_0` → subnet 0, `zeam_4` → subnet 4). If **more than one client type** shares an IP (e.g. zeam and ream on the same host), every row for that IP **must** set an explicit integer **`subnet`** (0 … N-1). Ports and keys stay as you defined them; you must avoid collisions.
 
 **Rules enforced (both modes):**
 - `N` must be between 1 and 5; every subnet index used must satisfy `0 <= subnet < N`
-- Replicate mode: unique IP per row and each client type at most once in the template
+- Replicate mode: each client type must appear at most once in the template
 - Shared-host mode: for a given IP, each subnet index appears at most once; the same client cannot appear twice in the same subnet on the same IP
 - Replicate mode only: each node beyond subnet 0 gets a fresh P2P identity key
 
