@@ -26,7 +26,7 @@ fi
 node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         lean_node \
         --network $configDir/config.yaml \
-        --validator-registry-path $configDir/validators.yaml \
+        --validator-registry-path $configDir/annotated_validators.yaml \
         --bootnodes $configDir/nodes.yaml \
         --node-id $item --node-key $configDir/$privKeyPath \
         --socket-port $quicPort \
@@ -42,7 +42,7 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
 node_docker="snaiyer1/ream:latest --data-dir /data \
         lean_node \
         --network /config/config.yaml \
-        --validator-registry-path /config/validators.yaml \
+        --validator-registry-path /config/annotated_validators.yaml \
         --bootnodes /config/nodes.yaml \
         --node-id $item --node-key /config/$privKeyPath \
         --socket-port $quicPort \

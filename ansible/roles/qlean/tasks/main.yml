@@ -50,9 +50,9 @@
     qlean_is_aggregator: "{{ 'true' if (qlean_node_config.results[4].stdout | default('') | trim) == 'true' else 'false' }}"
   when: qlean_node_config is defined
 
-- name: Extract validator index from validators.yaml
+- name: Extract validator index from annotated_validators.yaml
   shell: |
-    yq eval '."{{ node_name }}" | .[0]' "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validators.yaml"
+    yq eval '."{{ node_name }}" | .[0].index' "{{ hostvars['localhost']['local_genesis_dir_path'] }}/annotated_validators.yaml"
   register: qlean_validator_index
   changed_when: false
   failed_when: false
@@ -104,7 +104,7 @@
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ qlean_docker_image }}
         --genesis /config/config.yaml
-        --validator-registry-path /config/validators.yaml
+        --validator-registry-path /config/annotated_validators.yaml
         --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml
         --xmss-pk /config/hash-sig-keys/validator_{{ qlean_validator_index }}_pk.json
         --xmss-sk /config/hash-sig-keys/validator_{{ qlean_validator_index }}_sk.json

@@ -46,7 +46,7 @@ fi
 node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --modules-dir $scriptDir/qlean/build/src/modules \
       --genesis $configDir/config.yaml \
-      --validator-registry-path $configDir/validators.yaml \
+      --validator-registry-path $configDir/annotated_validators.yaml \
       --validator-keys-manifest $configDir/hash-sig-keys/validator-keys-manifest.yaml \
       --xmss-pk $hashSigPkPath \
       --xmss-sk $hashSigSkPath \
@@ -66,7 +66,7 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       
 node_docker="$QLEAN_IMAGE \
       --genesis /config/config.yaml \
-      --validator-registry-path /config/validators.yaml \
+      --validator-registry-path /config/annotated_validators.yaml \
       --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \
       --xmss-pk $hash_sig_pk_docker \
       --xmss-sk $hash_sig_sk_docker \

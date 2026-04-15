@@ -98,7 +98,7 @@
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ grandine_docker_image }}
         --genesis /config/config.yaml
-        --validator-registry-path /config/validators.yaml
+        --validator-registry-path /config/annotated_validators.yaml
         --bootnodes /config/nodes.yaml
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key

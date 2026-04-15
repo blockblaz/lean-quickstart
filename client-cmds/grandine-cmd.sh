@@ -20,7 +20,7 @@ fi
 
 node_binary="$grandine_bin \
         --genesis $configDir/config.yaml \
-        --validator-registry-path $configDir/validators.yaml \
+        --validator-registry-path $configDir/annotated_validators.yaml \
         --bootnodes $configDir/nodes.yaml \
         --node-id $item \
         --node-key $configDir/$privKeyPath \
@@ -38,7 +38,7 @@ node_binary="$grandine_bin \
 
 node_docker="sifrai/lean:devnet-4 \
         --genesis /config/config.yaml \
-        --validator-registry-path /config/validators.yaml \
+        --validator-registry-path /config/annotated_validators.yaml \
         --bootnodes /config/nodes.yaml \
         --node-id $item \
         --node-key /config/$privKeyPath \
