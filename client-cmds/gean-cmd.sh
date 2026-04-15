@@ -38,7 +38,7 @@ node_binary="$gean_bin \
       $checkpoint_sync_flag"
 
 # Command when running as docker container
-node_docker="gean:c79a2c6 \
+node_docker="ghcr.io/geanlabs/gean:devnet4 \
       -custom-network-config-dir /config \
       -gossipsub-port $quicPort \
       -node-id $item \
