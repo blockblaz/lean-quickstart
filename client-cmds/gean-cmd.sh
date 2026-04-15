@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #-----------------------gean setup----------------------
+binary_path="$scriptDir/../gean/bin/gean"
 
 # Set aggregator flag based on isAggregator value
 aggregator_flag=""
@@ -20,12 +21,8 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
-# Resolve binary path relative to the script location
-BASE_DIR="${scriptDir:-$(pwd)}"
-gean_bin="$BASE_DIR/../gean/bin/gean"
-
 # Command when running as binary
-node_binary="$gean_bin \
+node_binary="$binary_path \
       -custom-network-config-dir $configDir \
       -gossipsub-port $quicPort \
       -node-id $item \
