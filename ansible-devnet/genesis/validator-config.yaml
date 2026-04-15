@@ -1,12 +1,13 @@
 shuffle: roundrobin
-# Test layout: 2 subnets × 7 nodes each (2 zeam + 1 gean + 2 ethlambda + 1 qlean + 1 lantern per subnet).
+# Test layout: 2 subnets × 7 nodes each (1 zeam + 1 grandine + 1 gean + 2 ethlambda + 1 qlean + 1 lantern per subnet
+#              except subnet 1 which has 1 ream instead of ethlambda_3).
 # Each server hosts one node per subnet per client type on distinct ports.
 #
 #   Server layout (IP → nodes):
-#     37.27.89.135     zeam_0    (s0,9001)    zeam_3      (s1,9002)    qlean_0   (s0,9003)
+#     37.27.89.135     grandine_0 (s0,9001)   zeam_3      (s1,9002)    qlean_0   (s0,9003)
 #     157.180.20.55    zeam_1    (s0,9001)    zeam_4      (s1,9002)    qlean_1   (s1,9003)
 #     178.104.133.162  gean_0    (s0,9001)    ethlambda_2 (s1,9002)
-#     178.104.151.50   ethlambda_0 (s0,9001) ethlambda_3 (s1,9002)    lantern_0 (s0,9003)
+#     178.104.151.50   ethlambda_0 (s0,9001) ream_0      (s1,9002)    lantern_0 (s0,9003)
 #     178.104.149.91   ethlambda_1 (s0,9001) gean_1      (s1,9002)    lantern_1 (s1,9003)
 #
 #   ./spin-node.sh --validatorConfig ansible-devnet/genesis/test-validator-config-subnet2.yaml
@@ -17,8 +18,8 @@ config:
   attestation_committee_count: 2
 validators:
   # ── Subnet 0 ──────────────────────────────────────────────────────────────
-  - name: "zeam_0"
-    privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
+  - name: "grandine_0"
+    privkey: "c05937b251889e35c58d4601c29bed8153dc22c548448f85e0ab9ca436d4b904"
     enrFields:
       ip: "37.27.89.135"
       quic: 9001
@@ -118,8 +119,8 @@ validators:
     subnet: 1
     isAggregator: true
     count: 1
-  - name: "ethlambda_3"
-    privkey: "d108c9c189119f7306e8965c3cd4e902e83d1a208142b08b54c9d87f4ae7b7a5"
+  - name: "ream_0"
+    privkey: "04e5fb8c58dccfe9086d2488ed03f69089a74aacc22e41c06a3b83ac40c5eab6"
     enrFields:
       ip: "178.104.151.50"
       quic: 9002
