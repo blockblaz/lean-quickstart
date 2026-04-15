@@ -114,7 +114,7 @@ validators:
       quic: 9001
     metricsPort: 9095
     apiPort: 5055
-    isAggregator: false
+    isAggregator: true
     count: 1
 # - name: "ethlambda_2"
 #   privkey: "4a7c5b2077d0e3c6f5322d0f2fd98cb2efffbceb41de2799e520b48872dc4102"

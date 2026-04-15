@@ -1,6 +1,3 @@
-# Expanded subnet layout written by spin-node.sh --subnets N (same path:
-# <network>/genesis/validator-config-expanded.yaml). Overwritten on each run.
-# This copy is generated from test-validator-config.yaml with N=5 for reference.
 shuffle: roundrobin
 deployment_mode: ansible
 config:
