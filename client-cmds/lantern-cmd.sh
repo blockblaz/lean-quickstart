@@ -41,6 +41,7 @@ fi
 node_binary="$scriptDir/lantern/build/lantern_cli \
         --data-dir $dataDir/$item \
         --genesis-config $configDir/config.yaml \
+        --validator-registry-path $configDir/validators.yaml \
         --validator-keys-path $configDir/annotated_validators.yaml \
         --genesis-state $configDir/genesis.ssz \
         --validator-config $configDir/validator-config.yaml \
@@ -58,6 +59,7 @@ node_binary="$scriptDir/lantern/build/lantern_cli \
 
 node_docker="$LANTERN_IMAGE --data-dir /data \
         --genesis-config /config/config.yaml \
+        --validator-registry-path /config/validators.yaml \
         --validator-keys-path /config/annotated_validators.yaml \
         --genesis-state /config/genesis.ssz \
         --validator-config /config/validator-config.yaml \

@@ -33,24 +33,8 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
-# Hash-sig paths inside container (devnet4: proposer + attester key files; legacy: single pk/sk)
-_hs_idx="${hashSigKeyIndex:-0}"
-if [ -f "$configDir/hash-sig-keys/validator_${_hs_idx}_proposer_key_pk.json" ]; then
-    hash_sig_pk_docker="/config/hash-sig-keys/validator_${_hs_idx}_proposer_key_pk.json"
-    hash_sig_sk_docker="/config/hash-sig-keys/validator_${_hs_idx}_proposer_key_sk.json"
-else
-    hash_sig_pk_docker="/config/hash-sig-keys/validator_${_hs_idx}_pk.json"
-    hash_sig_sk_docker="/config/hash-sig-keys/validator_${_hs_idx}_sk.json"
-fi
-
-node_binary="$scriptDir/qlean/build/src/executable/qlean \
-      --modules-dir $scriptDir/qlean/build/src/modules \
-      --genesis $configDir/config.yaml \
-      --validator-registry-path $configDir/annotated_validators.yaml \
-      --validator-keys-manifest $configDir/hash-sig-keys/validator-keys-manifest.yaml \
-      --xmss-pk $hashSigPkPath \
-      --xmss-sk $hashSigSkPath \
-      --bootnodes $configDir/nodes.yaml \
+node_binary="$scriptDir/qlean/build/out/bin/qlean \
+      --genesis-dir $configDir \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
@@ -61,16 +45,10 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag \
-      -ldebug \
-      -ltrace"
-      
+      -ldebug"
+
 node_docker="$QLEAN_IMAGE \
-      --genesis /config/config.yaml \
-      --validator-registry-path /config/annotated_validators.yaml \
-      --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \
-      --xmss-pk $hash_sig_pk_docker \
-      --xmss-sk $hash_sig_sk_docker \
-      --bootnodes /config/nodes.yaml \
+      --genesis-dir /config \
       --data-dir /data \
       --node-id $item --node-key /config/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
@@ -81,8 +59,7 @@ node_docker="$QLEAN_IMAGE \
       $attestation_committee_flag \
       $aggregator_flag \
       $checkpoint_sync_flag \
-      -ldebug \
-      -ltrace"
+      -ldebug"
 
 # choose either binary or docker
 node_setup="docker"

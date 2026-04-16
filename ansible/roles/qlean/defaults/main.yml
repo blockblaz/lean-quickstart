@@ -5,7 +5,6 @@
 
 qlean_docker_image: "qdrvm/qlean-mini:devnet-4-amd64"
 qlean_docker_platform: "linux/amd64"
-qlean_binary_path: "{{ playbook_dir }}/../qlean/build/src/executable/qlean"
-qlean_modules_dir: "{{ playbook_dir }}/../qlean/build/src/modules"
+qlean_binary_path: "{{ playbook_dir }}/../qlean/build/out/bin/qlean"
 deployment_mode: docker  # docker or binary
 
