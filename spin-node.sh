@@ -954,8 +954,9 @@ for item in "${spin_nodes[@]}"; do
     echo "[DRY RUN] Would execute: $execCmd"
     pid=0
   else
+    sed_remove_ansi='s/\x1b\[[0-9;]*[mJHG]//g'
     echo "$execCmd"
-    eval "$execCmd" &
+    eval "$execCmd" > >(tee >(sed -r "$sed_remove_ansi" > "$itemDataDir/stdout.log")) 2> >(tee >(sed -r "$sed_remove_ansi" > "$itemDataDir/stderr.log") >&2) &
     pid=$!
   fi
   spinned_pids+=($pid)
