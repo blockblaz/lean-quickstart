@@ -76,16 +76,27 @@ if [ "$enableLogs" == "true" ]; then
     _log_dir="$scriptDir/tmp"
     mkdir -p "$_log_dir"
     _log_start=$(date -u +%s)
+    _ts=$(date -u '+%d-%m-%Y-%H-%M')
     if [ "$deployment_mode" == "ansible" ]; then
         _log_prefix="ansible-run"
+        _config_prefix="ansible"
     else
         _log_prefix="local-run"
+        _config_prefix="local"
     fi
-    _log_file="$_log_dir/${_log_prefix}-$(date -u '+%d-%m-%Y-%H-%M').log"
+    _log_file="$_log_dir/${_log_prefix}-${_ts}.log"
     echo "$(date -u '+%Y-%m-%d %H:%M:%S') START spin-node.sh $_original_args" >> "$_log_dir/devnet.log"
     trap 'echo "$(date -u '\''+%Y-%m-%d %H:%M:%S'\'') END   spin-node.sh ($(( $(date -u +%s) - _log_start ))s) -> '"$_log_file"'" >> "'"$_log_dir"'/devnet.log"' EXIT
     exec > >(tee -a "$_log_file") 2>&1
     echo "Logging to $_log_file"
+    # Copy validator config with timestamped name matching the run log
+    if [ -n "$replaceWith" ]; then
+        _config_copy="$_log_dir/${_config_prefix}-${networkName}-validator-config-replace-${_ts}.yaml"
+    else
+        _config_copy="$_log_dir/${_config_prefix}-${networkName}-validator-config-${_ts}.yaml"
+    fi
+    cp "$validator_config_file" "$_config_copy"
+    echo "Validator config copied to $_config_copy"
 fi
 
 # If --subnets N is specified, expand the validator config template into a new
@@ -177,7 +188,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
     echo "Preparing remote servers (verifying and installing required software)..."
   fi
 
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" "" "$dryRun"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" "" "$dryRun" "" "$networkName"; then
     echo "❌ Server preparation failed."
     exit 1
   fi
@@ -430,7 +441,7 @@ if [[ -n "$restartClient" ]]; then
         old_name="${replace_old_names[$idx]}"
         if [ "$deployment_mode" == "ansible" ]; then
           echo "Stopping $old_name and cleaning remote data via Ansible..."
-          "$scriptDir/run-ansible.sh" "$configDir" "$old_name" "true" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "" "true" "" || {
+          "$scriptDir/run-ansible.sh" "$configDir" "$old_name" "true" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "" "true" "" "" "" "$networkName" || {
             echo "Warning: Failed to stop $old_name via Ansible, continuing..."
           }
         else
@@ -582,7 +593,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   # Handle stop action
   if [ -n "$stopNodes" ] && [ "$stopNodes" == "true" ]; then
     echo "Stopping nodes via Ansible..."
-    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis" "" "$dryRun"; then
+    if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$cleanData" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop" "$coreDumps" "$ansible_skip_genesis" "" "$dryRun" "" "$networkName"; then
       echo "❌ Ansible stop operation failed. Exiting."
       exit 1
     fi
@@ -602,7 +613,7 @@ if [ "$deployment_mode" == "ansible" ]; then
   ansible_sync_all_hosts=""
   [[ "${has_replacements:-false}" = "true" ]] && ansible_sync_all_hosts="true"
 
-  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$ansible_clean_data" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url" "$dryRun" "$ansible_sync_all_hosts"; then
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "$ansible_node_arg" "$ansible_clean_data" "$validatorConfig" "$validator_config_file" "$sshKeyFile" "$useRoot" "" "$coreDumps" "$ansible_skip_genesis" "$ansible_checkpoint_url" "$dryRun" "$ansible_sync_all_hosts" "$networkName"; then
     echo "❌ Ansible deployment failed. Exiting."
     exit 1
   fi
@@ -629,7 +640,7 @@ if [ "$deployment_mode" == "ansible" ]; then
     _genesis_time=$(grep "GENESIS_TIME:" "$_genesis_config" | awk '{print $2}')
     if [ -n "$_genesis_time" ]; then
       echo "lean_genesis_time $_genesis_time" | curl -s --data-binary @- \
-        "$_pushgateway_url/metrics/job/lean-quickstart" || \
+        "$_pushgateway_url/metrics/job/lean-quickstart/network/$networkName" || \
         echo "Warning: Failed to push lean_genesis_time to Pushgateway."
     fi
   fi

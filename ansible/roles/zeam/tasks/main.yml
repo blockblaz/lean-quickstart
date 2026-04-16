@@ -38,7 +38,7 @@
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ local_validator_config_path }}"
   register: node_config
   changed_when: false
   delegate_to: localhost
@@ -76,10 +76,6 @@
     state: directory
     mode: '0755'
 
-- name: Set validator config value
-  set_fact:
-    actual_validator_config: "{{ validator_config if validator_config is defined and validator_config != '' else 'genesis_bootnode' }}"
-
 - name: Deploy Zeam node using Docker
   block:
     - name: Stop existing Zeam container (if any)
@@ -106,7 +102,7 @@
         {{ zeam_global_flags }}
         node
         --custom_genesis /config
-        --validator_config {{ actual_validator_config }}
+        --validator_config /config
         --data-dir /data
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key

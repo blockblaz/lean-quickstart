@@ -27,7 +27,7 @@
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
-    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
+    yq eval ".validators[] | select(.name == \"{{ node_name }}\") | .{{ item }}" "{{ local_validator_config_path }}"
   register: peam_node_config
   changed_when: false
   delegate_to: localhost
@@ -45,12 +45,12 @@
     peam_metrics_port: "{{ peam_node_config.results[1].stdout }}"
     peam_api_port: "{{ peam_node_config.results[2].stdout }}"
     peam_is_aggregator: "{{ 'true' if (peam_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
-    peam_topic_domain: "{{ peam_node_config.results[4].stdout | default('') | trim | default('devnet0', true) }}"
+    peam_topic_domain: "{{ peam_node_config.results[4].stdout | default('') | trim | default(peam_devnet_id, true) }}"
   when: peam_node_config is defined
 
 - name: Extract local validator index from validator-config ordering
   shell: |
-    yq eval '.validators[].name' "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml" | nl -v0 | awk '$2=="{{ node_name }}" {print $1; exit}'
+    yq eval '.validators[].name' "{{ local_validator_config_path }}" | nl -v0 | awk '$2=="{{ node_name }}" {print $1; exit}'
   register: peam_validator_index
   changed_when: false
   delegate_to: localhost
@@ -68,14 +68,14 @@
 
 - name: Extract total validator count from validator-config.yaml
   shell: |
-    yq eval '.validators[].count // 1' "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml" | awk '{sum += $1} END {print sum + 0}'
+    yq eval '.validators[].count // 1' "{{ local_validator_config_path }}" | awk '{sum += $1} END {print sum + 0}'
   register: peam_total_validator_count
   changed_when: false
   delegate_to: localhost
 
 - name: Extract attestation committee count from validator-config.yaml
   shell: |
-    yq eval '.config.attestation_committee_count // 1' "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validator-config.yaml"
+    yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}"
   register: peam_attestation_committee_count_raw
   changed_when: false
   delegate_to: localhost

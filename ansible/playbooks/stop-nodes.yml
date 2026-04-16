@@ -7,7 +7,7 @@
   connection: local
   gather_facts: yes
   vars:
-    validator_config_file: "{{ genesis_dir }}/validator-config.yaml"
+    validator_config_file: "{{ local_validator_config_path | default(genesis_dir + '/validator-config.yaml') }}"
 
   tasks:
     - name: Validate validator-config.yaml exists

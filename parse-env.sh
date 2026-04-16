@@ -3,18 +3,17 @@
 
 if [ -n "$NETWORK_DIR" ]
 then
-  echo "setting up network from $scriptDir/$NETWORK_DIR"
-  configDir="$scriptDir/$NETWORK_DIR/genesis"
-  dataDir="$scriptDir/$NETWORK_DIR/data"
+  # Support both absolute paths and relative paths (relative to scriptDir)
+  if [[ "$NETWORK_DIR" = /* ]]; then
+    _resolved_network_dir="$NETWORK_DIR"
+  else
+    _resolved_network_dir="$scriptDir/$NETWORK_DIR"
+  fi
+  echo "setting up network from $_resolved_network_dir"
+  configDir="$_resolved_network_dir/genesis"
+  dataDir="$_resolved_network_dir/data"
 else
   echo "set NETWORK_DIR env variable to run"
-  exit
-fi;
-
-# TODO: check for presense of all required files by filenames on configDir
-if [ ! -n "$(ls -A $configDir)" ]
-then
-  echo "no genesis config at path=$configDir, exiting."
   exit
 fi;
 
@@ -126,6 +125,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --network)
+      networkName="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --logs)
       enableLogs=true
       shift
@@ -140,6 +144,13 @@ done
 if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]];
 then
   echo "no node or restart-client specified, exiting..."
+  exit
+fi;
+
+# Check genesis dir exists and is non-empty, unless --generateGenesis will create it
+if [ "$generateGenesis" != "true" ] && [ ! -n "$(ls -A $configDir 2>/dev/null)" ]
+then
+  echo "no genesis config at path=$configDir, exiting."
   exit
 fi;
 
@@ -162,6 +173,7 @@ fi;
 
 # freshStart logic removed - now handled by --generateGenesis flag
 
+networkName="${networkName:-devnet-3}"
 
 echo "configDir = $configDir"
 echo "dataDir = $dataDir"
@@ -179,4 +191,5 @@ echo "skipLeanpoint = ${skipLeanpoint:-false}"
 echo "skipNemo = ${skipNemo:-false}"
 echo "dryRun = ${dryRun:-false}"
 echo "replaceWith = ${replaceWith:-<not set>}"
+echo "networkName = $networkName"
 echo "enableLogs = ${enableLogs:-false}"
