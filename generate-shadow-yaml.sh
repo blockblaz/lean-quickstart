@@ -153,7 +153,7 @@ for i in "${!node_names[@]}"; do
     export scriptDir="$SCRIPT_DIR"
     export configDir="$GENESIS_DIR"
     export dataDir="$PROJECT_ROOT/shadow.data/hosts/$hostname"
-    export validatorConfig="$VALIDATOR_CONFIG"
+    export validatorConfig="$GENESIS_DIR"
 
     # Source parse-vc.sh to extract per-node config (quicPort, metricsPort, apiPort, etc.)
     # parse-vc.sh uses $item and $configDir
