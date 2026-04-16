@@ -635,12 +635,28 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
         fi
 
         PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
-        PRIVKEY_FILENAME="validator_${raw_index}_sk.ssz"
+        ATTESTER_PRIVKEY_FILENAME="validator_${raw_index}_attester_sk.ssz"
+        PROPOSER_PRIVKEY_FILENAME="validator_${raw_index}_proposer_sk.ssz"
+
+        # Create attester/proposer symlinks to the original key file (same key for both roles)
+        ORIG_KEY="validator_${raw_index}_sk.ssz"
+        KEYS_DIR="$GENESIS_DIR/hash-sig-keys"
+        if [ -f "$KEYS_DIR/$ORIG_KEY" ]; then
+            ln -sf "$ORIG_KEY" "$KEYS_DIR/$ATTESTER_PRIVKEY_FILENAME" 2>/dev/null || true
+            ln -sf "$ORIG_KEY" "$KEYS_DIR/$PROPOSER_PRIVKEY_FILENAME" 2>/dev/null || true
+            # Also create pk symlinks
+            ORIG_PK="validator_${raw_index}_pk.ssz"
+            ln -sf "$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_attester_pk.ssz" 2>/dev/null || true
+            ln -sf "$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_proposer_pk.ssz" 2>/dev/null || true
+        fi
 
         cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
   - index: $raw_index
     pubkey_hex: $PUBKEY_HEX_NO_PREFIX
-    privkey_file: $PRIVKEY_FILENAME
+    privkey_file: $ATTESTER_PRIVKEY_FILENAME
+  - index: $raw_index
+    pubkey_hex: $PUBKEY_HEX_NO_PREFIX
+    privkey_file: $PROPOSER_PRIVKEY_FILENAME
 EOF
     done < <(yq eval "$INDEX_QUERY" "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
 
