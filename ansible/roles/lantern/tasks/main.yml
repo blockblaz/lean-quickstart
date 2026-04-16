@@ -84,7 +84,7 @@
         {{ lantern_docker_image }}
         --data-dir /data
         --genesis-config /config/config.yaml
-        --validator-registry-path /config/annotated_validators.yaml
+        --validator-keys-path /config/annotated_validators.yaml
         --genesis-state /config/genesis.ssz
         --validator-config /config/validator-config.yaml
         --nodes-path /config/nodes.yaml
