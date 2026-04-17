@@ -638,16 +638,17 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
         ATTESTER_PRIVKEY_FILENAME="validator_${raw_index}_attester_sk.ssz"
         PROPOSER_PRIVKEY_FILENAME="validator_${raw_index}_proposer_sk.ssz"
 
-        # Create attester/proposer symlinks to the original key file (same key for both roles)
+        # Create attester/proposer copies of the original key file (same key for both roles)
+        # Use hard copies instead of symlinks for Shadow simulator compatibility
         ORIG_KEY="validator_${raw_index}_sk.ssz"
         KEYS_DIR="$GENESIS_DIR/hash-sig-keys"
         if [ -f "$KEYS_DIR/$ORIG_KEY" ]; then
-            ln -sf "$ORIG_KEY" "$KEYS_DIR/$ATTESTER_PRIVKEY_FILENAME" 2>/dev/null || true
-            ln -sf "$ORIG_KEY" "$KEYS_DIR/$PROPOSER_PRIVKEY_FILENAME" 2>/dev/null || true
-            # Also create pk symlinks
+            cp -f "$KEYS_DIR/$ORIG_KEY" "$KEYS_DIR/$ATTESTER_PRIVKEY_FILENAME" 2>/dev/null || true
+            cp -f "$KEYS_DIR/$ORIG_KEY" "$KEYS_DIR/$PROPOSER_PRIVKEY_FILENAME" 2>/dev/null || true
+            # Also create pk copies
             ORIG_PK="validator_${raw_index}_pk.ssz"
-            ln -sf "$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_attester_pk.ssz" 2>/dev/null || true
-            ln -sf "$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_proposer_pk.ssz" 2>/dev/null || true
+            cp -f "$KEYS_DIR/$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_attester_pk.ssz" 2>/dev/null || true
+            cp -f "$KEYS_DIR/$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_proposer_pk.ssz" 2>/dev/null || true
         fi
 
         cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
