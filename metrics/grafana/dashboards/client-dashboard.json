@@ -454,7 +454,7 @@
       "id": 89,
       "options": {
         "cellHeight": "sm",
-        "showHeader": true
+        "showHeader": false
       },
       "pluginVersion": "12.3.2",
       "targets": [
@@ -1422,7 +1422,7 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -1440,10 +1440,10 @@
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "instant": true,
+          "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
-          "range": false,
+          "range": true,
           "refId": "B",
           "useBackend": false
         }
@@ -2383,7 +2383,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": " sum by (job, client) (lean_connected_peers{job=~\"$job\", client!=\"\"})",
+          "expr": " sum by (network, job, instance, client) (lean_connected_peers{network=~\"$network\", job=~\"$job\", instance=~\"$instance\", client!=\"\"})",
           "instant": false,
           "interval": "",
           "legendFormat": "{{job}} - {{client}}",
@@ -2666,7 +2666,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -2767,7 +2767,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -2868,7 +2868,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -3936,7 +3936,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, rate(lean_pq_sig_attestation_signatures_building_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, rate(lean_pq_sig_aggregated_signatures_building_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -4120,8 +4120,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "s"
+          }
         },
         "overrides": []
       },
@@ -5959,7 +5958,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -5998,7 +5998,7 @@
           "refId": "A"
         }
       ],
-      "title": "Time taken to produce attestations",
+      "title": "Time taken to produce attestation",
       "type": "timeseries"
     },
     {
