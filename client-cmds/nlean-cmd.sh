@@ -6,8 +6,8 @@
 # NLEAN_REPO should point to this repository when lean-quickstart is outside this workspace.
 # Default assumes sibling checkouts: <workspace>/nlean and <workspace>/lean-quickstart.
 nlean_repo="${NLEAN_REPO:-$scriptDir/../nlean}"
-nlean_docker_image="${NLEAN_DOCKER_IMAGE:-ghcr.io/nleaneth/nlean:devnet3}"
-nlean_network_name="${NLEAN_NETWORK_NAME:-devnet0}"
+nlean_docker_image="${NLEAN_DOCKER_IMAGE:-ghcr.io/nleaneth/nlean:devnet4}"
+nlean_fork_digest="${NLEAN_FORK_DIGEST:-12345678}"
 log_level="${NLEAN_LOG_LEVEL:-}"
 enable_metrics="${enableMetrics:-false}"
 
@@ -16,8 +16,8 @@ if [[ "$enable_metrics" != "true" && "$enable_metrics" != "false" ]]; then
   enable_metrics="false"
 fi
 
-if [[ -z "${nlean_network_name// }" ]]; then
-  nlean_network_name="devnet0"
+if [[ -z "${nlean_fork_digest// }" ]]; then
+  nlean_fork_digest="12345678"
 fi
 
 log_level="${log_level#${log_level%%[![:space:]]*}}"
@@ -63,7 +63,7 @@ node_binary="$binary_path \
       --validator-config $configDir/validator-config.yaml \
       --node $item \
       --data-dir $dataDir/$item \
-      --network $nlean_network_name \
+      --fork-digest $nlean_fork_digest \
       --node-key $configDir/$node_private_key_path \
       --socket-port $quicPort \
       --metrics $enable_metrics \
@@ -106,7 +106,7 @@ node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
       --validator-config /config/validator-config.yaml \
       --node $item \
       --data-dir /data \
-      --network $nlean_network_name \
+      --fork-digest $nlean_fork_digest \
       --node-key /config/$node_private_key_path \
       --socket-port $quicPort \
       --metrics $enable_metrics \
