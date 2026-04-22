@@ -25,7 +25,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    ream_docker_image: "{{ ream_docker_image_raw.stdout | trim | default('ghcr.io/reamlabs/ream:latest-devnet4') }}"
+    ream_docker_image: "{{ ream_docker_image_raw.stdout | trim | default('snaiyer1/ream:latest') }}"
     deployment_mode: "{{ ream_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
