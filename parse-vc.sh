@@ -69,6 +69,17 @@ if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
     isAggregator="false"
 fi
 
+# Compute the full set of unique subnet ids as a CSV (e.g. "0,1"). Aggregators
+# in multi-subnet deployments must subscribe to every subnet's attestation
+# topic to aggregate votes across committees. Client-cmd scripts pass this
+# along as --aggregate-subnet-ids when the node is an aggregator and the
+# network has more than one subnet.
+aggregateSubnetIds=$(yq eval '[.validators[].subnet // 0] | unique | sort | join(",")' "$validator_config_file")
+if [ -z "$aggregateSubnetIds" ] || [ "$aggregateSubnetIds" == "null" ]; then
+    aggregateSubnetIds=""
+fi
+export aggregateSubnetIds
+
 # Extract attestation_committee_count from config section (optional - only if explicitly set)
 attestationCommitteeCount=$(yq eval ".config.attestation_committee_count" "$validator_config_file")
 if [ -z "$attestationCommitteeCount" ] || [ "$attestationCommitteeCount" == "null" ]; then

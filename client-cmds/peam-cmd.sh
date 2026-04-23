@@ -53,6 +53,18 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network. Note: peam already subscribes to all
+# subnets in [0, committee_count) via allowed_topics above; this flag exists
+# for contract parity with other clients and is a no-op unless the binary
+# recognises it.
+aggregate_subnet_ids_flag=""
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+    aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
+fi
+
 checkpoint_sync_flag=""
 if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
@@ -76,6 +88,7 @@ node_binary="$binary_path \
       $validator_keys_flag \
       $api_port_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag"
 
 validator_keys_flag_container=""
@@ -91,6 +104,7 @@ node_docker="ghcr.io/malik672/peam:devnet4 \
       $validator_keys_flag_container \
       $api_port_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag"
 
 if [ -n "${PEAM_DOCKER_IMAGE:-}" ]; then

@@ -35,6 +35,15 @@ if [[ "${isAggregator:-false}" == "true" ]]; then
   aggregator_flag="--is-aggregator"
 fi
 
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [[ "${isAggregator:-false}" == "true" ]] && [[ -n "${aggregateSubnetIds:-}" ]] && [[ "$aggregateSubnetIds" == *,* ]]; then
+  aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
+fi
+
 # Set attestation committee count flag if explicitly configured
 attestation_committee_flag=""
 if [[ -n "${attestationCommitteeCount:-}" ]]; then
@@ -60,7 +69,7 @@ binary_path="$nlean_repo/artifacts/lean-client/Lean.Client"
 mkdir -p "$dataDir/$item"
 
 node_binary="$binary_path \
-      --validator-config $configDir/validator-config.yaml \
+      --custom-network-config-dir $configDir \
       --node $item \
       --data-dir $dataDir/$item \
       --network $nlean_network_name \
@@ -73,6 +82,7 @@ node_binary="$binary_path \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $log_level_arg"
 
@@ -103,7 +113,7 @@ if [[ -n "${NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR:-}" ]]; then
 fi
 
 node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
-      --validator-config /config/validator-config.yaml \
+      --custom-network-config-dir $configDir \
       --node $item \
       --data-dir /data \
       --network $nlean_network_name \
@@ -116,6 +126,7 @@ node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $log_level_arg"
 

@@ -56,6 +56,22 @@
     zeam_is_aggregator: "{{ 'true' if (node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: node_config is defined
 
+# Compute the full set of subnet ids in the network so aggregators can subscribe
+# to attestations from every subnet (not just the one their validators live in).
+# Required in multi-subnet deployments for cross-subnet attestation aggregation.
+- name: Compute all subnet ids from validator-config.yaml
+  shell: |
+    yq eval '[.validators[].subnet] | unique | sort | join(",")' "{{ local_validator_config_path }}"
+  register: zeam_all_subnets_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set aggregate subnet ids csv
+  set_fact:
+    zeam_aggregate_subnet_ids: "{{ zeam_all_subnets_raw.stdout | trim }}"
+  run_once: true
+
 - name: Ensure node key file exists
   stat:
     path: "{{ genesis_dir }}/{{ node_name }}.key"
@@ -107,6 +123,7 @@
         --api-port {{ zeam_api_port }}
         --metrics-port {{ zeam_metrics_port }}
         {{ '--is-aggregator' if (zeam_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--aggregate-subnet-ids ' + zeam_aggregate_subnet_ids) if (zeam_is_aggregator | default('false')) == 'true' and (',' in zeam_aggregate_subnet_ids | default('')) else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0

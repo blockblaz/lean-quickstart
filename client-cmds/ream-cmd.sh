@@ -10,6 +10,15 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+    aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
+fi
+
 # Set attestation committee count flag if explicitly configured
 attestation_committee_flag=""
 if [ -n "$attestationCommitteeCount" ]; then
@@ -37,6 +46,7 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         --http-port $apiPort \
         $attestation_committee_flag \
         $aggregator_flag \
+        $aggregate_subnet_ids_flag \
         $checkpoint_sync_flag"
 
 node_docker="snaiyer1/ream:latest --data-dir /data \
@@ -53,6 +63,7 @@ node_docker="snaiyer1/ream:latest --data-dir /data \
         --http-port $apiPort \
         $attestation_committee_flag \
         $aggregator_flag \
+        $aggregate_subnet_ids_flag \
         $checkpoint_sync_flag"
 
 # choose either binary or docker
