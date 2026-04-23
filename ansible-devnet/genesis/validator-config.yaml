@@ -1,12 +1,15 @@
 shuffle: roundrobin
-# One validator per client type (zeam, ream, qlean, lantern, grandine, ethlambda, gean, nlean).
-# Peam and lighthouse omitted. Single subnet. Each validator has a unique host IP (see list in repo history).
+# devnet-4 layout: 2 subnets × 8 clients each. One of every unique client type
+# (zeam, ream, qlean, lantern, grandine, ethlambda, gean, nlean) per subnet.
+# One validator per server (default ports 9001 / 9095 / 5055). Aggregator per
+# subnet is chosen randomly at launch by spin-node.sh (all isAggregator: false).
 deployment_mode: ansible
 config:
   activeEpoch: 18
   keyType: "hash-sig"
-  attestation_committee_count: 1
+  attestation_committee_count: 2
 validators:
+  # ── Subnet 0 ──────────────────────────────────────────────────────────────
   - name: "zeam_0"
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
@@ -85,5 +88,86 @@ validators:
     metricsPort: 9095
     apiPort: 5055
     subnet: 0
+    isAggregator: false
+    count: 1
+  # ── Subnet 1 ──────────────────────────────────────────────────────────────
+  - name: "zeam_1"
+    privkey: "8d14c7b02d55ca050ef97a3961aa16828837fb363e4e19e4dd0060f58670a2b3"
+    enrFields:
+      ip: "95.216.164.165"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
+    isAggregator: false
+    count: 1
+  - name: "ream_1"
+    privkey: "fc2f11f90dd90df33bfb5f3467c2cbc37cf93dbb41c7ac556f9eea117418e73d"
+    enrFields:
+      ip: "95.216.165.186"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
+    isAggregator: false
+    count: 1
+  - name: "qlean_1"
+    privkey: "0e190e06a62db01bf566af4348277463d26eebab8f6badbcb989242ea4fee050"
+    enrFields:
+      ip: "37.27.250.20"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
+    isAggregator: false
+    count: 1
+  - name: "lantern_1"
+    privkey: "1176609530e568ec12ad227e60ae71c618bfb13fde5a3257e4b0627216e78e04"
+    enrFields:
+      ip: "78.47.44.215"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
+    isAggregator: false
+    count: 1
+  - name: "grandine_1"
+    privkey: "ab6edee1173379f647b4022d74d4b3342d547e7bb6954664a1a489b95b7c9b60"
+    enrFields:
+      ip: "37.27.89.135"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
+    isAggregator: false
+    count: 1
+  - name: "ethlambda_1"
+    privkey: "eb8533a0d5071d4dbcb0c4fcf9b8ac6edc3d1a260d2bb348fafc5cdb455aa1d4"
+    enrFields:
+      ip: "157.180.20.55"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
+    isAggregator: true
+    count: 1
+  - name: "gean_1"
+    privkey: "5408a68b960a7932e367b32489498a13c339f87ff8090ea54213524b3d76fcff"
+    enrFields:
+      ip: "178.104.151.50"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
+    isAggregator: false
+    count: 1
+  - name: "nlean_1"
+    privkey: "74388a2487b943d947c17bf65ca08470f3ad5f045ea0f5aed38a98bbaba1bd49"
+    enrFields:
+      ip: "178.104.133.162"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    subnet: 1
     isAggregator: false
     count: 1
