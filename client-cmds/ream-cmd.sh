@@ -49,7 +49,7 @@ node_binary="$scriptDir/../ream/target/release/ream --data-dir $dataDir/$item \
         $aggregate_subnet_ids_flag \
         $checkpoint_sync_flag"
 
-node_docker="snaiyer1/ream:latest --data-dir /data \
+node_docker="ghcr.io/reamlabs/ream:latest-devnet4 --data-dir /data \
         lean_node \
         --network /config/config.yaml \
         --validator-registry-path /config/annotated_validators.yaml \
