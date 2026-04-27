@@ -110,3 +110,13 @@ validators:
     apiPort: 5059
     isAggregator: false
     count: 1
+
+  - name: "nlean_0"
+    privkey: "2e9be3f1b0d32ca3a4d62017fbfafe3950b7e90fed6802ff8bd2e0f8c4e2ca91"
+    enrFields:
+      ip: "127.0.0.1"
+      quic: 9010
+    metricsPort: 8090
+    apiPort: 5060
+    isAggregator: false
+    count: 1
