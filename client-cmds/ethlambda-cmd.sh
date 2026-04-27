@@ -25,6 +25,7 @@ fi
 # Command when running as binary
 node_binary="$binary_path \
       --custom-network-config-dir $configDir \
+      --data-dir $dataDir/$item \
       --gossipsub-port $quicPort \
       --node-id $item \
       --node-key $configDir/$item.key \
@@ -38,6 +39,7 @@ node_binary="$binary_path \
 # Command when running as docker container
 node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
       --custom-network-config-dir /config \
+      --data-dir /data \
       --gossipsub-port $quicPort \
       --node-id $item \
       --node-key /config/$item.key \
