@@ -24,7 +24,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:latest') }}"
+    qlean_docker_image: "{{ qlean_docker_image_raw.stdout | trim | default('qdrvm/qlean-mini:devnet-4-amd64') }}"
     deployment_mode: "{{ qlean_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -49,19 +49,6 @@
     qlean_privkey: "{{ qlean_node_config.results[3].stdout }}"
     qlean_is_aggregator: "{{ 'true' if (qlean_node_config.results[4].stdout | default('') | trim) == 'true' else 'false' }}"
   when: qlean_node_config is defined
-
-- name: Extract validator index from validators.yaml
-  shell: |
-    yq eval '."{{ node_name }}" | .[0]' "{{ hostvars['localhost']['local_genesis_dir_path'] }}/validators.yaml"
-  register: qlean_validator_index
-  changed_when: false
-  failed_when: false
-  delegate_to: localhost
-
-- name: Set validator index
-  set_fact:
-    qlean_validator_index: "{{ qlean_validator_index.stdout | trim | default('0') }}"
-  when: qlean_validator_index is defined
 
 - name: Ensure node key file exists
   stat:
@@ -103,12 +90,7 @@
         -v {{ genesis_dir }}:/config:ro
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ qlean_docker_image }}
-        --genesis /config/config.yaml
-        --validator-registry-path /config/validators.yaml
-        --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml
-        --xmss-pk /config/hash-sig-keys/validator_{{ qlean_validator_index }}_pk.json
-        --xmss-sk /config/hash-sig-keys/validator_{{ qlean_validator_index }}_sk.json
-        --bootnodes /config/nodes.yaml
+        --genesis-dir /config
         --data-dir /data
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
@@ -120,7 +102,6 @@
         {{ '--is-aggregator' if (qlean_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
         -ldebug
-        -ltrace
       register: qlean_container
       changed_when: qlean_container.rc == 0
   when: deployment_mode == 'docker'

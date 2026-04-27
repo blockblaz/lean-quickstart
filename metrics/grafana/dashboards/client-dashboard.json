@@ -153,7 +153,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max (lean_node_start_time_seconds{job=~\"$job\"} * 1000)",
+          "expr": "max by(network) (lean_node_start_time_seconds{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"} * 1000)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -196,6 +196,74 @@
         "x": 4,
         "y": 1
       },
+      "id": 103,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum by(network) (lean_validators_count{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Total number of validators",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
       "id": 40,
       "options": {
         "colorMode": "none",
@@ -221,7 +289,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(lean_attestation_committee_count{job=~\"$job\"})",
+          "expr": "max by(network) (lean_attestation_committee_count{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -229,78 +297,6 @@
         }
       ],
       "title": "Number of attestation committees",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "super-light-green",
-            "mode": "fixed"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 1
-      },
-      "id": 89,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {
-          "valueSize": 30
-        },
-        "textMode": "name",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "max by(job) (lean_is_aggregator{job=~\"$job\"}) > 0",
-          "instant": true,
-          "legendFormat": "{{job}}",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "Aggregator",
       "type": "stat"
     },
     {
@@ -345,8 +341,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 12,
+        "w": 4,
+        "x": 16,
         "y": 1
       },
       "id": 51,
@@ -355,9 +351,7 @@
           "displayMode": "table",
           "placement": "right",
           "showLegend": true,
-          "values": [
-            "value"
-          ]
+          "values": []
         },
         "pieType": "donut",
         "reduceOptions": {
@@ -370,7 +364,7 @@
         "sort": "desc",
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -398,7 +392,7 @@
           "disableTextWrap": false,
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by (job) (lean_validators_count{job=~\"$job\"})",
+          "expr": "sum by (network, job, instance) (lean_validators_count{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -410,8 +404,92 @@
           "useBackend": false
         }
       ],
-      "title": "Validators  per node",
+      "title": "Validators list",
       "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "super-light-green",
+            "mode": "fixed"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 89,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": false
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "max by(network,job,instance) (lean_is_aggregator{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}) > 0",
+          "instant": true,
+          "legendFormat": "{{job}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Aggregators",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "job"
+              ]
+            }
+          }
+        }
+      ],
+      "type": "table"
     },
     {
       "datasource": {
@@ -477,8 +555,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 20,
         "y": 1
       },
       "id": 75,
@@ -495,7 +573,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "last_over_time(lean_node_info{job=~\"$job\"}[1m])",
+          "expr": "last_over_time(lean_node_info{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[1m])",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -523,10 +601,22 @@
           "options": {
             "include": {
               "names": [
-                "name",
-                "version",
-                "job"
+                "job",
+                "version"
               ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "job": "Node",
+              "name": "Client",
+              "version": "Version"
             }
           }
         }
@@ -591,7 +681,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(lean_latest_finalized_slot{job=~\"$job\"})",
+          "expr": "max by(network) (lean_latest_finalized_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -659,7 +749,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(lean_latest_justified_slot{job=~\"$job\"})",
+          "expr": "max by(network) (lean_latest_justified_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -727,7 +817,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(lean_head_slot{job=~\"$job\"})",
+          "expr": "max by(network) (lean_head_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -829,7 +919,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (job)(lean_latest_finalized_slot{job=~\"$job\"})",
+          "expr": "sum by (network, job, instance)(lean_latest_finalized_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -931,7 +1021,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": " sum by (job) (lean_latest_justified_slot{job=~\"$job\"})",
+          "expr": " sum by (network, job, instance) (lean_latest_justified_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -1032,7 +1122,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": " sum by (job) (lean_head_slot{job=~\"$job\"})",
+          "expr": " sum by (network, job, instance) (lean_head_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -1133,7 +1223,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": " sum by (job) (lean_current_slot{job=~\"$job\"})",
+          "expr": " sum by (network, job, instance) (lean_current_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -1207,7 +1297,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
         "y": 23
       },
@@ -1221,7 +1311,7 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -1234,7 +1324,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "changes(lean_node_start_time_seconds{job=~\"$job\"}[1m])",
+          "expr": "changes(lean_node_start_time_seconds{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[1m])",
           "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
@@ -1243,6 +1333,122 @@
         }
       ],
       "title": "Start time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": []
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "id": 90,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum by (network, job, instance) (lean_attestation_committee_subnet{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        }
+      ],
+      "title": "Attestation committee subnet",
       "type": "timeseries"
     },
     {
@@ -1320,9 +1526,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 23
+        "w": 12,
+        "x": 0,
+        "y": 31
       },
       "id": 44,
       "options": {
@@ -1347,7 +1553,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": " sum by (job) (lean_connected_peers{job=~\"$job\"})",
+          "expr": " sum by (network, job, instance) (lean_connected_peers{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -1367,7 +1573,98 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "idle"
+                },
+                "1": {
+                  "text": "syncing"
+                },
+                "2": {
+                  "text": "synced"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "min": 0,
+          "max": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "id": 98,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (network, job, instance) (\n  (lean_node_sync_status{status=\"synced\", network=~\"$network\", job=~\"$job\", instance=~\"$instance\"} == 1) * 2\n  or\n  (lean_node_sync_status{status=\"syncing\", network=~\"$network\", job=~\"$job\", instance=~\"$instance\"} == 1) * 1\n  or\n  (lean_node_sync_status{status=\"idle\", network=~\"$network\", job=~\"$job\", instance=~\"$instance\"} == 1) * 0\n)",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Node sync status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Total number of processed slots in state transition function",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1407,7 +1704,7 @@
               "mode": "off"
             }
           },
-          "fieldMinMax": false,
+          "decimals": 1,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1423,23 +1720,15 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Total"
-            },
-            "properties": []
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 23
+        "w": 12,
+        "x": 0,
+        "y": 39
       },
-      "id": 90,
+      "id": 72,
       "options": {
         "legend": {
           "calcs": [],
@@ -1449,7 +1738,7 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -1460,22 +1749,111 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "disableTextWrap": false,
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum by (job) (lean_attestation_committee_subnet{job=~\"$job\"})",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": true,
-          "interval": "",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (increase(lean_finalizations_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\", result=\"success\"}[1m]))[5m:]\n)",
           "legendFormat": "{{job}}",
-          "range": false,
-          "refId": "B",
-          "useBackend": false
+          "range": true,
+          "refId": "A"
         }
       ],
-      "title": "Attestation committee subnet",
+      "title": "Finalizations - Success",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
+      "id": 73,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (increase(lean_finalizations_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\", result=\"error\"}[1m]))[5m:]\n)",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Finalizations - Errors",
       "type": "timeseries"
     },
     {
@@ -1484,7 +1862,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 47
       },
       "id": 57,
       "panels": [],
@@ -1556,7 +1934,7 @@
         "h": 10,
         "w": 8,
         "x": 0,
-        "y": 32
+        "y": 48
       },
       "id": 30,
       "options": {
@@ -1585,7 +1963,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(lean_head_slot{job=~\"$job\"}[5m]) - avg_over_time(lean_latest_finalized_slot{job=~\"$job\"}[5m])",
+          "expr": "avg_over_time(lean_head_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[5m]) - avg_over_time(lean_latest_finalized_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[5m])",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -1660,7 +2038,7 @@
         "h": 10,
         "w": 8,
         "x": 8,
-        "y": 32
+        "y": 48
       },
       "id": 29,
       "options": {
@@ -1689,7 +2067,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(lean_head_slot{job=~\"$job\"}[5m]) - avg_over_time(lean_latest_justified_slot{job=~\"$job\"}[5m])",
+          "expr": "avg_over_time(lean_head_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[5m]) - avg_over_time(lean_latest_justified_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[5m])",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -1764,7 +2142,7 @@
         "h": 10,
         "w": 8,
         "x": 16,
-        "y": 32
+        "y": 48
       },
       "id": 31,
       "options": {
@@ -1793,7 +2171,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(lean_latest_justified_slot{job=~\"$job\"}[5m]) - avg_over_time(lean_latest_finalized_slot{job=~\"$job\"}[5m])",
+          "expr": "avg_over_time(lean_latest_justified_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[5m]) - avg_over_time(lean_latest_finalized_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[5m])",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -1809,7 +2187,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 58
       },
       "id": 53,
       "panels": [],
@@ -1881,7 +2259,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 43
+        "y": 59
       },
       "id": 54,
       "options": {
@@ -1905,7 +2283,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": " sum by (job) (lean_connected_peers{job=~\"$job\"})",
+          "expr": " sum by (network, job, instance) (lean_connected_peers{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -1980,7 +2358,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 43
+        "y": 59
       },
       "id": 73,
       "options": {
@@ -2005,7 +2383,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": " sum by (job, client) (lean_connected_peers{job=~\"$job\", client!=\"\"})",
+          "expr": " sum by (network, job, instance, client) (lean_connected_peers{network=~\"$network\", job=~\"$job\", instance=~\"$instance\", client!=\"\"})",
           "instant": false,
           "interval": "",
           "legendFormat": "{{job}} - {{client}}",
@@ -2082,7 +2460,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 52
+        "y": 68
       },
       "id": 55,
       "options": {
@@ -2106,7 +2484,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (\n    increase(lean_peer_connection_events_total{job=~\"$job\"}[$__rate_interval])\n  )",
+          "expr": "sum by (network, job, instance) (\n    increase(lean_peer_connection_events_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )",
           "interval": "",
           "legendFormat": "{{job}} {{source}}",
           "range": true,
@@ -2182,7 +2560,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 52
+        "y": 68
       },
       "id": 56,
       "options": {
@@ -2206,7 +2584,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (\n    increase(lean_peer_disconnection_events_total{job=~\"$job\"}[$__rate_interval])\n  )",
+          "expr": "sum by (network, job, instance) (\n    increase(lean_peer_disconnection_events_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )",
           "interval": "",
           "legendFormat": "{{job}} {{source}}",
           "range": true,
@@ -2222,7 +2600,323 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 77
+      },
+      "id": 99,
+      "panels": [],
+      "title": "Gossip messages",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 78
+      },
+      "id": 100,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_gossip_block_size_bytes_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Bytes size of a gossip block message",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 78
+      },
+      "id": 101,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_gossip_attestation_size_bytes_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Bytes size of a gossip attestation message",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 78
+      },
+      "id": 102,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_gossip_aggregation_size_bytes_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Bytes size of a gossip aggregated attestation message",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 86
       },
       "id": 45,
       "panels": [],
@@ -2296,7 +2990,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 62
+        "y": 87
       },
       "id": 60,
       "options": {
@@ -2321,7 +3015,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_pq_sig_attestation_signatures_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_pq_sig_attestation_signatures_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -2398,7 +3092,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 62
+        "y": 87
       },
       "id": 64,
       "options": {
@@ -2423,7 +3117,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_pq_sig_attestation_signatures_valid_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_pq_sig_attestation_signatures_valid_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -2500,7 +3194,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 62
+        "y": 87
       },
       "id": 65,
       "options": {
@@ -2525,7 +3219,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_pq_sig_attestation_signatures_invalid_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_pq_sig_attestation_signatures_invalid_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -2603,7 +3297,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 70
+        "y": 95
       },
       "id": 46,
       "options": {
@@ -2628,7 +3322,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, (rate(lean_pq_sig_attestation_signing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, rate(lean_pq_sig_attestation_signing_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -2706,7 +3400,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 70
+        "y": 95
       },
       "id": 47,
       "options": {
@@ -2731,7 +3425,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, (rate(lean_pq_sig_attestation_verification_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, rate(lean_pq_sig_attestation_verification_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -2808,7 +3502,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 103
       },
       "id": 79,
       "options": {
@@ -2833,7 +3527,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_pq_sig_aggregated_signatures_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_pq_sig_aggregated_signatures_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -2910,7 +3604,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 103
       },
       "id": 61,
       "options": {
@@ -2935,7 +3629,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_pq_sig_attestations_in_aggregated_signatures_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_pq_sig_attestations_in_aggregated_signatures_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -3012,7 +3706,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 86
+        "y": 111
       },
       "id": 77,
       "options": {
@@ -3037,7 +3731,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_pq_sig_aggregated_signatures_valid_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_pq_sig_aggregated_signatures_valid_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -3114,7 +3808,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 86
+        "y": 111
       },
       "id": 78,
       "options": {
@@ -3139,7 +3833,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_pq_sig_aggregated_signatures_invalid_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_pq_sig_aggregated_signatures_invalid_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -3217,7 +3911,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 94
+        "y": 119
       },
       "id": 62,
       "options": {
@@ -3242,7 +3936,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, (rate(lean_pq_sig_attestation_signatures_building_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, rate(lean_pq_sig_aggregated_signatures_building_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -3320,7 +4014,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 94
+        "y": 119
       },
       "id": 63,
       "options": {
@@ -3345,7 +4039,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, (rate(lean_pq_sig_aggregated_signatures_verification_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, rate(lean_pq_sig_aggregated_signatures_verification_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -3361,7 +4055,526 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 102
+        "y": 127
+      },
+      "id": 91,
+      "panels": [],
+      "title": "Block production",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 128
+      },
+      "id": 19,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_block_aggregated_payloads_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Number of aggregated payloads",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 128
+      },
+      "id": 93,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_block_building_payload_aggregation_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Time taken to build aggregated payloads",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 136
+      },
+      "id": 80,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": " avg_over_time (\n  sum by (network, job, instance) (\n    (lean_block_building_success_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})\n  )[2m:]\n)",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Successful block builds",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 136
+      },
+      "id": 97,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": " avg_over_time (\n  sum by (network, job, instance) (\n    (lean_block_building_failures_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})\n  )[2m:]\n)",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Failed block builds",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 136
+      },
+      "id": 94,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_block_building_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Time taken to build a block",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 144
       },
       "id": 17,
       "panels": [],
@@ -3429,40 +4642,15 @@
           },
           "unit": "s"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "zeam"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": true,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 103
+        "y": 145
       },
-      "id": 19,
+      "id": 92,
       "options": {
         "legend": {
           "calcs": [],
@@ -3484,7 +4672,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, \n  rate(lean_fork_choice_block_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_fork_choice_block_processing_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -3561,7 +4749,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 103
+        "y": 145
       },
       "id": 85,
       "options": {
@@ -3585,7 +4773,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, \n  rate(lean_committee_signatures_aggregation_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_committee_signatures_aggregation_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -3661,7 +4849,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 111
+        "y": 153
       },
       "id": 68,
       "options": {
@@ -3685,7 +4873,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (\n  increase(lean_fork_choice_reorgs_total{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "sum by (network, job, instance) (\n  increase(lean_fork_choice_reorgs_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
           "interval": "",
           "legendFormat": "{{job}} {{source}}",
           "range": true,
@@ -3761,7 +4949,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 111
+        "y": 153
       },
       "id": 69,
       "options": {
@@ -3785,7 +4973,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (\n  increase(lean_fork_choice_reorg_depth_bucket{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "histogram_quantile(0.99, rate(lean_fork_choice_reorg_depth_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{job}} {{source}}",
           "range": true,
@@ -3861,9 +5049,9 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 119
+        "y": 161
       },
-      "id": 80,
+      "id": 96,
       "options": {
         "legend": {
           "calcs": [],
@@ -3886,7 +5074,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": " avg_over_time (\n  sum by (job) (\n    (lean_gossip_signatures{job=~\"$job\"})\n  )[2m:]\n)",
+          "expr": " avg_over_time (\n  sum by (network, job, instance) (\n    (lean_gossip_signatures{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})\n  )[2m:]\n)",
           "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
@@ -3963,7 +5151,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 119
+        "y": 161
       },
       "id": 81,
       "options": {
@@ -3988,7 +5176,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n   (lean_latest_new_aggregated_payloads{job=~\"$job\"})\n  )[2m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n   (lean_latest_new_aggregated_payloads{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})\n  )[2m:]\n)",
           "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
@@ -4065,7 +5253,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 119
+        "y": 161
       },
       "id": 82,
       "options": {
@@ -4090,7 +5278,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (\n   (lean_latest_known_aggregated_payloads{job=~\"$job\"})\n  )[1m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n   (lean_latest_known_aggregated_payloads{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})\n  )[1m:]\n)",
           "instant": false,
           "interval": "",
           "legendFormat": "{{job}}",
@@ -4107,7 +5295,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 127
+        "y": 169
       },
       "id": 8,
       "panels": [],
@@ -4180,7 +5368,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 128
+        "y": 170
       },
       "id": 9,
       "options": {
@@ -4204,7 +5392,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(\n  sum by (job) (\n    increase(lean_attestations_valid_total{job=~\"$job\"}[$__rate_interval])\n  )[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (\n    increase(lean_attestations_valid_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n  )[5m:]\n)",
           "interval": "",
           "legendFormat": "{{job}} {{source}}",
           "range": true,
@@ -4279,7 +5467,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 128
+        "y": 170
       },
       "id": 10,
       "options": {
@@ -4303,7 +5491,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(\n  sum by (job) (increase(lean_attestations_invalid_total{job=~\"$job\"}[$__rate_interval]))[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (increase(lean_attestations_invalid_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))[5m:]\n)",
           "legendFormat": "{{job}} {{source}}",
           "range": true,
           "refId": "A"
@@ -4378,7 +5566,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 128
+        "y": 170
       },
       "id": 11,
       "options": {
@@ -4402,7 +5590,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, rate(lean_attestation_validation_time_seconds_bucket{job=~\"$job\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, rate(lean_attestation_validation_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -4477,7 +5665,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 136
+        "y": 178
       },
       "id": 67,
       "options": {
@@ -4501,7 +5689,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": " sum by (job) (lean_safe_target_slot{job=~\"$job\"})",
+          "expr": " sum by (network, job, instance) (lean_safe_target_slot{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"})",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -4577,7 +5765,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 136
+        "y": 178
       },
       "id": 27,
       "options": {
@@ -4602,7 +5790,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "avg_over_time(\n  sum by (job) (increase(lean_state_transition_attestations_processed_total{job=~\"$job\"}[$__rate_interval]))[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (increase(lean_state_transition_attestations_processed_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))[5m:]\n)",
           "instant": false,
           "legendFormat": "{{job}}",
           "range": true,
@@ -4679,7 +5867,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 136
+        "y": 178
       },
       "id": 28,
       "options": {
@@ -4703,7 +5891,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99,\n rate(lean_state_transition_attestations_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "histogram_quantile(0.99,\n rate(lean_state_transition_attestations_processing_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -4770,7 +5958,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -4778,7 +5967,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 144
+        "y": 186
       },
       "id": 83,
       "options": {
@@ -4802,14 +5991,14 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, rate(lean_attestations_production_time_seconds_bucket{job=~\"$job\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, rate(lean_attestations_production_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{job}} {{source}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Time taken to produce attestations",
+      "title": "Time taken to produce attestation",
       "type": "timeseries"
     },
     {
@@ -4878,7 +6067,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 144
+        "y": 186
       },
       "id": 84,
       "options": {
@@ -4902,7 +6091,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, rate(lean_committee_signatures_aggregation_time_seconds_bucket{job=~\"$job\"}[$__rate_interval]))",
+          "expr": "histogram_quantile(0.99, rate(lean_committee_signatures_aggregation_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -4917,7 +6106,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 152
+        "y": 194
       },
       "id": 21,
       "panels": [],
@@ -4991,7 +6180,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 153
+        "y": 195
       },
       "id": 23,
       "options": {
@@ -5015,7 +6204,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, \n  rate(lean_state_transition_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_state_transition_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -5092,7 +6281,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 153
+        "y": 195
       },
       "id": 24,
       "options": {
@@ -5116,7 +6305,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, \n  rate(lean_state_transition_block_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "histogram_quantile(0.99, \n  rate(lean_state_transition_block_processing_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
           "interval": "",
           "legendFormat": "{{job}}",
           "range": true,
@@ -5193,7 +6382,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 161
+        "y": 203
       },
       "id": 25,
       "options": {
@@ -5217,7 +6406,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(\n  sum by (job) (increase(lean_state_transition_slots_processed_total{job=~\"$job\"}[$__rate_interval]))[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (increase(lean_state_transition_slots_processed_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))[5m:]\n)",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -5293,7 +6482,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 161
+        "y": 203
       },
       "id": 26,
       "options": {
@@ -5317,7 +6506,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99,\n rate(lean_state_transition_slots_processing_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])\n)",
+          "expr": "histogram_quantile(0.99,\n rate(lean_state_transition_slots_processing_time_seconds_bucket{network=~\"$network\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n)",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -5393,7 +6582,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 169
+        "y": 211
       },
       "id": 70,
       "options": {
@@ -5417,34 +6606,111 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(\n  sum by (job) (increase(lean_finalizations_total{job=~\"$job\"}[$__rate_interval]))[5m:]\n)",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (increase(lean_finalizations_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\", result=\"success\"}[1m]))[5m:]\n)",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Finalizations total",
+      "title": "Finalizations - Success",
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 169
+        "y": 211
       },
-      "id": 52,
+      "id": 71,
       "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "content": "",
-        "mode": "markdown"
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "pluginVersion": "12.3.2",
-      "type": "text"
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time(\n  sum by (network, job, instance) (increase(lean_finalizations_total{network=~\"$network\", job=~\"$job\", instance=~\"$instance\", result=\"error\"}[1m]))[5m:]\n)",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Finalizations - Errors",
+      "type": "timeseries"
     }
   ],
   "preload": false,
@@ -5458,7 +6724,23 @@
       {
         "allowCustomValue": false,
         "current": {},
-        "definition": "label_values(job)",
+        "definition": "label_values(network)",
+        "label": "Network",
+        "name": "network",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(network)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {},
+        "definition": "label_values(lean_node_info{network=~\"$network\"}, job)",
         "includeAll": true,
         "label": "Job",
         "multi": true,
@@ -5466,11 +6748,29 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(job)",
+          "query": "label_values(lean_node_info{network=~\"$network\"}, job)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": ".*ethlambda.*|.*gean.*|.*grandine.*|.*lantern.*|.*lighthouse.*|.*qlean.*|.*ream.*|.*zeam.*",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {},
+        "definition": "label_values(lean_node_info{network=~\"$network\", job=~\"$job\"}, instance)",
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(lean_node_info{network=~\"$network\", job=~\"$job\"}, instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
         "type": "query"
       },
       {
@@ -5490,14 +6790,14 @@
     ]
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "utc",
   "title": "Lean Ethereum Clients Dashboard",
   "uid": "lean-ethereum-clients-dashboard",
-  "version": 16,
+  "version": 25,
   "weekStart": "",
   "id": null
 }

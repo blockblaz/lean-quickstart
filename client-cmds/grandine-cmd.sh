@@ -6,6 +6,15 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+    aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
+fi
+
 # Set attestation committee count flag if explicitly configured
 attestation_committee_flag=""
 if [ -n "$attestationCommitteeCount" ]; then
@@ -20,7 +29,7 @@ fi
 
 node_binary="$grandine_bin \
         --genesis $configDir/config.yaml \
-        --validator-registry-path $configDir/validators.yaml \
+        --validator-registry-path $configDir/annotated_validators.yaml \
         --bootnodes $configDir/nodes.yaml \
         --node-id $item \
         --node-key $configDir/$privKeyPath \
@@ -34,11 +43,12 @@ node_binary="$grandine_bin \
         --hash-sig-key-dir $configDir/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \
+        $aggregate_subnet_ids_flag \
         $checkpoint_sync_flag"
 
-node_docker="sifrai/lean:devnet-3 \
+node_docker="sifrai/lean:devnet-4 \
         --genesis /config/config.yaml \
-        --validator-registry-path /config/validators.yaml \
+        --validator-registry-path /config/annotated_validators.yaml \
         --bootnodes /config/nodes.yaml \
         --node-id $item \
         --node-key /config/$privKeyPath \
@@ -52,6 +62,7 @@ node_docker="sifrai/lean:devnet-3 \
         --hash-sig-key-dir /config/hash-sig-keys \
         $attestation_committee_flag \
         $aggregator_flag \
+        $aggregate_subnet_ids_flag \
         $checkpoint_sync_flag"
 
 # choose either binary or docker

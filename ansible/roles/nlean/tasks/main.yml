@@ -22,7 +22,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    nlean_docker_image: "{{ nlean_docker_image_raw.stdout | trim | default('ghcr.io/nleaneth/nlean:latest') }}"
+    nlean_docker_image: "{{ nlean_docker_image_raw.stdout | trim | default('ghcr.io/nleaneth/nlean:devnet4') }}"
     deployment_mode: "{{ nlean_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -91,7 +91,7 @@
         -v {{ genesis_dir }}:/config:ro
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ nlean_docker_image }}
-        --validator-config /config/validator-config.yaml
+        --custom-network-config-dir /config
         --node {{ node_name }}
         --data-dir /data
         --network {{ nlean_network_name }}
@@ -102,8 +102,10 @@
         --metrics-address 0.0.0.0
         --hash-sig-key-dir /config/hash-sig-keys
         --api-port {{ nlean_api_port }}
+        {{ ('--attestation-committee-count ' + (attestation_committee_count | string)) if (attestation_committee_count is defined and attestation_committee_count | int > 1) else '' }}
         {{ '--is-aggregator' if (nlean_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
+        {{ ('--log ' + nlean_log_level) if (nlean_log_level is defined and nlean_log_level | length > 0) else '' }}
       register: nlean_container
       changed_when: nlean_container.rc == 0
   when: deployment_mode == 'docker'

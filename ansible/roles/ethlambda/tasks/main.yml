@@ -26,7 +26,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:latest') }}"
+    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:devnet4') }}"
     deployment_mode: "{{ ethlambda_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -49,6 +49,22 @@
     ethlambda_api_port: "{{ ethlambda_node_config.results[2].stdout }}"
     ethlambda_is_aggregator: "{{ 'true' if (ethlambda_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: ethlambda_node_config is defined
+
+# Compute the full set of subnet ids in the network so aggregators can subscribe
+# to attestations from every subnet (not just the one their validators live in).
+# Required in multi-subnet deployments for cross-subnet attestation aggregation.
+- name: Compute all subnet ids from validator-config.yaml
+  shell: |
+    yq eval '[.validators[].subnet] | unique | sort | join(",")' "{{ local_validator_config_path }}"
+  register: ethlambda_all_subnets_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set aggregate subnet ids csv
+  set_fact:
+    ethlambda_aggregate_subnet_ids: "{{ ethlambda_all_subnets_raw.stdout | trim }}"
+  run_once: true
 
 - name: Ensure node key file exists
   stat:
@@ -104,6 +120,7 @@
         --api-port {{ ethlambda_api_port }}
         --metrics-port {{ ethlambda_metrics_port }}
         {{ '--is-aggregator' if (ethlambda_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--aggregate-subnet-ids ' + ethlambda_aggregate_subnet_ids) if (ethlambda_is_aggregator | default('false')) == 'true' and (',' in ethlambda_aggregate_subnet_ids | default('')) else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ethlambda_container
       changed_when: ethlambda_container.rc == 0

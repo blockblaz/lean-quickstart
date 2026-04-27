@@ -38,6 +38,9 @@
 #   ./spin-node.sh --prepare [--sshKey ~/.ssh/id_ed25519] [--useRoot]
 #
 # Only runs on remote hosts (localhost is excluded).
+#
+# run-ansible.sh uses inventory/hosts-prepare.yml (one host per unique enrFields.ip)
+# so Docker/apt run once per machine, not once per zeam_0..zeam_4 on the same IP.
 
 - name: Prepare remote servers
   hosts: all:!localhost
@@ -188,7 +191,7 @@
     # Both are checked and installed if absent before any rules are applied.
     #
     # Port lookup uses the active validator config file, which is the
-    # --subnets-expanded file (e.g. validator-config-subnets-3.yaml) when
+    # validator-config-expanded.yaml (from --subnets N) when
     # --subnets N was passed, or validator-config.yaml otherwise.
     # validator_config_basename is injected by run-ansible.sh.
     #

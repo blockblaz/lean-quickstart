@@ -71,6 +71,13 @@ if [ "$deployment_mode" == "ansible" ] && ([ "$validatorConfig" == "genesis_boot
     echo "Using Ansible deployment: configDir=$configDir, validator config=$validator_config_file"
 fi
 
+# --network is required for ansible; defaults to devnet-3 for local
+if [ "$deployment_mode" == "ansible" ] && [ -z "$networkName" ]; then
+    echo "Error: --network is required for ansible deployments."
+    exit 1
+fi
+networkName="${networkName:-devnet-3}"
+
 # Set up logging if --logs flag is enabled
 if [ "$enableLogs" == "true" ]; then
     _log_dir="$scriptDir/tmp"
@@ -103,29 +110,42 @@ fi
 # file with N nodes per client (same IP, unique incremented ports and keys).
 # This must run after configDir/validator_config_file are resolved so the
 # generated file lands in the correct genesis directory.
+#
+# Skip expansion when the file's attestation_committee_count already covers the
+# requested subnet count (the config is already set up for that many subnets).
+# --subnets takes precedence only when it exceeds the file's value (default 1).
 if [ -n "$subnets" ] && [ "$subnets" -ge 1 ] 2>/dev/null; then
   if ! [[ "$subnets" =~ ^[0-9]+$ ]] || [ "$subnets" -lt 1 ] || [ "$subnets" -gt 5 ]; then
     echo "Error: --subnets requires an integer between 1 and 5, got: $subnets"
     exit 1
   fi
 
-  if ! command -v python3 &> /dev/null; then
-    echo "Error: python3 is required to generate the subnet config."
-    exit 1
+  _file_ac=1
+  if [ -f "$validator_config_file" ]; then
+    _file_ac=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
   fi
 
-  expanded_config="${configDir}/validator-config-subnets-${subnets}.yaml"
-  [ "$dryRun" == "true" ] && echo "[DRY RUN] Generating subnet config preview (no deployment will occur)"
-  echo "Generating subnet config ($subnets subnet(s) per client) → $expanded_config"
+  if [ "$_file_ac" -ge "$subnets" ] 2>/dev/null; then
+    echo "Config attestation_committee_count ($_file_ac) already covers --subnets $subnets; skipping subnet expansion."
+  else
+    if ! command -v python3 &> /dev/null; then
+      echo "Error: python3 is required to generate the subnet config."
+      exit 1
+    fi
 
-  if ! python3 "$scriptDir/generate-subnet-config.py" \
-      "$validator_config_file" "$subnets" "$expanded_config"; then
-    echo "❌ Failed to generate subnet config."
-    exit 1
+    expanded_config="${configDir}/validator-config-expanded.yaml"
+    [ "$dryRun" == "true" ] && echo "[DRY RUN] Generating subnet config preview (no deployment will occur)"
+    echo "Generating subnet config ($subnets subnet(s)) → $expanded_config"
+
+    if ! python3 "$scriptDir/generate-subnet-config.py" \
+        "$validator_config_file" "$subnets" "$expanded_config"; then
+      echo "❌ Failed to generate subnet config."
+      exit 1
+    fi
+
+    validator_config_file="$expanded_config"
+    echo "Using expanded config: $validator_config_file"
   fi
-
-  validator_config_file="$expanded_config"
-  echo "Using expanded config: $validator_config_file"
 fi
 
 # Handle --prepare mode: verify and install required software on all remote servers.
@@ -154,8 +174,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
   [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
   [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
   [ -n "$skipNemo" ]            && ignored_flags+=("--skip-nemo")
-  [ -n "$validatorConfig" ] && [ "$validatorConfig" != "genesis_bootnode" ] \
-                                && ignored_flags+=("--validatorConfig")
+  # --validatorConfig is allowed: inventory and prepare targets must match the chosen config.
 
   if [ ${#ignored_flags[@]} -gt 0 ]; then
     echo ""
@@ -168,9 +187,12 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
     done
     echo "╠══════════════════════════════════════════════════════════════╣"
     echo "║  Allowed flags with --prepare:                              ║"
+    echo "║    • --validatorConfig <path>                               ║"
+    echo "║    • --subnets N                                            ║"
     echo "║    • --sshKey / --private-key                               ║"
     echo "║    • --useRoot                                              ║"
     echo "║    • --deploymentMode ansible                               ║"
+    echo "║    • --network, --dry-run, --logs                           ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo ""
     exit 1
@@ -233,7 +255,7 @@ echo "Detected nodes: ${nodes[@]}"
 spin_nodes=()
 restart_with_checkpoint_sync=false
 
-# Aggregator selection — one randomly chosen aggregator per subnet.
+# Aggregator selection — one aggregator per subnet.
 #
 # Skipped entirely for --restart-client: restarting a single node must not
 # disturb the existing isAggregator assignments for the rest of the network.
@@ -244,11 +266,47 @@ restart_with_checkpoint_sync=false
 # default to subnet 0 regardless of their name suffix.
 #
 # When --aggregator is specified, that node is used as the aggregator for
-# its own subnet; all other subnets still get a random selection.
+# its own subnet; all other subnets still get a random selection (still
+# excluding that node's client type from pools on other subnets).
+#
+# Default random mode (no --aggregator): aggregators are unique by CLIENT
+# (prefix before the first '_', e.g. zeam from zeam_0). Example with 5 subnets:
+# if zeam_* is chosen for subnet 0, no zeam_* node may be aggregator on
+# subnets 1–4. If subnets outnumber distinct clients, the pool is exhausted
+# and we fall back to unrestricted random with a warning.
 
-# Helper: get the subnet index for a node from the config (defaults to 0).
+# Helper: get the subnet index for a node from the config.
+# If the node has an explicit 'subnet' field, use it.
+# Otherwise derive it from: validator_index % attestation_committee_count,
+# where validator_index is the first validator assigned to this node by the
+# genesis tool (cumulative sum of preceding nodes' 'count' fields).
 _node_subnet() {
-  yq eval ".validators[] | select(.name == \"$1\") | .subnet // 0" "$validator_config_file"
+  local _sn
+  _sn=$(yq eval ".validators[] | select(.name == \"$1\") | .subnet // \"\"" "$validator_config_file")
+  if [ -n "$_sn" ]; then
+    echo "$_sn"
+    return
+  fi
+  local _acc
+  _acc=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
+  local _vi=0
+  local _line
+  while IFS=' ' read -r _name _count; do
+    if [ "$_name" == "$1" ]; then
+      echo $(( _vi % _acc ))
+      return
+    fi
+    _vi=$(( _vi + _count ))
+  done < <(yq eval '.validators[] | .name + " " + ((.count // 1) | tostring)' "$validator_config_file")
+  echo "0"
+}
+
+# Helper: client type prefix (matches generate-subnet-config.py _client_name).
+_client_prefix() {
+  case "$1" in
+    *_*) printf '%s\n' "${1%%_*}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
 }
 
 if [ -n "$restartClient" ]; then
@@ -302,7 +360,9 @@ else
 
   # Select one aggregator per subnet and set the flag.
   # Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
+  # _used_agg_prefixes: client types already chosen (default random / preset / --aggregator).
   _aggregator_summary=()
+  _used_agg_prefixes=" "
   for _subnet_idx in "${_unique_subnets[@]}"; do
     _subnet_nodes=()
     for _node in "${nodes[@]}"; do
@@ -324,15 +384,45 @@ else
       done
       if [[ "$_preset_valid" == "true" ]]; then
         _selected_agg="$_preset"
+        # Default mode: one client type at most once across subnets — drop conflicting presets.
+        if [ -z "$aggregatorNode" ]; then
+          _pp="$(_client_prefix "$_selected_agg")"
+          if [[ "$_used_agg_prefixes" == *" $_pp "* ]]; then
+            echo "Warning: preset aggregator '$_preset' (client $_pp) already aggregates another subnet; selecting randomly in subnet $_subnet_idx." >&2
+            _selected_agg=""
+          fi
+        fi
       else
         # Preset node no longer exists — fall back to random and warn.
         echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
-        _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
+        _selected_agg=""
       fi
-    else
-      # 3. No preference set — pick randomly.
-      _selected_agg="${_subnet_nodes[$((RANDOM % ${#_subnet_nodes[@]}))]}"
     fi
+
+    # 3. Random (or preset fallback): prefer client types not yet used as aggregator.
+    if [ -z "$_selected_agg" ]; then
+      _eligible_aggs=()
+      for _n in "${_subnet_nodes[@]}"; do
+        _np="$(_client_prefix "$_n")"
+        case "$_used_agg_prefixes" in
+          *" $_np "*) : ;;
+          *) _eligible_aggs+=("$_n") ;;
+        esac
+      done
+      if [ ${#_eligible_aggs[@]} -eq 0 ] && [ ${#_subnet_nodes[@]} -gt 0 ]; then
+        echo "Warning: subnet $_subnet_idx — no unused client type left for aggregator (subnets > distinct clients?); picking among all nodes in this subnet." >&2
+        _eligible_aggs=("${_subnet_nodes[@]}")
+      fi
+      if [ ${#_eligible_aggs[@]} -gt 0 ]; then
+        _selected_agg="${_eligible_aggs[$((RANDOM % ${#_eligible_aggs[@]}))]}"
+      else
+        echo "Error: subnet $_subnet_idx has no nodes to select an aggregator from." >&2
+        exit 1
+      fi
+    fi
+
+    _sel_pref="$(_client_prefix "$_selected_agg")"
+    _used_agg_prefixes+="$_sel_pref "
 
     if [ "$dryRun" != "true" ]; then
       yq eval -i "(.validators[] | select(.name == \"$_selected_agg\") | .isAggregator) = true" "$validator_config_file"
@@ -364,7 +454,7 @@ else
 
 fi  # end: aggregator selection (skipped for --restart-client)
 
-# Print a prominent aggregator summary banner (only when aggregator selection ran).
+# Print aggregator selection summary inline (quick confirmation during setup).
 if [ ${#_aggregator_summary[@]} -gt 0 ]; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
@@ -376,6 +466,34 @@ if [ ${#_aggregator_summary[@]} -gt 0 ]; then
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
 fi
+
+# Print deployment summary: subnet count and all clients per subnet.
+_print_deployment_summary() {
+  if [ ${#_unique_subnets[@]} -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║               📊 Deployment Summary                        ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    printf "║  %-60s║\n" "Subnets deployed: ${#_unique_subnets[@]}"
+    printf "║  %-60s║\n" "Total nodes: ${#nodes[@]}"
+    for _subnet_idx in "${_unique_subnets[@]}"; do
+      echo "╠══════════════════════════════════════════════════════════════╣"
+      printf "║  %-60s║\n" "Subnet $_subnet_idx:"
+      for _node in "${nodes[@]}"; do
+        if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
+          _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+          if [[ "$_is_agg" == "true" ]]; then
+            printf "║    %-58s║\n" "$_node (aggregator)"
+          else
+            printf "║    %-58s║\n" "$_node"
+          fi
+        fi
+      done
+    done
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+  fi
+}
 
 # When --restart-client is specified, use it as the node list and enable checkpoint sync mode
 if [[ -n "$restartClient" ]]; then
@@ -645,7 +763,8 @@ if [ "$deployment_mode" == "ansible" ]; then
     fi
   fi
 
-  # Ansible deployment succeeded, exit normally
+  # Ansible deployment succeeded — print summary and exit.
+  _print_deployment_summary
   exit 0
 fi
 
@@ -835,8 +954,9 @@ for item in "${spin_nodes[@]}"; do
     echo "[DRY RUN] Would execute: $execCmd"
     pid=0
   else
+    sed_remove_ansi='s/\x1b\[[0-9;]*[mJHG]//g'
     echo "$execCmd"
-    eval "$execCmd" &
+    eval "$execCmd" > >(tee >(sed -r "$sed_remove_ansi" > "$itemDataDir/stdout.log")) 2> >(tee >(sed -r "$sed_remove_ansi" > "$itemDataDir/stderr.log") >&2) &
     pid=$!
   fi
   spinned_pids+=($pid)
@@ -935,6 +1055,8 @@ cleanup() {
     fi
   fi
 }
+
+_print_deployment_summary
 
 trap "echo exit signal received;cleanup" SIGINT SIGTERM
 echo -e "\n\nwaiting for nodes to exit"
