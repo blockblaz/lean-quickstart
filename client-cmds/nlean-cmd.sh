@@ -72,13 +72,11 @@ node_binary="$binary_path \
       --custom-network-config-dir $configDir \
       --node $item \
       --data-dir $dataDir/$item \
-      --network $nlean_network_name \
       --node-key $configDir/$node_private_key_path \
       --socket-port $quicPort \
       --metrics $enable_metrics \
       --metrics-port $metricsPort \
       --metrics-address 0.0.0.0 \
-      --hash-sig-key-dir $configDir/hash-sig-keys \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
@@ -113,16 +111,14 @@ if [[ -n "${NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR:-}" ]]; then
 fi
 
 node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
-      --custom-network-config-dir $configDir \
+      --custom-network-config-dir /config \
       --node $item \
       --data-dir /data \
-      --network $nlean_network_name \
       --node-key /config/$node_private_key_path \
       --socket-port $quicPort \
       --metrics $enable_metrics \
       --metrics-port $metricsPort \
       --metrics-address 0.0.0.0 \
-      --hash-sig-key-dir /config/hash-sig-keys \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
