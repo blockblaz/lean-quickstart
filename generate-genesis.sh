@@ -15,7 +15,7 @@ PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"
 # ========================================
 show_usage() {
     cat << EOF
-Usage: $0 <genesis-directory> [--mode local|ansible] [--offset <seconds>] [--forceKeyGen] [--validator-config <path>]
+Usage: $0 <genesis-directory> [--mode local|ansible] [--offset <seconds>] [--genesis-time <timestamp>] [--forceKeyGen] [--validator-config <path>]
 
 Generate genesis configuration files using PK's eth-beacon-genesis tool.
 Generates: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, and .key files
@@ -30,6 +30,8 @@ Options:
                        - local: GENESIS_TIME = now + 30 seconds (default)
                        - ansible: GENESIS_TIME = now + 360 seconds (default)
   --offset <seconds>   Override genesis time offset in seconds (overrides mode defaults)
+  --genesis-time <ts>  Use exact genesis timestamp (unix seconds). Overrides --mode and --offset.
+                       Useful for Shadow simulator (e.g., 946684860) or replay scenarios.
   --forceKeyGen        Force regeneration of hash-sig validator keys
   --validator-config   Path to a custom validator-config.yaml (default: <genesis-directory>/validator-config.yaml)
 
@@ -37,6 +39,7 @@ Examples:
   $0 local-devnet/genesis                      # Local mode (30s offset)
   $0 ansible-devnet/genesis --mode ansible     # Ansible mode (360s offset)
   $0 ansible-devnet/genesis --mode ansible --offset 600  # Custom 600s offset
+  $0 shadow-devnet/genesis --genesis-time 946684860      # Shadow simulator (fixed epoch)
 
 Generated Files:
   - config.yaml        Auto-generated with GENESIS_TIME, VALIDATOR_COUNT, shuffle, and config.activeEpoch
@@ -90,6 +93,7 @@ VALIDATOR_CONFIG_FILE="$GENESIS_DIR/validator-config.yaml"
 SKIP_KEY_GEN="true"
 DEPLOYMENT_MODE="local"  # Default to local mode
 GENESIS_TIME_OFFSET=""   # Will be set based on mode or --offset flag
+EXACT_GENESIS_TIME=""    # If set, use this exact timestamp (ignores mode/offset)
 shift
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -116,6 +120,19 @@ while [[ $# -gt 0 ]]; do
                 shift 2
             else
                 echo "❌ Error: --offset requires a value (positive integer)"
+                exit 1
+            fi
+            ;;
+        --genesis-time)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                    echo "❌ Error: --genesis-time requires a positive integer (unix timestamp)"
+                    exit 1
+                fi
+                EXACT_GENESIS_TIME="$2"
+                shift 2
+            else
+                echo "❌ Error: --genesis-time requires a value (unix timestamp)"
                 exit 1
             fi
             ;;
@@ -348,21 +365,27 @@ echo ""
 # ========================================
 echo "🔧 Step 2: Generating config.yaml..."
 
-# Calculate genesis time based on deployment mode or explicit offset
+# Calculate genesis time based on deployment mode, explicit offset, or exact timestamp
 # Default offsets: Local mode: 30 seconds, Ansible mode: 360 seconds
-TIME_NOW="$(date +%s)"
-if [ -n "$GENESIS_TIME_OFFSET" ]; then
-    # Use explicit offset if provided
-    :
-elif [ "$DEPLOYMENT_MODE" == "local" ]; then
-    GENESIS_TIME_OFFSET=30
+if [ -n "$EXACT_GENESIS_TIME" ]; then
+    # Use exact genesis time (e.g., for Shadow simulator)
+    GENESIS_TIME="$EXACT_GENESIS_TIME"
+    echo "   Using exact genesis time: $GENESIS_TIME"
 else
-    GENESIS_TIME_OFFSET=360
+    TIME_NOW="$(date +%s)"
+    if [ -n "$GENESIS_TIME_OFFSET" ]; then
+        # Use explicit offset if provided
+        :
+    elif [ "$DEPLOYMENT_MODE" == "local" ]; then
+        GENESIS_TIME_OFFSET=30
+    else
+        GENESIS_TIME_OFFSET=360
+    fi
+    GENESIS_TIME=$((TIME_NOW + GENESIS_TIME_OFFSET))
+    echo "   Deployment mode: $DEPLOYMENT_MODE"
+    echo "   Genesis time offset: ${GENESIS_TIME_OFFSET}s"
+    echo "   Genesis time: $GENESIS_TIME"
 fi
-GENESIS_TIME=$((TIME_NOW + GENESIS_TIME_OFFSET))
-echo "   Deployment mode: $DEPLOYMENT_MODE"
-echo "   Genesis time offset: ${GENESIS_TIME_OFFSET}s"
-echo "   Genesis time: $GENESIS_TIME"
 
 # Sum all individual validator counts from validator-config.yaml
 TOTAL_VALIDATORS=$(yq eval '.validators[].count' "$VALIDATOR_CONFIG_FILE" | awk '{sum+=$1} END {print sum}')
@@ -511,7 +534,8 @@ while IFS= read -r validator_name; do
         ACTUAL_INDEX=$((CUMULATIVE_INDEX + idx))
         # Build YAML structure in temp file
         # strip 0x from PUBKEY_HEX
-        echo "    - \"${PUBKEY_HEX#0x}\"" >> "$GENESIS_VALIDATORS_TMP"
+        echo "    - attestation_pubkey: \"${PUBKEY_HEX#0x}\"" >> "$GENESIS_VALIDATORS_TMP"
+        echo "      proposal_pubkey: \"${PUBKEY_HEX#0x}\"" >> "$GENESIS_VALIDATORS_TMP"
     done
     
     CUMULATIVE_INDEX=$((CUMULATIVE_INDEX + COUNT))
@@ -611,12 +635,29 @@ for idx in "${!ASSIGNMENT_NODE_NAMES[@]}"; do
         fi
 
         PUBKEY_HEX_NO_PREFIX="${PUBKEY_HEX_VALUE#0x}"
-        PRIVKEY_FILENAME="validator_${raw_index}_sk.ssz"
+        ATTESTER_PRIVKEY_FILENAME="validator_${raw_index}_attester_sk.ssz"
+        PROPOSER_PRIVKEY_FILENAME="validator_${raw_index}_proposer_sk.ssz"
+
+        # Create attester/proposer copies of the original key file (same key for both roles)
+        # Use hard copies instead of symlinks for Shadow simulator compatibility
+        ORIG_KEY="validator_${raw_index}_sk.ssz"
+        KEYS_DIR="$GENESIS_DIR/hash-sig-keys"
+        if [ -f "$KEYS_DIR/$ORIG_KEY" ]; then
+            cp -f "$KEYS_DIR/$ORIG_KEY" "$KEYS_DIR/$ATTESTER_PRIVKEY_FILENAME" 2>/dev/null || true
+            cp -f "$KEYS_DIR/$ORIG_KEY" "$KEYS_DIR/$PROPOSER_PRIVKEY_FILENAME" 2>/dev/null || true
+            # Also create pk copies
+            ORIG_PK="validator_${raw_index}_pk.ssz"
+            cp -f "$KEYS_DIR/$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_attester_pk.ssz" 2>/dev/null || true
+            cp -f "$KEYS_DIR/$ORIG_PK" "$KEYS_DIR/validator_${raw_index}_proposer_pk.ssz" 2>/dev/null || true
+        fi
 
         cat << EOF >> "$NODE_ASSIGNMENTS_TMP"
   - index: $raw_index
     pubkey_hex: $PUBKEY_HEX_NO_PREFIX
-    privkey_file: $PRIVKEY_FILENAME
+    privkey_file: $ATTESTER_PRIVKEY_FILENAME
+  - index: $raw_index
+    pubkey_hex: $PUBKEY_HEX_NO_PREFIX
+    privkey_file: $PROPOSER_PRIVKEY_FILENAME
 EOF
     done < <(yq eval "$INDEX_QUERY" "$VALIDATORS_OUTPUT_FILE" 2>/dev/null)
 
