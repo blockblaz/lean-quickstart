@@ -24,7 +24,11 @@ fi
 
 # Command when running as binary
 node_binary="$binary_path \
-      --custom-network-config-dir $configDir \
+      --genesis $configDir/config.yaml \
+      --validators $configDir/annotated_validators.yaml \
+      --bootnodes $configDir/nodes.yaml \
+      --validator-config $configDir/validator-config.yaml \
+      --hash-sig-keys-dir $configDir/hash-sig-keys \
       --data-dir $dataDir/$item \
       --gossipsub-port $quicPort \
       --node-id $item \
@@ -38,7 +42,11 @@ node_binary="$binary_path \
 
 # Command when running as docker container
 node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
-      --custom-network-config-dir /config \
+      --genesis /config/config.yaml \
+      --validators /config/annotated_validators.yaml \
+      --bootnodes /config/nodes.yaml \
+      --validator-config /config/validator-config.yaml \
+      --hash-sig-keys-dir /config/hash-sig-keys \
       --data-dir /data \
       --gossipsub-port $quicPort \
       --node-id $item \
