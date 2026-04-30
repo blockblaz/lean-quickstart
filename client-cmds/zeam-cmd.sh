@@ -38,6 +38,11 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
+# On-disk database engine (requires a zeam build that supports --db-backend).
+# Override with e.g. ZEAM_DB_BACKEND=rocksdb for RocksDB.
+zeam_db_backend="${ZEAM_DB_BACKEND:-lmdb}"
+db_backend_flag="--db-backend ${zeam_db_backend}"
+
 node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig \
@@ -49,7 +54,8 @@ node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       $attestation_committee_flag \
       $aggregator_flag \
       $aggregate_subnet_ids_flag \
-      $checkpoint_sync_flag"
+      $checkpoint_sync_flag \
+      $db_backend_flag"
 
 node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_global_flags node \
       --custom_genesis /config \
@@ -62,7 +68,8 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_glob
       $attestation_committee_flag \
       $aggregator_flag \
       $aggregate_subnet_ids_flag \
-      $checkpoint_sync_flag"
+      $checkpoint_sync_flag \
+      $db_backend_flag"
 
 # choose either binary or docker
 node_setup="docker"

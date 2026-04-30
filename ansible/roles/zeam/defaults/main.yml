@@ -11,6 +11,9 @@ deployment_mode: docker  # docker or binary
 # Override when using a zeam build that supports them, e.g. "--console-log-level debug"
 zeam_global_flags: ""
 
+# On-disk store for zeam node (requires zeam with --db-backend). Keep in sync with client-cmds/zeam-cmd.sh.
+zeam_db_backend: "lmdb"
+
 # These should be passed from the playbook
 node_name: ""
 genesis_dir: ""

@@ -125,6 +125,7 @@
         {{ '--is-aggregator' if (zeam_is_aggregator | default('false')) == 'true' else '' }}
         {{ ('--aggregate-subnet-ids ' + zeam_aggregate_subnet_ids) if (zeam_is_aggregator | default('false')) == 'true' and (',' in zeam_aggregate_subnet_ids | default('')) else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
+        {{ ('--db-backend ' + zeam_db_backend) if (zeam_db_backend | default('') | length > 0) else '' }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0
 
