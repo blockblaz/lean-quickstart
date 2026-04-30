@@ -101,12 +101,12 @@
         {{ zeam_docker_image }}
         {{ zeam_global_flags }}
         node
-        --custom_genesis /config
-        --validator_config /config
+        --custom-genesis /config
+        --validator-config /config
         --data-dir /data
         --node-id {{ node_name }}
         --node-key /config/{{ node_name }}.key
-        --metrics_enable
+        --metrics-enable
         --api-port {{ zeam_api_port }}
         --metrics-port {{ zeam_metrics_port }}
         {{ '--is-aggregator' if (zeam_is_aggregator | default('false')) == 'true' else '' }}
