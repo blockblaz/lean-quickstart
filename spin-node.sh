@@ -764,6 +764,8 @@ for item in "${spin_nodes[@]}"; do
     fi
     echo "$cmd"
     eval "$cmd"
+  else
+    echo "preserving existing data in $itemDataDir"
   fi
 
   # parse validator-config.yaml for $item to load args values
