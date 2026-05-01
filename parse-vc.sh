@@ -69,15 +69,20 @@ if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
     isAggregator="false"
 fi
 
-# Compute the full set of unique subnet ids as a CSV (e.g. "0,1"). Aggregators
-# in multi-subnet deployments must subscribe to every subnet's attestation
-# topic to aggregate votes across committees. Client-cmd scripts pass this
-# along as --aggregate-subnet-ids when the node is an aggregator and the
-# network has more than one subnet.
-aggregateSubnetIds=$(yq eval '[.validators[].subnet // 0] | unique | sort | join(",")' "$validator_config_file")
-if [ -z "$aggregateSubnetIds" ] || [ "$aggregateSubnetIds" == "null" ]; then
-    aggregateSubnetIds=""
-fi
+# CSV of all attestation subnet ids (e.g. "0,1"). Clients do not read a YAML
+# `subnet:` field for consensus — subnets are validator_index % committee_count.
+# Aggregators must still hear every subnet, so derive ids from
+# config.attestation_committee_count (not from per-validator subnet metadata).
+_ac=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
+_ac=$(echo "$_ac" | tr -d '\r\n' | head -1)
+case "$_ac" in ''|*[!0-9]*) _ac=1;; esac
+if [ "$_ac" -lt 1 ] 2>/dev/null; then _ac=1; fi
+aggregateSubnetIds="0"
+_i=1
+while [ "$_i" -lt "$_ac" ] 2>/dev/null; do
+    aggregateSubnetIds+=",$_i"
+    _i=$((_i + 1))
+done
 export aggregateSubnetIds
 
 # Extract attestation_committee_count from config section (optional - only if explicitly set)

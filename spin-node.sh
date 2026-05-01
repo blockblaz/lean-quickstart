@@ -260,10 +260,16 @@ restart_with_checkpoint_sync=false
 # Skipped entirely for --restart-client: restarting a single node must not
 # disturb the existing isAggregator assignments for the rest of the network.
 #
-# Subnet membership is read from the explicit 'subnet:' field in the config,
-# which generate-subnet-config.py writes when --subnets N is used.
-# Nodes without a 'subnet' field (standard single-subnet configs) all
-# default to subnet 0 regardless of their name suffix.
+# Subnet membership for THIS SCRIPT (aggregator pick, deployment summary,
+# Ansible grouping) comes from _node_subnet():
+#   - If the row has an explicit 'subnet:' (e.g. generate-subnet-config.py /
+#     hand-edited devnet layouts), that value is used as-is.
+#   - Otherwise it falls back to validator_index % attestation_committee_count
+#     (first validator index for the node = cumulative sum of prior rows'
+#     count fields), matching how clients choose attestation gossip subnets.
+# When explicit 'subnet:' overrides the formula, the ASCII "Subnet N" box
+# shows ops/inventory groups — not the per-validator committee subnet map.
+# Nodes without 'subnet:' and without a clear rule default to subnet 0.
 #
 # When --aggregator is specified, that node is used as the aggregator for
 # its own subnet; all other subnets still get a random selection (still
@@ -476,6 +482,8 @@ _print_deployment_summary() {
     echo "╠══════════════════════════════════════════════════════════════╣"
     printf "║  %-60s║\n" "Subnets deployed: ${#_unique_subnets[@]}"
     printf "║  %-60s║\n" "Total nodes: ${#nodes[@]}"
+    printf "║  %-60s║\n" "Groups: YAML subnet field (see _node_subnet)."
+    printf "║  %-60s║\n" "Gossip: validator_index % attestation_committee_count."
     for _subnet_idx in "${_unique_subnets[@]}"; do
       echo "╠══════════════════════════════════════════════════════════════╣"
       printf "║  %-60s║\n" "Subnet $_subnet_idx:"

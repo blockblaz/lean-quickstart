@@ -53,9 +53,20 @@
 # Compute the full set of subnet ids in the network so aggregators can subscribe
 # to attestations from every subnet (not just the one their validators live in).
 # Required in multi-subnet deployments for cross-subnet attestation aggregation.
-- name: Compute all subnet ids from validator-config.yaml
+- name: Compute aggregate subnet ids from attestation_committee_count
   shell: |
-    yq eval '[.validators[].subnet] | unique | sort | join(",")' "{{ local_validator_config_path }}"
+    set -e
+    ac=$(yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}")
+    ac=$(echo "$ac" | tr -d '\r\n' | head -1)
+    case "$ac" in ''|*[!0-9]*) ac=1;; esac
+    if [ "$ac" -lt 1 ]; then ac=1; fi
+    out="0"
+    i=1
+    while [ "$i" -lt "$ac" ]; do
+      out="$out,$i"
+      i=$((i + 1))
+    done
+    echo "$out"
   register: ethlambda_all_subnets_raw
   changed_when: false
   delegate_to: localhost
