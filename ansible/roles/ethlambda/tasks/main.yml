@@ -95,7 +95,11 @@
         -v {{ genesis_dir }}:/config:ro
         -v {{ data_dir }}/{{ node_name }}:/data
         {{ ethlambda_docker_image }}
-        --custom-network-config-dir /config
+        --genesis /config/config.yaml
+        --validators /config/annotated_validators.yaml
+        --bootnodes /config/nodes.yaml
+        --validator-config /config/validator-config.yaml
+        --hash-sig-keys-dir /config/hash-sig-keys
         --data-dir /data
         --gossipsub-port {{ ethlambda_quic_port }}
         --node-id {{ node_name }}
