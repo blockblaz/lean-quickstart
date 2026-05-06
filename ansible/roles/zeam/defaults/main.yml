@@ -14,6 +14,16 @@ zeam_global_flags: ""
 # On-disk store for zeam node (requires zeam with --db-backend). Keep in sync with client-cmds/zeam-cmd.sh.
 zeam_db_backend: "lmdb"
 
+# Chain-worker thread routing (zeam #803 slice c-2b/c-2c).
+# Set to "on" to enable the c-2c part 2 burn-in once a zeam build with
+# chain-worker support (>= v0.4.14) is published as blockblaz/zeam:devnet4.
+# Set to "off" to explicitly request the legacy synchronous path on a
+# c-1+ build (kill-switch). Empty default = no flag emitted, so this is
+# a strict no-op against the currently-published v0.4.13 image which
+# doesn't recognise --chain-worker. Keep in sync with
+# client-cmds/zeam-cmd.sh's ZEAM_CHAIN_WORKER env handling.
+zeam_chain_worker: ""
+
 # These should be passed from the playbook
 node_name: ""
 genesis_dir: ""
