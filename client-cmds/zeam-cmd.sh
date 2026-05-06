@@ -45,37 +45,45 @@ db_backend_flag="--db-backend ${zeam_db_backend}"
 
 # Chain-worker thread routing (zeam #803 slice c-2b/c-2c).
 #
-# When `ZEAM_CHAIN_WORKER=on`, zeam runs gossip-block + gossip-attestation
-# producer-side handlers through a dedicated worker thread that owns the
+# When `on`, zeam runs gossip-block + gossip-attestation producer-side
+# handlers through a dedicated worker thread that owns the
 # BeamChain.states map; cross-thread readers (HTTP API, metrics scrape,
-# event broadcaster) skip the rwlock and use refcount-gated borrows. Aim
-# is the c-2c part 2 burn-in: ≥24h on devnet4 with this flag on, watching
-# `zeam_lock_hold_seconds{site="onBlock.commit"}` p99 (should drop) and
-# `lean_chain_state_refcount_distribution` (typical=1, never >16).
+# event broadcaster) skip the rwlock and use refcount-gated borrows.
+# This is the prod path post-c-2b; the c-2c part 2 burn-in on devnet4
+# is what validates it under sustained gossip pressure. Watch:
+# `zeam_lock_hold_seconds{site="onBlock.commit"}` p99 (should drop
+# dramatically vs slice (b) baseline), `lean_chain_state_refcount_distribution`
+# (typical=1, never >16), and `lean_chain_queue_dropped_total` (should
+# stay 0 under nominal load).
 #
-# Default empty: this PR is a strict no-op against any zeam build,
-# including the currently-published `zeam:devnet4` (v0.4.13, pre-c-1)
-# which does not recognise `--chain-worker` at all. The flag is ONLY
-# emitted when ZEAM_CHAIN_WORKER is explicitly set to `on` or `off`.
+# Default `on`: matches the zeam compiled-in default (post-PR #830).
+# Operators can override via `export ZEAM_CHAIN_WORKER=off` to flip
+# back to the legacy synchronous path (kill-switch) without a
+# rebuild/redeploy of zeam itself.
 #
-# To enable the burn-in once v0.4.14 (or later) is published as
-# `blockblaz/zeam:devnet4`:
-#   export ZEAM_CHAIN_WORKER=on
-# before running spin-node.sh / ansible. To explicitly request the
-# legacy synchronous path on a c-1+ build (kill-switch):
-#   export ZEAM_CHAIN_WORKER=off
-zeam_chain_worker="${ZEAM_CHAIN_WORKER:-}"
+# REQUIRES: a zeam build with chain-worker support, i.e.
+# `blockblaz/zeam:devnet4` >= v0.4.15. Older images (v0.4.14 with the
+# broken bool CLI shape, or v0.4.13 / pre-c-1) do not recognise
+# `--chain-worker on` and will fail to start. If running against an
+# older image set `export ZEAM_CHAIN_WORKER=` (empty) to suppress
+# the flag entirely.
+# Note `${VAR-default}` (no colon) so an explicitly-empty
+# `ZEAM_CHAIN_WORKER=` suppresses the flag entirely — the colon form
+# would also overwrite the empty value with `on`, leaving no way to
+# bypass for older zeam builds.
+zeam_chain_worker="${ZEAM_CHAIN_WORKER-on}"
 chain_worker_flag=""
 case "$zeam_chain_worker" in
     on|off)
         chain_worker_flag="--chain-worker $zeam_chain_worker"
         ;;
     "")
-        # Unset / empty — no flag, zeam takes its compiled-in default
-        # (which is `off` for the chain-worker per #828).
+        # Explicitly empty — no flag, zeam takes its compiled-in
+        # default (`.on` post-PR #830). Use this against zeam
+        # builds that do not recognise `--chain-worker` at all.
         ;;
     *)
-        echo "WARN(zeam-cmd): ZEAM_CHAIN_WORKER='$zeam_chain_worker' is not 'on' or 'off'; ignoring (no --chain-worker flag passed)" >&2
+        echo "WARN(zeam-cmd): ZEAM_CHAIN_WORKER='$zeam_chain_worker' is not 'on' or 'off' or empty; ignoring (no --chain-worker flag passed)" >&2
         ;;
 esac
 
