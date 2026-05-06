@@ -173,8 +173,6 @@ fi;
 
 # freshStart logic removed - now handled by --generateGenesis flag
 
-networkName="${networkName:-devnet-3}"
-
 echo "configDir = $configDir"
 echo "dataDir = $dataDir"
 echo "spin_nodes(s) = ${spin_nodes[@]}"

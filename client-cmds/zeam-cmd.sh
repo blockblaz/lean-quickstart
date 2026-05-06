@@ -7,7 +7,7 @@
 metrics_flag="--metrics_enable"
 
 # Optional global zeam CLI flags before `node` (e.g. --console-log-level debug).
-# Default empty: blockblaz/zeam:devnet3 and older binaries do not support top-level log flags.
+# Default empty: blockblaz/zeam:devnet4 and older binaries do not support top-level log flags.
 # With a current zeam build: export ZEAM_GLOBAL_FLAGS='--console-log-level debug'
 zeam_global_flags="${ZEAM_GLOBAL_FLAGS:-}"
 
@@ -15,6 +15,15 @@ zeam_global_flags="${ZEAM_GLOBAL_FLAGS:-}"
 aggregator_flag=""
 if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
+fi
+
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+    aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
 fi
 
 # Set attestation committee count flag if explicitly configured
@@ -29,6 +38,11 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
+# On-disk database engine (requires a zeam build that supports --db-backend).
+# Override with e.g. ZEAM_DB_BACKEND=rocksdb for RocksDB.
+zeam_db_backend="${ZEAM_DB_BACKEND:-lmdb}"
+db_backend_flag="--db-backend ${zeam_db_backend}"
+
 node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       --custom_genesis $configDir \
       --validator_config $validatorConfig \
@@ -39,9 +53,11 @@ node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
-      $checkpoint_sync_flag"
+      $aggregate_subnet_ids_flag \
+      $checkpoint_sync_flag \
+      $db_backend_flag"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 $zeam_global_flags node \
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_global_flags node \
       --custom_genesis /config \
       --validator_config $validatorConfig \
       --data-dir /data \
@@ -51,7 +67,9 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet3 $zeam_glob
       --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
-      $checkpoint_sync_flag"
+      $aggregate_subnet_ids_flag \
+      $checkpoint_sync_flag \
+      $db_backend_flag"
 
 # choose either binary or docker
 node_setup="docker"

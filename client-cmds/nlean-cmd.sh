@@ -6,7 +6,7 @@
 # NLEAN_REPO should point to this repository when lean-quickstart is outside this workspace.
 # Default assumes sibling checkouts: <workspace>/nlean and <workspace>/lean-quickstart.
 nlean_repo="${NLEAN_REPO:-$scriptDir/../nlean}"
-nlean_docker_image="${NLEAN_DOCKER_IMAGE:-ghcr.io/nleaneth/nlean:devnet3}"
+nlean_docker_image="${NLEAN_DOCKER_IMAGE:-ghcr.io/nleaneth/nlean:devnet4}"
 nlean_network_name="${NLEAN_NETWORK_NAME:-devnet0}"
 log_level="${NLEAN_LOG_LEVEL:-}"
 enable_metrics="${enableMetrics:-false}"
@@ -33,6 +33,15 @@ node_private_key_path="${privKeyPath:-${item}.key}"
 aggregator_flag=""
 if [[ "${isAggregator:-false}" == "true" ]]; then
   aggregator_flag="--is-aggregator"
+fi
+
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [[ "${isAggregator:-false}" == "true" ]] && [[ -n "${aggregateSubnetIds:-}" ]] && [[ "$aggregateSubnetIds" == *,* ]]; then
+  aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
 fi
 
 # Set attestation committee count flag if explicitly configured
@@ -71,6 +80,7 @@ node_binary="$binary_path \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $log_level_arg"
 
@@ -112,6 +122,7 @@ node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $log_level_arg"
 
