@@ -4,7 +4,7 @@
 
 - name: Set lantern docker image
   set_fact:
-    lantern_docker_image: "piertwo/lantern:v0.0.3"
+    lantern_docker_image: "piertwo/lantern:v0.0.4"
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |
@@ -85,6 +85,7 @@
         --data-dir /data
         --genesis-config /config/config.yaml
         --validator-registry-path /config/validators.yaml
+        --validator-keys-path /config/annotated_validators.yaml
         --genesis-state /config/genesis.ssz
         --validator-config /config/validator-config.yaml
         --nodes-path /config/nodes.yaml

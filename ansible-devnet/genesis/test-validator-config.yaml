@@ -1,0 +1,235 @@
+shuffle: roundrobin
+# Test layout: three zeam nodes and two ethlambda nodes on a single subnet,
+# each node on its own server (unique IP).
+#   ./spin-node.sh --validatorConfig ansible-devnet/genesis/test-validator-config.yaml
+deployment_mode: ansible
+config:
+  activeEpoch: 18
+  keyType: "hash-sig"
+  attestation_committee_count: 1
+validators:
+  - name: "zeam_0"
+    privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
+    enrFields:
+      ip: "37.27.89.135"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
+  - name: "zeam_1"
+    privkey: "e7904333a18df63252e2c807f65915e1a256667ac8af8fb2116186cae2b24d98"
+    enrFields:
+      ip: "157.180.20.55"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
+  - name: "zeam_2"
+    privkey: "11ff3a52375898532680c86739dbe0b632088545d0b901181d92053b5fab8d38"
+    enrFields:
+      ip: "178.104.133.162"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
+  # - name: "zeam_3"
+  #   privkey: "877c1489e75914bd46dccb71e0ee2d32af337fbb82f2c9caea73818e00ea9a61"
+  #   enrFields:
+  #     ip: "37.27.89.135"
+  #     quic: 9004
+  #   metricsPort: 9098
+  #   apiPort: 5058
+  #   isAggregator: false
+  #   count: 1
+  # - name: "zeam_4"
+  #   privkey: "2aed04fc149298af1376aee0161d5dc67f9d7a47e625a58ae8e44f210d45c2a2"
+  #   enrFields:
+  #     ip: "37.27.89.135"
+  #     quic: 9005
+  #   metricsPort: 9099
+  #   apiPort: 5059
+  #   isAggregator: false
+  #   count: 1
+  # - name: "ream_0"
+  #   privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
+  #   enrFields:
+  #     ip: "157.180.20.55"
+  #     quic: 9001
+  #   metricsPort: 9095
+  #   apiPort: 5055
+  #   isAggregator: false
+  #   count: 1
+  # - name: "ream_1"
+  #   privkey: "01ece82f314ab0a8b4271d2f6a873922d3fb17491d0c8f74fc14ca748ca49b1b"
+  #   enrFields:
+  #     ip: "157.180.20.55"
+  #     quic: 9002
+  #   metricsPort: 9096
+  #   apiPort: 5056
+  #   isAggregator: false
+  #   count: 1
+  # - name: "ream_2"
+  #   privkey: "d723f0cc94645848bbacf8aea4e01944e2f4a6f9f2c69b17ed1868f492374a7a"
+  #   enrFields:
+  #     ip: "157.180.20.55"
+  #     quic: 9003
+  #   metricsPort: 9097
+  #   apiPort: 5057
+  #   isAggregator: false
+  #   count: 1
+  # - name: "ream_3"
+  #   privkey: "4701dd38aa11a1affd69b5d95e535210f8c29e720222b906c46bd64cf018f9c7"
+  #   enrFields:
+  #     ip: "157.180.20.55"
+  #     quic: 9004
+  #   metricsPort: 9098
+  #   apiPort: 5058
+  #   isAggregator: false
+  #   count: 1
+  # - name: "ream_4"
+  #   privkey: "62e6c79311ce4ee1b95ff52c8d6b7cccea0bf0b927fbed595d454858b32c49d6"
+  #   enrFields:
+  #     ip: "157.180.20.55"
+  #     quic: 9005
+  #   metricsPort: 9099
+  #   apiPort: 5059
+  #   isAggregator: false
+  #   count: 1
+  - name: "ethlambda_0"
+    privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
+    enrFields:
+      ip: "178.104.151.50"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: false
+    count: 1
+  - name: "ethlambda_1"
+    privkey: "58c22d2c5785e9a47004f429083804dfc5dad666b4ab6c38face9993fd644c8e"
+    enrFields:
+      ip: "178.104.149.91"
+      quic: 9001
+    metricsPort: 9095
+    apiPort: 5055
+    isAggregator: true
+    count: 1
+# - name: "ethlambda_2"
+#   privkey: "4a7c5b2077d0e3c6f5322d0f2fd98cb2efffbceb41de2799e520b48872dc4102"
+#   enrFields:
+#     ip: "178.104.151.50"
+#     quic: 9003
+#   metricsPort: 9097
+#   apiPort: 5057
+#   isAggregator: false
+#   count: 1
+# - name: "ethlambda_3"
+#   privkey: "1c454b0399cd2178b46e42c8b599e34f2e7ddab71df96b1fbf510d5951335ea0"
+#   enrFields:
+#     ip: "178.104.151.50"
+#     quic: 9004
+#   metricsPort: 9098
+#   apiPort: 5058
+#   isAggregator: false
+#   count: 1
+# - name: "ethlambda_4"
+#   privkey: "91c2c932a6589e130bfa5281cc27f6b9930ba7f99aa043d334f14578ef7492f1"
+#   enrFields:
+#     ip: "178.104.151.50"
+#     quic: 9005
+#   metricsPort: 9099
+#   apiPort: 5059
+#   isAggregator: false
+#   count: 1
+# - name: "qlean_0"
+#   privkey: "c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9"
+#   enrFields:
+#     ip: "178.104.133.162"
+#     quic: 9001
+#   metricsPort: 9095
+#   apiPort: 5055
+#   isAggregator: false
+#   count: 1
+# - name: "qlean_1"
+#   privkey: "927eed3828e0af660ab7525d0971f7f29a3055f8832b947b03eab0bc5683bd97"
+#   enrFields:
+#     ip: "178.104.133.162"
+#     quic: 9002
+#   metricsPort: 9096
+#   apiPort: 5056
+#   isAggregator: false
+#   count: 1
+# - name: "qlean_2"
+#   privkey: "7fdceb8166b9d7ab4169d80345ab85fd042b3684ba307c4c02e851c1520975b5"
+#   enrFields:
+#     ip: "178.104.133.162"
+#     quic: 9003
+#   metricsPort: 9097
+#   apiPort: 5057
+#   isAggregator: false
+#   count: 1
+# - name: "qlean_3"
+#   privkey: "1027ce52661ef76b5ada68bc8cd45c13ebefb09c99dcad251b9bd4893c71815f"
+#   enrFields:
+#     ip: "178.104.133.162"
+#     quic: 9004
+#   metricsPort: 9098
+#   apiPort: 5058
+#   isAggregator: false
+#   count: 1
+# - name: "qlean_4"
+#   privkey: "0763e1a9f1909df7eae31ef4e93d5aaf45a506624ef81df893fc02e08a4ab94f"
+#   enrFields:
+#     ip: "178.104.133.162"
+#     quic: 9005
+#   metricsPort: 9099
+#   apiPort: 5059
+#   isAggregator: true
+#   count: 1
+# - name: "lantern_0"
+#   privkey: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5"
+#   enrFields:
+#     ip: "178.104.149.91"
+#     quic: 9001
+#   metricsPort: 9095
+#   apiPort: 5055
+#   isAggregator: false
+#   count: 1
+# - name: "lantern_1"
+#   privkey: "582644c8e66b61df3dafb33fa496cee97060566542fb8594fca661be3332710f"
+#   enrFields:
+#     ip: "178.104.149.91"
+#     quic: 9002
+#   metricsPort: 9096
+#   apiPort: 5056
+#   isAggregator: false
+#   count: 1
+# - name: "lantern_2"
+#   privkey: "943151f2327ea91357632dd8a3a498242b07eeeebad973ea82d6bead80627d3e"
+#   enrFields:
+#     ip: "178.104.149.91"
+#     quic: 9003
+#   metricsPort: 9097
+#   apiPort: 5057
+#   isAggregator: false
+#   count: 1
+# - name: "lantern_3"
+#   privkey: "31258c1b84e4a64954fb18dbb04ec9de7079ad4d0273b40380aa1f4ca2f20804"
+#   enrFields:
+#     ip: "178.104.149.91"
+#     quic: 9004
+#   metricsPort: 9098
+#   apiPort: 5058
+#   isAggregator: false
+#   count: 1
+# - name: "lantern_4"
+#   privkey: "a5dac14f317084d255c57e5080985b1dbd79cf8fc625a9c7fba781abf07001bd"
+#   enrFields:
+#     ip: "178.104.149.91"
+#     quic: 9005
+#   metricsPort: 9099
+#   apiPort: 5059
+#   isAggregator: true
+#   count: 1

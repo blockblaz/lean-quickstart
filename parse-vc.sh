@@ -69,6 +69,22 @@ if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
     isAggregator="false"
 fi
 
+# CSV of all attestation subnet ids (e.g. "0,1"). Clients do not read a YAML
+# `subnet:` field for consensus — subnets are validator_index % committee_count.
+# Aggregators must still hear every subnet, so derive ids from
+# config.attestation_committee_count (not from per-validator subnet metadata).
+_ac=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
+_ac=$(echo "$_ac" | tr -d '\r\n' | head -1)
+case "$_ac" in ''|*[!0-9]*) _ac=1;; esac
+if [ "$_ac" -lt 1 ] 2>/dev/null; then _ac=1; fi
+aggregateSubnetIds="0"
+_i=1
+while [ "$_i" -lt "$_ac" ] 2>/dev/null; do
+    aggregateSubnetIds+=",$_i"
+    _i=$((_i + 1))
+done
+export aggregateSubnetIds
+
 # Extract attestation_committee_count from config section (optional - only if explicitly set)
 attestationCommitteeCount=$(yq eval ".config.attestation_committee_count" "$validator_config_file")
 if [ -z "$attestationCommitteeCount" ] || [ "$attestationCommitteeCount" == "null" ]; then
@@ -94,22 +110,39 @@ hashSigKeyIndex=$(yq eval ".validators | to_entries | .[] | select(.value.name =
 
 # Load hash-sig keys if configured
 if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$hashSigKeyIndex" ]; then
-    # Set hash-sig key paths
-    hashSigPkPath="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_pk.json"
-    hashSigSkPath="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_sk.json"
-    
-    # Validate that hash-sig keys exist
-    if [ ! -f "$hashSigPkPath" ]; then
-        echo "Warning: Hash-sig public key not found at $hashSigPkPath"
-        echo "Run genesis generator to create hash-sig keys: ./generate-genesis.sh $configDir"
+    # devnet4+: separate proposer + attester keys (hash-sig-cli); legacy: single pk/sk per index
+    _proposer_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_proposer_key_pk.json"
+    _proposer_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_proposer_key_sk.json"
+    _attester_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_attester_key_pk.json"
+    _attester_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_attester_key_sk.json"
+    _legacy_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_pk.json"
+    _legacy_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_sk.json"
+
+    if [ -f "$_proposer_pk" ] && [ -f "$_attester_pk" ]; then
+        hashSigPkPath="$_proposer_pk"
+        hashSigSkPath="$_proposer_sk"
+        export HASH_SIG_PROPOSER_PK_PATH="$_proposer_pk"
+        export HASH_SIG_PROPOSER_SK_PATH="$_proposer_sk"
+        export HASH_SIG_ATTESTER_PK_PATH="$_attester_pk"
+        export HASH_SIG_ATTESTER_SK_PATH="$_attester_sk"
+        if [ ! -f "$hashSigSkPath" ] || [ ! -f "$_attester_sk" ]; then
+            echo "Warning: Hash-sig secret key(s) missing for dual-key layout (validator_${hashSigKeyIndex})"
+            echo "Run genesis generator: ./generate-genesis.sh $configDir"
+        fi
+    else
+        hashSigPkPath="$_legacy_pk"
+        hashSigSkPath="$_legacy_sk"
+        if [ ! -f "$hashSigPkPath" ]; then
+            echo "Warning: Hash-sig public key not found at $hashSigPkPath"
+            echo "Run genesis generator to create hash-sig keys: ./generate-genesis.sh $configDir"
+        fi
+        if [ ! -f "$hashSigSkPath" ]; then
+            echo "Warning: Hash-sig secret key not found at $hashSigSkPath"
+            echo "Run genesis generator to create hash-sig keys: ./generate-genesis.sh $configDir"
+        fi
     fi
-    
-    if [ ! -f "$hashSigSkPath" ]; then
-        echo "Warning: Hash-sig secret key not found at $hashSigSkPath"
-        echo "Run genesis generator to create hash-sig keys: ./generate-genesis.sh $configDir"
-    fi
-    
-    # Export hash-sig key paths for client use
+
+    # Export hash-sig key paths for client use (HASH_SIG_PK_PATH = proposer when dual-key)
     export HASH_SIG_PK_PATH="$hashSigPkPath"
     export HASH_SIG_SK_PATH="$hashSigSkPath"
     export HASH_SIG_KEY_INDEX="$hashSigKeyIndex"
@@ -124,6 +157,10 @@ if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$ha
     echo "Hash-Sig Key Index: $hashSigKeyIndex"
     echo "Hash-Sig Public Key: $hashSigPkPath"
     echo "Hash-Sig Secret Key: $hashSigSkPath"
+    if [ -n "${HASH_SIG_ATTESTER_PK_PATH:-}" ]; then
+        echo "Hash-Sig Attester PK: $HASH_SIG_ATTESTER_PK_PATH"
+        echo "Hash-Sig Attester SK: $HASH_SIG_ATTESTER_SK_PATH"
+    fi
     echo "Is Aggregator: $isAggregator"
     if [ -n "$attestationCommitteeCount" ]; then
         echo "Attestation Committee Count: $attestationCommitteeCount"
