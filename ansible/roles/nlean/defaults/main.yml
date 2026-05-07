@@ -3,6 +3,6 @@
 # Note: These are fallback defaults. Actual values are extracted from client-cmds/nlean-cmd.sh
 # in the tasks/main.yml file. These defaults are used if extraction fails.
 
-nlean_docker_image: "ghcr.io/nleaneth/nlean:latest"
+nlean_docker_image: "ghcr.io/nleaneth/nlean:devnet4"
 deployment_mode: docker  # docker or binary
 nlean_network_name: "devnet0"

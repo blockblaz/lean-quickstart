@@ -195,6 +195,10 @@
         mode: '0600'
         force: yes
       loop: "{{ node_hash_sig_files | default([]) }}"
+      retries: 3
+      delay: 5
+      register: copy_result
+      until: copy_result is success
       when: hash_sig_keys_local.stat.exists and (node_hash_sig_files | default([]) | length > 0)
       tags:
         - deploy
