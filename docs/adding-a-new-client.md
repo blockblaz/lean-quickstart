@@ -208,14 +208,14 @@ Your client will find these files at `$configDir` (or `/config` in Docker):
 
 | File | Contents |
 |---|---|
-| `config.yaml` | Chain config — genesis time, ACTIVE\_EPOCH, VALIDATOR\_COUNT, GENESIS\_VALIDATORS pubkeys |
+| `config.yaml` | Chain config — genesis time, ATTESTATION\_COMMITTEE\_COUNT, VALIDATOR\_COUNT, GENESIS\_VALIDATORS (per-validator `attestation_pubkey` + `proposal_pubkey` for devnet4) |
 | `validators.yaml` | Validator index → node name assignments |
-| `annotated_validators.yaml` | Validator index + pubkey\_hex + privkey\_file per node name (preferred over validators.yaml) |
+| `annotated_validators.yaml` | Validator index + pubkey\_hex + privkey\_file per assignment (devnet4: two rows per index — attester + proposer `privkey_file`) |
 | `nodes.yaml` | ENR list for all nodes — use as static bootnode list |
 | `genesis.json` | Genesis state (JSON) |
 | `genesis.ssz` | Genesis state (SSZ) |
-| `hash-sig-keys/validator_N_sk.ssz` | Post-quantum secret key for validator N |
-| `hash-sig-keys/validator_N_pk.ssz` | Post-quantum public key for validator N |
+| `hash-sig-keys/validator_N_attester_key_{sk,pk}.ssz` | Post-quantum attester secret/public key for validator N |
+| `hash-sig-keys/validator_N_proposer_key_{sk,pk}.ssz` | Post-quantum proposer secret/public key for validator N |
 | `myclient_0.key` | P2P libp2p private key for this node |
 
 > Clients should derive their genesis state from `config.yaml` directly (using
