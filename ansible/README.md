@@ -219,8 +219,10 @@ Test copying genesis files to remote hosts (genesis files must be generated loca
 
 **Verify copied files on remote host:**
 ```sh
-ls -la local-devnet/genesis/
-# Should see: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, *.key files
+# Local genesis dir still holds every *.key after generate-genesis.
+# On each remote host you get shared yamls/ssz/json plus *.key only for validators
+# whose enrFields.ip matches that host (collocated nodes on one machine share the same set).
+ls -la /opt/lean-quickstart/genesis/
 ```
 
 ### Phase 4: Test Docker Image Extraction (Latest Changes)
