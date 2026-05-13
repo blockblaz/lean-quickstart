@@ -1,5 +1,8 @@
 ---
 # Global variables for all nodes
+#
+# Parallel runs: ansible/ansible.cfg sets forks=25 and strategy=free.
+# Tune for huge inventories: ANSIBLE_FORKS=100 or ansible-playbook -f 100 ...
 
 # Paths (relative to playbook execution directory or absolute)
 network_dir: "{{ playbook_dir }}/../local-devnet"

@@ -17,6 +17,9 @@
 #   clean_data       - Set to true to clean data directories before deployment (default: false)
 #   skip_genesis     - Set to true to skip genesis generation (default: false)
 #   genesis_offset   - Seconds to add to current time for genesis (default: 360 for ansible mode)
+#
+# Parallelism: ansible.cfg uses forks=25 and strategy=free for faster multi-host
+# deploys. Override with ANSIBLE_FORKS / -f N, or ANSIBLE_STRATEGY=linear if needed.
 
 - name: Clean Data Directories
   import_playbook: clean-node-data.yml

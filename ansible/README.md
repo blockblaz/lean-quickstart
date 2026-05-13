@@ -86,6 +86,12 @@ docker ps | grep zeam_0
 - `roles/` - Reusable role modules (zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, genesis, common)
 - `requirements.yml` - Ansible Galaxy dependencies
 
+## Parallelism (large devnets)
+
+`ansible.cfg` sets **`forks = 25`** (concurrent SSH sessions) and **`strategy = free`** (each host advances through tasks without waiting for others on every step). That cuts wall time versus Ansible defaults (`forks` 5, `strategy` linear).
+
+Tune without editing files: `ANSIBLE_FORKS=100 ansible-playbook ...` or `ansible-playbook -f 100 ...`. If you ever need strict lockstep across hosts, use `ANSIBLE_STRATEGY=linear`. Very high `forks` can stress the control machine, SSH, or Docker registries; back off if you see timeouts or rate limits.
+
 ## Configuration Source
 
 Ansible roles automatically extract Docker images and deployment modes from `client-cmds/*-cmd.sh` files:
