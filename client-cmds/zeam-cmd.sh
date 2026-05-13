@@ -4,7 +4,7 @@
 # setup where lean-quickstart is a submodule folder in zeam repo
 # update the path to your binary here if you want to use binary
 # Metrics enabled by default
-metrics_flag="--metrics_enable"
+metrics_flag="--metrics-enable"
 
 # Optional global zeam CLI flags before `node` (e.g. --console-log-level debug).
 # Default empty: blockblaz/zeam:devnet4 and older binaries do not support top-level log flags.
@@ -88,8 +88,8 @@ case "$zeam_chain_worker" in
 esac
 
 node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
-      --custom_genesis $configDir \
-      --validator_config $validatorConfig \
+      --custom-genesis $configDir \
+      --validator-config $validatorConfig \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$item.key \
       $metrics_flag \
@@ -103,8 +103,8 @@ node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       $chain_worker_flag"
 
 node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_global_flags node \
-      --custom_genesis /config \
-      --validator_config $validatorConfig \
+      --custom-genesis /config \
+      --validator-config $validatorConfig \
       --data-dir /data \
       --node-id $item --node-key /config/$item.key \
       $metrics_flag \

@@ -190,7 +190,7 @@ node_setup="docker"
 |---|---|
 | `--node-id <name>` | Identifies the node in logs and config lookups |
 | `--node-key <path>` | Path to the P2P libp2p private key file |
-| `--genesis` / `--custom_genesis` / `--network` | Path to `config.yaml` (or directory containing it) |
+| `--genesis` / `--custom-genesis` / `--network` | Path to `config.yaml` (or directory containing it) |
 | `--validators` / `--validator-registry-path` | Path to `validators.yaml` (index assignments) |
 | `--bootnodes` | Path to `nodes.yaml` (ENRs for peer discovery) |
 | `--metrics-port <port>` | Prometheus metrics endpoint |
