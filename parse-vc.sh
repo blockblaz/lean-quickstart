@@ -110,13 +110,13 @@ hashSigKeyIndex=$(yq eval ".validators | to_entries | .[] | select(.value.name =
 
 # Load hash-sig keys if configured
 if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$hashSigKeyIndex" ]; then
-    # devnet4+: separate proposer + attester keys (hash-sig-cli); legacy: single pk/sk per index
-    _proposer_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_proposer_key_pk.json"
-    _proposer_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_proposer_key_sk.json"
-    _attester_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_attester_key_pk.json"
-    _attester_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_attester_key_sk.json"
-    _legacy_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_pk.json"
-    _legacy_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_sk.json"
+    # devnet4+: separate proposer + attester keys (hash-sig-cli); legacy: single pk/sk per index (SSZ only)
+    _proposer_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_proposer_key_pk.ssz"
+    _proposer_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_proposer_key_sk.ssz"
+    _attester_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_attester_key_pk.ssz"
+    _attester_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_attester_key_sk.ssz"
+    _legacy_pk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_pk.ssz"
+    _legacy_sk="$configDir/hash-sig-keys/validator_${hashSigKeyIndex}_sk.ssz"
 
     if [ -f "$_proposer_pk" ] && [ -f "$_attester_pk" ]; then
         hashSigPkPath="$_proposer_pk"
