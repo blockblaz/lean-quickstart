@@ -88,9 +88,17 @@ docker ps | grep zeam_0
 
 ## Parallelism (large devnets)
 
-`ansible.cfg` sets **`forks = 25`** (concurrent SSH sessions) and **`strategy = free`** (each host advances through tasks without waiting for others on every step). That cuts wall time versus Ansible defaults (`forks` 5, `strategy` linear).
+`ansible.cfg` sets **`strategy = free`** and a **`forks`** fallback for bare `ansible-playbook` invocations.
 
-Tune without editing files: `ANSIBLE_FORKS=100 ansible-playbook ...` or `ansible-playbook -f 100 ...`. If you ever need strict lockstep across hosts, use `ANSIBLE_STRATEGY=linear`. Very high `forks` can stress the control machine, SSH, or Docker registries; back off if you see timeouts or rate limits.
+**`run-ansible.sh`** and **`ansible-deploy.sh`** pass **`-f N`** where `N` comes from counting **unique `enrFields.ip`** values in the active `validator-config.yaml` (via `ansible/compute-forks-from-validator-config.sh`), clamped between **`LEAN_ANSIBLE_FORKS_MIN`** (default `5`) and **`LEAN_ANSIBLE_FORKS_MAX`** (default `128`). The minimum avoids fully serializing deploys when every validator row shares one IP (many nodes, one machine) while still reflecting larger devnets by unique address.
+
+- Override forks: `ANSIBLE_FORKS=100` or `ansible-playbook -f 100 ...`
+- Override validator config path for fork counting only (ansible-deploy): `LEAN_VALIDATOR_CONFIG_PATH=/path/to/validator-config.yaml`
+- Tune clamp: `LEAN_ANSIBLE_FORKS_MIN=1 LEAN_ANSIBLE_FORKS_MAX=256`
+
+If `yq` is missing, the wrappers omit `-f` and Ansible uses `ansible.cfg` **`forks`**.
+
+Very high forks can stress SSH, the control node, or image registries; back off if you see timeouts or rate limits.
 
 ## Configuration Source
 
