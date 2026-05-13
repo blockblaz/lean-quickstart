@@ -44,6 +44,7 @@
 
 - name: Prepare remote servers
   hosts: all:!localhost
+  strategy: free
   gather_facts: yes
   vars:
     # network_dir is passed as an extra var by run-ansible.sh; fall back to
