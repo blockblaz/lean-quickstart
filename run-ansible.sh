@@ -194,6 +194,18 @@ ANSIBLE_CMD="$ANSIBLE_CMD -i $EFFECTIVE_INVENTORY"
 ANSIBLE_CMD="$ANSIBLE_CMD $PLAYBOOK"
 ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
 
+# Forks: honor ANSIBLE_FORKS when set; else derive from unique enrFields.ip in validator-config
+# (Ansible cannot set forks from inside a playbook for the same run.)
+if [ -n "${ANSIBLE_FORKS:-}" ]; then
+  ANSIBLE_CMD="$ANSIBLE_CMD -f ${ANSIBLE_FORKS}"
+elif [ -f "$_local_vc_path" ] && command -v yq &>/dev/null; then
+  _ansible_forks="$("$ANSIBLE_DIR/compute-forks-from-validator-config.sh" "$_local_vc_path")"
+  ANSIBLE_CMD="$ANSIBLE_CMD -f ${_ansible_forks}"
+  echo "Ansible forks: ${_ansible_forks} (unique IPs in validator-config; set ANSIBLE_FORKS to override)"
+elif [ -f "$_local_vc_path" ]; then
+  echo "Warning: yq not found; omitting -f (using ansible.cfg forks default)"
+fi
+
 # Dry-run: show what Ansible would change without applying anything.
 if [ "$dryRun" == "true" ]; then
   ANSIBLE_CMD="$ANSIBLE_CMD --check --diff"

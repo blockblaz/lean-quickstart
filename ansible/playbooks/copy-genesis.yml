@@ -7,6 +7,11 @@
 #   - ansible-playbook playbooks/site.yml (runs generate-genesis automatically)
 #
 # This playbook validates all required files exist locally before copying.
+#
+# Shared genesis artifacts (ssz, json, yamls) go to every host. Node *.key files
+# are private libp2p identities — only validators collocated on this machine
+# (same enrFields.ip as ansible_host) are copied here; peers' *public* keys
+# come from validators.yaml / genesis, not from other nodes' .key files.
 
 - name: Copy Genesis Files to Remote Hosts
   hosts: all:!local
@@ -115,9 +120,9 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Confirm all key files are present
+    - name: Confirm all key files are present locally
       debug:
-        msg: "✅ All {{ all_node_names | length }} key file(s) are present and ready to copy: {{ all_node_names | join(', ') }}"
+        msg: "✅ All {{ all_node_names | length }} libp2p .key file(s) exist locally (each host receives only keys for its IP)"
       delegate_to: localhost
       run_once: true
 
@@ -143,13 +148,20 @@
         - genesis.ssz
         - validator-config.yaml
 
-    - name: Copy node private key files to remote host
+    - name: Resolve collocated validator names (same IP as this inventory host)
+      vars:
+        _vc: "{{ lookup('file', validator_config_file) | from_yaml }}"
+        _by_ip: "{{ _vc.validators | default([]) | selectattr('enrFields.ip', 'defined') | selectattr('enrFields.ip', 'equalto', ansible_host | string) | map(attribute='name') | list }}"
+      set_fact:
+        node_libp2p_keys_to_copy: "{{ _by_ip if (_by_ip | length) > 0 else [inventory_hostname] }}"
+
+    - name: Copy libp2p private key files for collocated validators only
       copy:
         src: "{{ genesis_dir }}/{{ item }}.key"
         dest: "{{ actual_remote_genesis_dir }}/{{ item }}.key"
         mode: '0600'
         force: yes
-      loop: "{{ all_node_names }}"
+      loop: "{{ node_libp2p_keys_to_copy }}"
       loop_control:
         label: "{{ item }}.key"
 
@@ -159,7 +171,7 @@
         _assignments: "{{ _av[inventory_hostname] | default([]) }}"
         _base: "{{ _assignments | map(attribute='privkey_file') | map('regex_replace', '_sk\\.ssz$', '') | list }}"
       set_fact:
-        node_hash_sig_files: "{{ (_base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list) + ['validator-keys-manifest.yaml'] }}"
+        node_hash_sig_files: "{{ (_base | product(['_sk.ssz', '_pk.ssz']) | map('join') | list) + ['validator-keys-manifest.yaml'] }}"
       when: hash_sig_keys_stat.stat.exists
 
     - name: Create hash-sig-keys directory on remote

@@ -517,21 +517,21 @@ You can also run the generator standalone:
 
 Using the above docker tool the following files are generated (unless already generated or forced via `--forceKeyGen` flag):
 
-**Generated files (dual-key manifest — two roles per validator index):**
+**Generated files (dual-key manifest — two roles per validator index, SSZ only):**
 ```
 local-devnet/genesis/hash-sig-keys/
 ├── validator-keys-manifest.yaml              # Metadata (attester + proposer pubkeys per index)
-├── validator_0_proposer_key_pk.json          # Proposer public key (validator 0)
-├── validator_0_proposer_key_sk.json          # Proposer secret key
-├── validator_0_attester_key_pk.json          # Attester (attestation) public key
-├── validator_0_attester_key_sk.json        # Attester secret key
-├── validator_1_proposer_key_pk.json
-├── validator_1_proposer_key_sk.json
-├── validator_1_attester_key_pk.json
-├── validator_1_attester_key_sk.json
+├── validator_0_proposer_key_pk.ssz           # Proposer public key (validator 0)
+├── validator_0_proposer_key_sk.ssz          # Proposer secret key
+├── validator_0_attester_key_pk.ssz           # Attester (attestation) public key
+├── validator_0_attester_key_sk.ssz           # Attester secret key
+├── validator_1_proposer_key_pk.ssz
+├── validator_1_proposer_key_sk.ssz
+├── validator_1_attester_key_pk.ssz
+├── validator_1_attester_key_sk.ssz
 └── ...                                       # Same pattern for additional validators
 ```
-Older **single-key** layouts (`validator_N_pk.json` / `validator_N_sk.json` only) are still recognized when regenerating from an existing manifest.
+Older **single-key** layouts (`validator_N_pk.ssz` / `validator_N_sk.ssz` only) are still recognized when regenerating from an existing manifest.
 
 **Signature Scheme:**
 The system uses the **SIGTopLevelTargetSumLifetime32Dim64Base8** hash-based signature scheme, which provides:
@@ -614,7 +614,7 @@ zeam_0:
 Post genesis generation, the quickstarts loads and calls the appropriate node's client cmd from `client-cmds` folder where either `docker` or `binary` cmd is picked as per the `node_setup` mode. (Generally `binary` mode is handy for local interop debugging for a client).
 
 **Client Integration:**
-Your client implementation should read these environment variables and use the hash-sig keys for validator operations. After `parse-vc.sh` runs, **`$HASH_SIG_PK_PATH` / `$HASH_SIG_SK_PATH`** point at the **proposer** JSON keys when using dual-key manifest files; **`$HASH_SIG_ATTESTER_PK_PATH`** / **`$HASH_SIG_ATTESTER_SK_PATH`** (and proposer-specific `HASH_SIG_PROPOSER_*`) are set when those files exist.
+Your client implementation should read these environment variables and use the hash-sig keys for validator operations. After `parse-vc.sh` runs, **`$HASH_SIG_PK_PATH` / `$HASH_SIG_SK_PATH`** point at the **proposer** SSZ keys when using dual-key manifest files; **`$HASH_SIG_ATTESTER_PK_PATH`** / **`$HASH_SIG_ATTESTER_SK_PATH`** (and proposer-specific `HASH_SIG_PROPOSER_*`) are set when those files exist.
 
  - `$item` - the node name for which this cmd is being executed, index into `validator-config.yaml` for its configuration
  - `$configDir` - the abs folder housing `genesis` configuration (same as `NETWORK_DIR` env variable provided while executing shell command), already mapped to `/config` in the docker mode
@@ -692,7 +692,7 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --forceKeyG
 ### Key Security
 
 **Secret keys are highly sensitive:**
-- ⚠️ **Never commit** `validator_*_*_sk.json` or `validator_*_sk.json` secret key files to version control
+- ⚠️ **Never commit** `validator_*_*_sk.ssz` or `validator_*_sk.ssz` secret key files to version control
 - ⚠️ **Never share** secret keys
 - ✅ **Backup** secret keys in secure, encrypted storage
 - ✅ **Restrict permissions** on key files (e.g., `chmod 600`)
@@ -738,9 +738,9 @@ validators:
 
 **Problem**: Hash-sig keys not loading during node startup
 ```
-Warning: Hash-sig public key not found at genesis/hash-sig-keys/validator_0_proposer_key_pk.json
+Warning: Hash-sig public key not found at genesis/hash-sig-keys/validator_0_proposer_key_pk.ssz
 ```
-(or `validator_0_pk.json` when using a legacy single-key tree)
+(or `validator_0_pk.ssz` when using a legacy single-key tree)
 
 **Solution**: Run the genesis generator to create keys:
 ```sh
@@ -755,9 +755,9 @@ NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 
 **Problem**: Hash-sig key file not found
 ```
-Warning: Hash-sig secret key not found at genesis/hash-sig-keys/validator_5_proposer_key_sk.json
+Warning: Hash-sig secret key not found at genesis/hash-sig-keys/validator_5_proposer_key_sk.ssz
 ```
-(or `validator_5_sk.json` in legacy layouts)
+(or `validator_5_sk.ssz` in legacy layouts)
 
 **Solution**: This usually means you have more validators configured than hash-sig keys generated. Regenerate genesis files:
 ```sh

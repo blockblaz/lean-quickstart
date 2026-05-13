@@ -212,15 +212,15 @@ if [ ! -f "$MANIFEST_FILE" ]; then
 else
     for ((i=0; i<VALIDATOR_COUNT; i++)); do
         # devnet4+: proposer + attester key files per index
-        if [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_proposer_key_pk.json" ] && \
-           [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_attester_key_pk.json" ]; then
-            if [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_proposer_key_sk.json" ] || \
-               [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_attester_key_sk.json" ]; then
+        if [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_proposer_key_pk.ssz" ] && \
+           [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_attester_key_pk.ssz" ]; then
+            if [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_proposer_key_sk.ssz" ] || \
+               [ ! -f "$HASH_SIG_KEYS_DIR/validator_${i}_attester_key_sk.ssz" ]; then
                 KEYS_EXIST=false
                 break
             fi
-        elif [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_pk.json" ] && \
-             [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_sk.json" ]; then
+        elif [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_pk.ssz" ] && \
+             [ -f "$HASH_SIG_KEYS_DIR/validator_${i}_sk.ssz" ]; then
             :
         else
             KEYS_EXIST=false
@@ -284,7 +284,7 @@ else
       --num-validators "$VALIDATOR_COUNT" \
       --log-num-active-epochs "$ACTIVE_EPOCH" \
       --output-dir "/genesis/hash-sig-keys" \
-      --export-format both
+      --export-format ssz
 
     if [ $? -ne 0 ]; then
         echo "   ❌ Failed to generate hash-sig keys"
@@ -292,9 +292,9 @@ else
     fi
 
     echo "   ✅ Generated keys for $VALIDATOR_COUNT validators"
-    echo "   ✅ Files created (per validator: proposer + attester pk/sk):"
+    echo "   ✅ Files created (per validator: proposer + attester pk/sk SSZ):"
     for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
-        echo "      - validator_${i}_proposer_key_{pk,sk}.json validator_${i}_attester_key_{pk,sk}.json"
+        echo "      - validator_${i}_proposer_key_{pk,sk}.ssz validator_${i}_attester_key_{pk,sk}.ssz"
     done
 
     echo ""
@@ -778,12 +778,12 @@ done
 echo ""
 echo "🔐 Hash-Sig Validator Keys:"
 for i in $(seq 0 $((VALIDATOR_COUNT - 1))); do
-    if [ -f "$GENESIS_DIR/hash-sig-keys/validator_${i}_proposer_key_pk.json" ]; then
-        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_proposer_key_{pk,sk}.json"
-        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_attester_key_{pk,sk}.json"
+    if [ -f "$GENESIS_DIR/hash-sig-keys/validator_${i}_proposer_key_pk.ssz" ]; then
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_proposer_key_{pk,sk}.ssz"
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_attester_key_{pk,sk}.ssz"
     else
-        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_pk.json"
-        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_sk.json"
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_pk.ssz"
+        echo "   $GENESIS_DIR/hash-sig-keys/validator_${i}_sk.ssz"
     fi
 done
 echo ""
