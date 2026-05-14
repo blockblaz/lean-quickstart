@@ -56,32 +56,32 @@
     zeam_is_aggregator: "{{ 'true' if (node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: node_config is defined
 
-# Compute the full set of subnet ids in the network so aggregators can subscribe
-# to attestations from every subnet (not just the one their validators live in).
-# Required in multi-subnet deployments for cross-subnet attestation aggregation.
-- name: Compute aggregate subnet ids from attestation_committee_count
+# Compute the per-aggregator subnet coverage: own subnet + one neighbor.
+#
+# blockblaz/zeam#863 follow-up: pre-fix every aggregator subscribed to
+# every subnet, which under multi-subnet load (devnet-4: 4 subnets)
+# fans every gossip attestation N-ways into zeam's libxev thread and
+# drives the slot-driver starvation documented in the issue. Switching
+# to {own, (own+1) mod N} keeps coverage at ≥2 aggregators per subnet
+# while cutting per-aggregator gossip volume to 2/N.
+#
+# Per-host (NOT run_once): each aggregator's CSV depends on which
+# validator that host is running, so this task runs in the per-host
+# fact-set context after node_config has resolved {{ node_name }}.
+- name: Compute aggregate subnet ids (own + neighbor) for {{ node_name }}
   shell: |
     set -e
-    ac=$(yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}")
-    ac=$(echo "$ac" | tr -d '\r\n' | head -1)
-    case "$ac" in ''|*[!0-9]*) ac=1;; esac
-    if [ "$ac" -lt 1 ]; then ac=1; fi
-    out="0"
-    i=1
-    while [ "$i" -lt "$ac" ]; do
-      out="$out,$i"
-      i=$((i + 1))
-    done
-    echo "$out"
+    project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
+    "$project_root/compute-aggregate-subnet-ids.sh" "{{ local_validator_config_path }}" "{{ node_name }}"
   register: zeam_all_subnets_raw
   changed_when: false
   delegate_to: localhost
-  run_once: true
+  when: node_name is defined
 
 - name: Set aggregate subnet ids csv
   set_fact:
     zeam_aggregate_subnet_ids: "{{ zeam_all_subnets_raw.stdout | trim }}"
-  run_once: true
+  when: zeam_all_subnets_raw is defined and zeam_all_subnets_raw.stdout is defined
 
 - name: Ensure node key file exists
   stat:

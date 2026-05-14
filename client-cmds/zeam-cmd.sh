@@ -17,10 +17,13 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
-# In multi-subnet deployments, an aggregator must subscribe to every subnet's
-# attestation topics so it can aggregate votes from all committees. The caller
-# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
-# full subnet id set for the network.
+# In multi-subnet deployments, each aggregator subscribes to its OWN
+# attestation subnet plus exactly ONE neighbor — subnet i covers
+# {i, (i+1) mod attestation_committee_count}. Every subnet still has
+# >=2 aggregators (own + previous's roving neighbor) while per-node
+# gossip volume drops to 2/N. The caller (spin-node.sh / ansible roles)
+# builds aggregateSubnetIds per-aggregator via the shared helper
+# compute-aggregate-subnet-ids.sh. Background: blockblaz/zeam#863.
 aggregate_subnet_ids_flag=""
 if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
     aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
