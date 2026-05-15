@@ -6,13 +6,11 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
-# In multi-subnet deployments, each aggregator subscribes to its OWN
-# attestation subnet plus exactly ONE neighbor — subnet i covers
-# {i, (i+1) mod attestation_committee_count}. Every subnet still has
-# >=2 aggregators (own + previous's roving neighbor) while per-node
-# gossip volume drops to 2/N. The caller (spin-node.sh / ansible roles)
-# builds aggregateSubnetIds per-aggregator via the shared helper
-# compute-aggregate-subnet-ids.sh. Background: blockblaz/zeam#863.
+# Multi-subnet: lean-quickstart picks one aggregator per subnet (spin-node.sh).
+# compute-aggregate-subnet-ids.sh reports the node's own committee subnet id;
+# Zeam and other clients derive attestation gossip from local validator placement,
+# so --aggregate-subnet-ids is only passed when the CSV explicitly lists multiple
+# ids (comma). Background: blockblaz/zeam#863.
 aggregate_subnet_ids_flag=""
 if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
     aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"

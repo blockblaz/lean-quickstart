@@ -53,13 +53,11 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
-# In multi-subnet deployments, each aggregator subscribes to its OWN
-# attestation subnet plus exactly ONE neighbor — subnet i covers
-# {i, (i+1) mod attestation_committee_count}. Every subnet still has
-# >=2 aggregators (own + previous's roving neighbor) while per-node
-# gossip volume drops to 2/N. The caller (spin-node.sh / ansible roles)
-# builds aggregateSubnetIds per-aggregator via the shared helper
-# compute-aggregate-subnet-ids.sh. Background: blockblaz/zeam#863.
+# Multi-subnet: lean-quickstart picks one aggregator per subnet (spin-node.sh).
+# compute-aggregate-subnet-ids.sh reports the node's own committee subnet id;
+# clients derive attestation gossip from local validator placement, so
+# --aggregate-subnet-ids is only passed when the CSV lists multiple ids (comma).
+# Background: blockblaz/zeam#863.
 # Note: peam already subscribes to all subnets in [0, committee_count)
 # via allowed_topics above; this flag exists for contract parity with
 # other clients and is a no-op unless the binary recognises it.

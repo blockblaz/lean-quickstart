@@ -50,11 +50,11 @@
     ethlambda_is_aggregator: "{{ 'true' if (ethlambda_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: ethlambda_node_config is defined
 
-# Compute the per-aggregator subnet coverage: own subnet + one neighbor.
-# blockblaz/zeam#863 follow-up — see the analogous block in
-# ansible/roles/zeam/tasks/main.yml for the full rationale. Per-host
-# (NOT run_once) so each aggregator gets its own subnet-pair.
-- name: Compute aggregate subnet ids (own + neighbor) for {{ node_name }}
+# Compute this host's attestation committee subnet id (for diagnostics /
+# optional --aggregate-subnet-ids when the CSV lists multiple subnets).
+# blockblaz/zeam#863 follow-up — see ansible/roles/zeam/tasks/main.yml.
+# Per-host (NOT run_once).
+- name: Compute aggregate subnet id for {{ node_name }}
   shell: |
     set -e
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"

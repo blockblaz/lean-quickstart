@@ -73,11 +73,12 @@ fi
 #
 # blockblaz/zeam#863 follow-up: instead of every aggregator listening
 # to every subnet (which under multi-subnet load fans every gossip
-# attestation N-ways into the libxev thread), each aggregator now
-# covers its OWN subnet plus exactly ONE neighbor:
-# subnet i → {i, (i+1) mod attestation_committee_count}.
-# Coverage stays at ≥2 aggregators per subnet (own + previous's
-# neighbor); per-aggregator gossip volume drops by ~(1 - 2/N).
+# attestation N-ways into the libxev thread), compute-aggregate-subnet-ids.sh
+# now reports only this node's OWN committee subnet id. With one
+# aggregator per subnet (spin-node.sh), clients' validator-derived gossip
+# subscriptions are enough; a comma-separated list is only for rare
+# explicit overrides (see client-cmds: they pass the flag when the CSV
+# contains a comma).
 #
 # Computation lives in compute-aggregate-subnet-ids.sh so the same
 # helper is reused by ansible/roles/{zeam,ethlambda}/tasks/main.yml

@@ -14,26 +14,22 @@
 #   starvation (~74% of received attestations referenced unimported
 #   heads, each spawned a BlocksByRoot, the storm fed itself).
 #
-#   The new shape gives each aggregator coverage of its OWN subnet plus
-#   exactly ONE neighbor: subnet i listens to {i, (i+1) mod N}. This
-#   keeps every subnet covered by at least 2 aggregators (its native
-#   one plus the previous subnet's roving neighbor) so aggregation
-#   still works, while halving (N=4 → 2 topics) or better the per-
-#   aggregator gossip volume.
+#   We now output only this node's OWN attestation subnet id. Zeam
+#   already subscribes aggregators to attestation topics implied by
+#   local validator ids; lean-quickstart uses one aggregator per subnet
+#   (spin-node.sh), so an extra neighbor subnet on every aggregator is
+#   redundant and doubles gossip load for N=2.
 #
-#   For N <= 1 the "neighbor" wraps to the own subnet, so the output
-#   degenerates to a single subnet id and the calling client-cmd
-#   scripts intentionally drop the `--aggregate-subnet-ids` flag (their
-#   guard requires a `,` in the CSV, see e.g. client-cmds/zeam-cmd.sh).
-#   For N == 2 every aggregator naturally covers both subnets, which
-#   matches the pre-fix behaviour for that case.
+#   The output is always a single id (no comma). Callers such as
+#   client-cmds/zeam-cmd.sh only pass `--aggregate-subnet-ids` when the
+#   CSV contains a comma, so in normal layouts the flag is omitted and
+#   subscription comes from validator placement alone.
 #
 # Usage:
 #   compute-aggregate-subnet-ids.sh <validator-config.yaml> <node-name>
 #
 # Output:
-#   `<own>` when attestation_committee_count <= 1
-#   `<own>,<neighbor>` otherwise, where neighbor = (own + 1) mod N
+#   `<own>` (single subnet id, no comma)
 #
 # Subnet selection priority for `<own>`:
 #   1. Per-row `subnet:` field if present (matches the source of truth
@@ -103,12 +99,4 @@ if [ "$own" -ge "$ac" ] 2>/dev/null; then
     exit 1
 fi
 
-if [ "$ac" -le 1 ] 2>/dev/null; then
-    # Single subnet — nothing to add. Caller will see no `,` in the
-    # output and drop --aggregate-subnet-ids accordingly.
-    printf '%s\n' "$own"
-    exit 0
-fi
-
-neighbor=$(( (own + 1) % ac ))
-printf '%s,%s\n' "$own" "$neighbor"
+printf '%s\n' "$own"
