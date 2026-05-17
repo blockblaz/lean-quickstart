@@ -18,6 +18,10 @@ Usage:
 Options:
     --docker  Use host.docker.internal so a container on the host can reach
               validators on the host (local devnet + Docker).
+    --all-upstreams  Emit one upstream per validator (default; kept for compatibility).
+    --subnet-sample  Legacy: at most N validators per attestation subnet (see
+              LEANPOINT_UPSTREAMS_PER_SUBNET, default 2). Not used unless this flag
+              is set.
 
 Examples:
     python3 convert-validator-config.py \\
@@ -33,9 +37,81 @@ Examples:
         upstreams-local-docker.json --docker
 """
 
+import os
 import sys
 import json
 import yaml
+from collections import defaultdict
+from typing import Any, Optional
+
+
+def _attestation_committee_count(config: dict) -> Optional[int]:
+    """Subnet count from config.config.attestation_committee_count, or None if unset/invalid."""
+    cfg = config.get("config")
+    if not isinstance(cfg, dict):
+        return None
+    raw = cfg.get("attestation_committee_count")
+    if raw is None:
+        return None
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if n < 1:
+        return None
+    return n
+
+
+def _select_validators_for_leanpoint(
+    validators: list[dict[str, Any]],
+    subnet_count: Optional[int],
+    *,
+    per_subnet: int,
+    all_upstreams: bool,
+) -> list[tuple[int, dict[str, Any]]]:
+    """
+    Return (global_index, validator) rows to expose as leanpoint upstreams.
+
+    When subnet_count is set and all_upstreams is False, keep at most `per_subnet`
+    validators per attestation subnet (index % subnet_count). Each subnet includes
+    the first validator with isAggregator: true in YAML order when present, then
+    fills remaining slots with the next validators in that subnet not yet chosen.
+    """
+    if all_upstreams or subnet_count is None:
+        return list(enumerate(validators))
+
+    by_subnet: dict[int, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    for i, v in enumerate(validators):
+        by_subnet[i % subnet_count].append((i, v))
+
+    selected: list[tuple[int, dict[str, Any]]] = []
+    for s in sorted(by_subnet.keys()):
+        group = by_subnet[s]
+        chosen: list[tuple[int, dict[str, Any]]] = []
+        chosen_idx: set[int] = set()
+
+        for idx, val in group:
+            if val.get("isAggregator") is True:
+                chosen.append((idx, val))
+                chosen_idx.add(idx)
+                break
+        else:
+            if group:
+                idx, val = group[0]
+                chosen.append((idx, val))
+                chosen_idx.add(idx)
+
+        for idx, val in group:
+            if len(chosen) >= per_subnet:
+                break
+            if idx in chosen_idx:
+                continue
+            chosen.append((idx, val))
+            chosen_idx.add(idx)
+
+        selected.extend(chosen)
+
+    return selected
 
 
 def convert_validator_config(
@@ -43,6 +119,10 @@ def convert_validator_config(
     output_path: str,
     base_port: int = 8081,
     docker_host: bool = False,
+    *,
+    all_upstreams: bool = True,
+    subnet_sample: bool = False,
+    per_subnet: Optional[int] = None,
 ):
     """
     Convert validator-config.yaml to upstreams.json.
@@ -53,6 +133,11 @@ def convert_validator_config(
         base_port: Base HTTP port for beacon API (default: 8081)
         docker_host: If True, use host.docker.internal so leanpoint in Docker
             can reach a devnet running on the host (Docker Desktop/Orbstack).
+        all_upstreams: If True (default), emit one upstream per validator.
+        subnet_sample: If True, keep at most per_subnet validators per attestation
+            subnet instead of the full list.
+        per_subnet: Max upstreams per attestation subnet when subnet_sample is True;
+            default from LEANPOINT_UPSTREAMS_PER_SUBNET env or 2.
     """
     with open(yaml_path, 'r') as f:
         config = yaml.safe_load(f)
@@ -61,9 +146,38 @@ def convert_validator_config(
         print("Error: No 'validators' key found in config", file=sys.stderr)
         sys.exit(1)
 
+    validators = config["validators"]
+    committee = _attestation_committee_count(config)
+
+    use_subnet_sample = subnet_sample and not all_upstreams
+    if use_subnet_sample:
+        if per_subnet is None:
+            try:
+                per_subnet = int(os.environ.get("LEANPOINT_UPSTREAMS_PER_SUBNET", "2"))
+            except ValueError:
+                per_subnet = 2
+        if per_subnet < 1:
+            per_subnet = 1
+        rows = _select_validators_for_leanpoint(
+            validators,
+            committee,
+            per_subnet=per_subnet,
+            all_upstreams=False,
+        )
+        if committee is not None:
+            print(
+                f"Info: Leanpoint upstream subset (--subnet-sample): "
+                f"attestation_committee_count={committee}, up to {per_subnet} "
+                f"validator(s) per subnet ({len(rows)} upstreams from "
+                f"{len(validators)} validators).",
+                file=sys.stderr,
+            )
+    else:
+        rows = list(enumerate(validators))
+
     upstreams = []
 
-    for idx, validator in enumerate(config['validators']):
+    for idx, validator in rows:
         name = validator.get('name', f'validator_{idx}')
 
         # Try to get IP from enrFields, default to localhost
@@ -90,7 +204,7 @@ def convert_validator_config(
     with open(output_path, 'w') as f:
         json.dump(output, f, indent=2)
 
-    print(f"✅ Converted {len(upstreams)} validators to {output_path}")
+    print(f"✅ Wrote {len(upstreams)} leanpoint upstream(s) to {output_path}")
     print(f"\nGenerated upstreams:")
     for u in upstreams:
         print(f"  - {u['name']}: {u['url']}{u['path']}")
@@ -161,8 +275,15 @@ def write_nemo_env_file(
 
 
 def main():
-    argv = [a for a in sys.argv[1:] if a != "--docker"]
     docker_host = "--docker" in sys.argv
+    subnet_sample = "--subnet-sample" in sys.argv
+    # Default: every validator is an upstream. --all-upstreams is a no-op (compat).
+    all_upstreams = "--subnet-sample" not in sys.argv
+    argv = [
+        a
+        for a in sys.argv[1:]
+        if a not in ("--docker", "--all-upstreams", "--subnet-sample")
+    ]
 
     if "--print-lean-api-url" in argv:
         argv = [a for a in argv if a != "--print-lean-api-url"]
@@ -213,7 +334,13 @@ def main():
         output_path = args[1]
 
     try:
-        convert_validator_config(yaml_path, output_path, docker_host=docker_host)
+        convert_validator_config(
+            yaml_path,
+            output_path,
+            docker_host=docker_host,
+            all_upstreams=all_upstreams,
+            subnet_sample=subnet_sample,
+        )
     except FileNotFoundError as e:
         print(f"Error: File not found: {e}", file=sys.stderr)
         sys.exit(1)

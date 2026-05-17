@@ -107,7 +107,7 @@ After validator nodes are spun up, leanpoint is deployed so it can monitor them.
 1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
 2. `sync-leanpoint-upstreams.sh` either deploys leanpoint locally (local devnet) or syncs to the tooling server and recreates the remote container (Ansible).
 
-**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`, published port **5555→5555** (`LEANPOINT_HOST_PORT`, default **5555**). Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`, published port **5555→5555** (`LEANPOINT_HOST_PORT`, default **5555**). **`LEANPOINT_IMAGE`** defaults to **`0xpartha/leanpoint:latest`** (do not use **`blockblaz/leanpoint:latest`** on the shared tooling VM unless that image is verified on the host CPU). Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
 
 **SSH key for remote sync:** When using Ansible deployment, the tooling server may require a specific SSH key. Pass `--sshKey ~/.ssh/id_ed25519_github` (or `--private-key`) so the sync can succeed.
 

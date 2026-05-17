@@ -20,8 +20,14 @@
 #   LEANPOINT_DIR           Path containing convert-validator-config.py (default: script_dir)
 #   REMOTE_UPSTREAMS_PATH   Remote path for upstreams.json (default: /etc/leanpoint/upstreams.json)
 #   LEANPOINT_CONTAINER     Docker container name (default: leanpoint)
-#   LEANPOINT_IMAGE         Docker image to pull and run (default: 0xpartha/leanpoint:latest)
+#   LEANPOINT_IMAGE         Docker image to pull and run (default: 0xpartha/leanpoint:latest).
+#                           Use 0xpartha/leanpoint:latest for shared tooling hosts; do not use
+#                           blockblaz/leanpoint:latest there unless the image is built for baseline
+#                           x86_64 (older hosts may SIGILL / exit 132).
 #   LEANPOINT_HOST_PORT     Host port published for leanpoint HTTP (default: 5555).
+#   LEANPOINT_UPSTREAMS_PER_SUBNET  Only with convert-validator-config.py --subnet-sample:
+#                           max upstreams per attestation subnet (default: 2).
+#                           By default every validator in validator-config.yaml is polled.
 #   NEMO_HOST_PORT          Used only for clash check (default 5053); must differ from LEANPOINT_HOST_PORT.
 #   LEANPOINT_SYNC_DISABLED Set to 1 to skip (e.g. when tooling server is not used)
 
@@ -67,7 +73,7 @@ fi
 if [ -n "$local_data_dir" ]; then
   mkdir -p "$local_data_dir"
   local_upstreams="$local_data_dir/upstreams.json"
-  python3 "$convert_script" "$validator_config_file" "$local_upstreams" --docker || {
+  python3 "$convert_script" "$validator_config_file" "$local_upstreams" --docker --all-upstreams || {
     echo "Warning: convert-validator-config.py failed, skipping local leanpoint deploy."
     exit 0
   }
@@ -94,7 +100,7 @@ fi
 
 out_file=$(mktemp)
 trap "rm -f $out_file" EXIT
-python3 "$convert_script" "$validator_config_file" "$out_file" || {
+python3 "$convert_script" "$validator_config_file" "$out_file" --all-upstreams || {
   echo "Warning: convert-validator-config.py failed, skipping leanpoint sync."
   exit 0
 }
