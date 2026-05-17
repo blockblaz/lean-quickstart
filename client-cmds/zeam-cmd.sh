@@ -17,12 +17,11 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
-# In multi-subnet deployments, an aggregator must subscribe to every subnet's
-# attestation topics so it can aggregate votes from all committees. The caller
-# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
-# full subnet id set for the network.
+# Aggregators subscribe only to their committee subnet (validator_index %
+# attestation_committee_count). parse-vc.sh exports that single id in
+# aggregateSubnetIds when isAggregator is true.
 aggregate_subnet_ids_flag=""
-if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ]; then
     aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
 fi
 
