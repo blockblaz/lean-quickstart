@@ -219,6 +219,78 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
   exit 0
 fi
 
+# Handle --stop-all-containers: stop every Docker container on each unique validator
+# host IP except the per-host observability stack (prometheus, promtail, cadvisor,
+# node_exporter). Does not require --node.
+if [ -n "$stopAllContainers" ] && [ "$stopAllContainers" == "true" ]; then
+  if [ "$deployment_mode" != "ansible" ]; then
+    echo "Error: --stop-all-containers can only be used in ansible mode."
+    echo "Set deployment_mode: ansible in your validator-config.yaml or pass --deploymentMode ansible"
+    exit 1
+  fi
+
+  ignored_flags=()
+  [ -n "$node" ]                && ignored_flags+=("--node")
+  [ -n "$cleanData" ]           && ignored_flags+=("--cleanData")
+  [ -n "$generateGenesis" ]     && ignored_flags+=("--generateGenesis")
+  [ -n "$FORCE_KEYGEN_FLAG" ]   && ignored_flags+=("--forceKeyGen")
+  [ -n "$stopNodes" ]           && ignored_flags+=("--stop")
+  [ -n "$restartClient" ]       && ignored_flags+=("--restart-client")
+  [ -n "$checkpointSyncUrl" ]   && ignored_flags+=("--checkpoint-sync-url")
+  [ -n "$dockerTag" ]           && ignored_flags+=("--tag")
+  [ -n "$aggregatorNode" ]      && ignored_flags+=("--aggregator")
+  [ -n "$coreDumps" ]           && ignored_flags+=("--coreDumps")
+  [ -n "$enableMetrics" ]       && ignored_flags+=("--metrics")
+  [ -n "$popupTerminal" ]       && ignored_flags+=("--popupTerminal")
+  [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
+  [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
+  [ -n "$skipNemo" ]            && ignored_flags+=("--skip-nemo")
+  [ -n "$replaceWith" ]         && ignored_flags+=("--replace-with")
+
+  if [ ${#ignored_flags[@]} -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                        ❌  ERROR                            ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  --stop-all-containers does not accept the following flag(s): ║"
+    for flag in "${ignored_flags[@]}"; do
+      printf  "║    %-60s║\n" "• $flag"
+    done
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  Allowed flags with --stop-all-containers:                  ║"
+    echo "║    • --validatorConfig <path>                               ║"
+    echo "║    • --subnets N                                            ║"
+    echo "║    • --sshKey / --private-key                               ║"
+    echo "║    • --useRoot                                              ║"
+    echo "║    • --deploymentMode ansible                               ║"
+    echo "║    • --network, --dry-run, --logs                           ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
+
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed."
+    echo "Install Ansible: brew install ansible (macOS) or pip install ansible"
+    exit 1
+  fi
+
+  if [ "$dryRun" == "true" ]; then
+    echo "[DRY RUN] Would stop all non-observability containers on validator hosts"
+  else
+    echo "Stopping all non-observability containers on every IP in validator-config.yaml..."
+    echo "Preserving: prometheus, promtail, cadvisor, node_exporter"
+  fi
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop-all-containers" "" "" "" "$dryRun" "" "$networkName"; then
+    echo "❌ Stop-all-containers operation failed."
+    exit 1
+  fi
+
+  [ "$dryRun" == "true" ] && echo "✅ Dry-run complete — no changes were made." || echo "✅ Stopped all non-observability containers on validator hosts."
+  exit 0
+fi
+
 #1. setup genesis params and run genesis generator
 if [ "$dryRun" == "true" ]; then
   echo "[DRY RUN] Skipping genesis generation (set-up.sh would run here)"

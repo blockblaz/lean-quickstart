@@ -111,6 +111,10 @@ while [[ $# -gt 0 ]]; do
       prepareMode=true
       shift
       ;;
+    --stop-all-containers)
+      stopAllContainers=true
+      shift
+      ;;
     --deploy-observability)
       echo "Warning: --deploy-observability is deprecated; use --prepare (observability is included)."
       prepareMode=true
@@ -145,8 +149,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# if no node and no restart-client specified, exit (unless --prepare mode)
-if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]];
+# if no node and no restart-client specified, exit (unless --prepare or --stop-all-containers)
+if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]] && [[ "$stopAllContainers" != "true" ]];
 then
   echo "no node or restart-client specified, exiting..."
   exit

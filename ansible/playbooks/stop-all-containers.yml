@@ -1,0 +1,36 @@
+---
+# Stop every Docker container on each unique validator host IP, except the
+# per-host observability stack (prometheus, promtail, cadvisor, node_exporter).
+# Uses hosts-prepare.yml (one play per physical host).
+
+- name: Stop non-observability containers on all validator hosts
+  hosts: prepare_hosts
+  gather_facts: no
+  vars:
+    observability_containers:
+      - prometheus
+      - promtail
+      - cadvisor
+      - node_exporter
+
+  tasks:
+    - name: List Docker container names
+      command: docker ps -a --format '{{ "{{" }}.Names{{ "}}" }}'
+      register: all_containers
+      changed_when: false
+
+    - name: Stop and remove non-observability containers
+      command: docker rm -f {{ item }}
+      loop: "{{ all_containers.stdout_lines | difference(observability_containers) }}"
+      when: item | length > 0
+      register: stop_result
+      failed_when: false
+      changed_when: stop_result.rc == 0
+
+    - name: Report stopped containers
+      debug:
+        msg: "Stopped: {{ item.item }}"
+      loop: "{{ stop_result.results | default([]) }}"
+      when:
+        - item.rc is defined
+        - item.rc == 0

@@ -74,7 +74,7 @@ fi
 
 # prepare.yml: one play per physical host (deduped by IP). Deploy still uses full hosts.yml.
 EFFECTIVE_INVENTORY="$INVENTORY_FILE"
-if { [ "$action" == "prepare" ] || [ "$action" == "observability" ]; } && [ -f "$PREPARE_INVENTORY" ]; then
+if { [ "$action" == "prepare" ] || [ "$action" == "observability" ] || [ "$action" == "stop-all-containers" ]; } && [ -f "$PREPARE_INVENTORY" ]; then
   EFFECTIVE_INVENTORY="$PREPARE_INVENTORY"
 fi
 
@@ -190,6 +190,9 @@ elif [ "$action" == "prepare" ]; then
 elif [ "$action" == "observability" ]; then
   PLAYBOOK="$ANSIBLE_DIR/playbooks/deploy-observability.yml"
   ACTION_MSG="deploying observability stack"
+elif [ "$action" == "stop-all-containers" ]; then
+  PLAYBOOK="$ANSIBLE_DIR/playbooks/stop-all-containers.yml"
+  ACTION_MSG="stopping all non-observability containers"
 else
   PLAYBOOK="$ANSIBLE_DIR/playbooks/site.yml"
   ACTION_MSG="deploying nodes"
@@ -211,7 +214,7 @@ elif [ -f "$_local_vc_path" ] && command -v yq &>/dev/null; then
 elif [ -f "$_local_vc_path" ]; then
   echo "Warning: yq not found; omitting -f (using ansible.cfg forks default)"
 fi
-if [ -n "$_play_forks" ] && { [ "$action" == "prepare" ] || [ "$action" == "observability" ]; }; then
+if [ -n "$_play_forks" ] && { [ "$action" == "prepare" ] || [ "$action" == "observability" ] || [ "$action" == "stop-all-containers" ]; }; then
   _prepare_forks_max="${LEAN_PREPARE_FORKS_MAX:-15}"
   if (( _play_forks > _prepare_forks_max )); then
     echo "Prepare: capping forks from ${_play_forks} to ${_prepare_forks_max} (LEAN_PREPARE_FORKS_MAX)"
@@ -262,6 +265,8 @@ if [ $EXIT_CODE -eq 0 ]; then
     echo "✅ Server preparation completed (tools, firewall, observability)!${_dry_tag}"
   elif [ "$action" == "observability" ]; then
     echo "✅ Observability stack deployed on all hosts!${_dry_tag}"
+  elif [ "$action" == "stop-all-containers" ]; then
+    echo "✅ Stopped all non-observability containers on validator hosts!${_dry_tag}"
   else
     echo "✅ Ansible deployment completed successfully!${_dry_tag}"
   fi
@@ -273,6 +278,8 @@ else
     echo "❌ Server preparation failed with exit code $EXIT_CODE"
   elif [ "$action" == "observability" ]; then
     echo "❌ Observability deployment failed with exit code $EXIT_CODE"
+  elif [ "$action" == "stop-all-containers" ]; then
+    echo "❌ Stop-all-containers operation failed with exit code $EXIT_CODE"
   else
     echo "❌ Ansible deployment failed with exit code $EXIT_CODE"
   fi
