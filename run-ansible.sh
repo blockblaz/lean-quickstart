@@ -74,7 +74,7 @@ fi
 
 # prepare.yml: one play per physical host (deduped by IP). Deploy still uses full hosts.yml.
 EFFECTIVE_INVENTORY="$INVENTORY_FILE"
-if [ "$action" == "prepare" ] && [ -f "$PREPARE_INVENTORY" ]; then
+if { [ "$action" == "prepare" ] || [ "$action" == "observability" ]; } && [ -f "$PREPARE_INVENTORY" ]; then
   EFFECTIVE_INVENTORY="$PREPARE_INVENTORY"
 fi
 
@@ -164,6 +164,10 @@ fi
 
 EXTRA_VARS="$EXTRA_VARS network_name=$networkName"
 
+if [ "$action" == "prepare" ]; then
+  EXTRA_VARS="$EXTRA_VARS prepare_apt_throttle=${LEAN_PREPARE_APT_THROTTLE:-5}"
+fi
+
 # Determine deployment mode (docker/binary) - read default from group_vars/all.yml
 # Default to 'docker' if not specified in group_vars
 GROUP_VARS_FILE="$ANSIBLE_DIR/inventory/group_vars/all.yml"
@@ -183,6 +187,9 @@ if [ "$action" == "stop" ]; then
 elif [ "$action" == "prepare" ]; then
   PLAYBOOK="$ANSIBLE_DIR/playbooks/prepare.yml"
   ACTION_MSG="preparing servers"
+elif [ "$action" == "observability" ]; then
+  PLAYBOOK="$ANSIBLE_DIR/playbooks/deploy-observability.yml"
+  ACTION_MSG="deploying observability stack"
 else
   PLAYBOOK="$ANSIBLE_DIR/playbooks/site.yml"
   ACTION_MSG="deploying nodes"
@@ -196,14 +203,24 @@ ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
 
 # Forks: honor ANSIBLE_FORKS when set; else derive from unique enrFields.ip in validator-config
 # (Ansible cannot set forks from inside a playbook for the same run.)
+_play_forks=""
 if [ -n "${ANSIBLE_FORKS:-}" ]; then
-  ANSIBLE_CMD="$ANSIBLE_CMD -f ${ANSIBLE_FORKS}"
+  _play_forks="${ANSIBLE_FORKS}"
 elif [ -f "$_local_vc_path" ] && command -v yq &>/dev/null; then
-  _ansible_forks="$("$ANSIBLE_DIR/compute-forks-from-validator-config.sh" "$_local_vc_path")"
-  ANSIBLE_CMD="$ANSIBLE_CMD -f ${_ansible_forks}"
-  echo "Ansible forks: ${_ansible_forks} (unique IPs in validator-config; set ANSIBLE_FORKS to override)"
+  _play_forks="$("$ANSIBLE_DIR/compute-forks-from-validator-config.sh" "$_local_vc_path")"
 elif [ -f "$_local_vc_path" ]; then
   echo "Warning: yq not found; omitting -f (using ansible.cfg forks default)"
+fi
+if [ -n "$_play_forks" ] && { [ "$action" == "prepare" ] || [ "$action" == "observability" ]; }; then
+  _prepare_forks_max="${LEAN_PREPARE_FORKS_MAX:-15}"
+  if (( _play_forks > _prepare_forks_max )); then
+    echo "Prepare: capping forks from ${_play_forks} to ${_prepare_forks_max} (LEAN_PREPARE_FORKS_MAX)"
+    _play_forks="$_prepare_forks_max"
+  fi
+fi
+if [ -n "$_play_forks" ]; then
+  ANSIBLE_CMD="$ANSIBLE_CMD -f ${_play_forks}"
+  echo "Ansible forks: ${_play_forks} (set ANSIBLE_FORKS to override)"
 fi
 
 # Dry-run: show what Ansible would change without applying anything.
@@ -220,6 +237,21 @@ cd "$ANSIBLE_DIR"
 eval $ANSIBLE_CMD
 
 EXIT_CODE=$?
+# One idempotent retry: a single host often fails on first pass due to apt lock
+# or download.docker.com under high prepare parallelism.
+if [ $EXIT_CODE -ne 0 ] && [ "$action" == "prepare" ] && [ "$dryRun" != "true" ]; then
+  _retry_forks="${LEAN_PREPARE_RETRY_FORKS:-5}"
+  echo ""
+  echo "Prepare had failures; retrying all hosts once (forks=${_retry_forks})..."
+  _retry_cmd="$ANSIBLE_CMD"
+  if [ -n "$_play_forks" ]; then
+    _retry_cmd=$(echo "$_retry_cmd" | sed -E "s/ -f ${_play_forks}/ -f ${_retry_forks}/")
+  else
+    _retry_cmd="$_retry_cmd -f ${_retry_forks}"
+  fi
+  eval $_retry_cmd
+  EXIT_CODE=$?
+fi
 _dry_tag=""
 [ "$dryRun" == "true" ] && _dry_tag=" (dry-run — no changes applied)"
 if [ $EXIT_CODE -eq 0 ]; then
@@ -227,7 +259,9 @@ if [ $EXIT_CODE -eq 0 ]; then
   if [ "$action" == "stop" ]; then
     echo "✅ Ansible stop operation completed successfully!${_dry_tag}"
   elif [ "$action" == "prepare" ]; then
-    echo "✅ Server preparation completed successfully!${_dry_tag}"
+    echo "✅ Server preparation completed (tools, firewall, observability)!${_dry_tag}"
+  elif [ "$action" == "observability" ]; then
+    echo "✅ Observability stack deployed on all hosts!${_dry_tag}"
   else
     echo "✅ Ansible deployment completed successfully!${_dry_tag}"
   fi
@@ -237,6 +271,8 @@ else
     echo "❌ Ansible stop operation failed with exit code $EXIT_CODE"
   elif [ "$action" == "prepare" ]; then
     echo "❌ Server preparation failed with exit code $EXIT_CODE"
+  elif [ "$action" == "observability" ]; then
+    echo "❌ Observability deployment failed with exit code $EXIT_CODE"
   else
     echo "❌ Ansible deployment failed with exit code $EXIT_CODE"
   fi

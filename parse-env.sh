@@ -111,6 +111,11 @@ while [[ $# -gt 0 ]]; do
       prepareMode=true
       shift
       ;;
+    --deploy-observability)
+      echo "Warning: --deploy-observability is deprecated; use --prepare (observability is included)."
+      prepareMode=true
+      shift
+      ;;
     --subnets)
       subnets="$2"
       shift # past argument

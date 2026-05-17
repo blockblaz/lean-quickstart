@@ -1,6 +1,7 @@
 ---
 # Prepare playbook: Verify and install the software required to run lean nodes,
-# then open and persist the firewall rules each host needs.
+# open and persist firewall rules, then deploy the per-host observability stack
+# (Prometheus, Promtail, node_exporter, cadvisor).
 #
 # Three software prerequisites on every remote server:
 #
@@ -36,6 +37,9 @@
 #
 # Usage (via spin-node.sh):
 #   ./spin-node.sh --prepare [--sshKey ~/.ssh/id_ed25519] [--useRoot]
+#
+# Observability containers are started in a second play (deploy-observability.yml)
+# after tools and firewall rules are in place.
 #
 # Only runs on remote hosts (localhost is excluded).
 #
@@ -83,6 +87,9 @@
       when:
         - ansible_os_family == "Debian"
         - docker_pre.rc != 0
+      # Limit concurrent apt/docker installs — parallel prepare on 30+ hosts often
+      # hits transient apt lock or download.docker.com errors on a single machine.
+      throttle: "{{ prepare_apt_throttle | default(5) }}"
       block:
         - name: Install apt prerequisites for Docker repository
           apt:
@@ -93,7 +100,12 @@
               - lsb-release
             state: present
             update_cache: yes
+            lock_timeout: 120
           become: yes
+          register: docker_apt_prereq
+          until: docker_apt_prereq is succeeded
+          retries: 3
+          delay: 15
 
         - name: Create /etc/apt/keyrings directory
           file:
@@ -109,6 +121,10 @@
             mode: '0644'
             force: no
           become: yes
+          register: docker_gpg_download
+          until: docker_gpg_download is succeeded
+          retries: 3
+          delay: 10
 
         - name: Add Docker apt repository
           apt_repository:
@@ -120,6 +136,10 @@
             state: present
             filename: docker
           become: yes
+          register: docker_apt_repo
+          until: docker_apt_repo is succeeded
+          retries: 3
+          delay: 15
 
         - name: Install Docker packages
           apt:
@@ -130,7 +150,18 @@
               - docker-compose-plugin
             state: present
             update_cache: yes
+            lock_timeout: 300
           become: yes
+          register: docker_apt_install
+          until: docker_apt_install is succeeded
+          retries: 3
+          delay: 20
+
+    - name: Re-check docker is on PATH after install attempt
+      command: which docker
+      register: docker_post
+      changed_when: false
+      failed_when: false
 
     - name: Ensure Docker service is started and enabled
       systemd:
@@ -138,7 +169,9 @@
         state: started
         enabled: yes
       become: yes
-      when: ansible_os_family == "Debian"
+      when:
+        - ansible_os_family == "Debian"
+        - docker_post.rc == 0
 
     # ──────────────────────────────────────────────────────────────────────────
     # 3. yq — the common role hard-fails at every deploy if this is absent
@@ -181,7 +214,13 @@
         name: jq
         state: present
         update_cache: yes
+        lock_timeout: 120
       become: yes
+      register: jq_apt_install
+      until: jq_apt_install is succeeded
+      retries: 3
+      delay: 15
+      throttle: "{{ prepare_apt_throttle | default(5) }}"
 
     # ──────────────────────────────────────────────────────────────────────────
     # 5. Firewall rules (iptables + ufw)
@@ -222,8 +261,14 @@
           - ufw
         state: present
         update_cache: "{{ 'yes' if (iptables_pre.rc != 0 or ufw_pre.rc != 0) else 'no' }}"
+        lock_timeout: 120
       become: yes
       when: ansible_os_family == "Debian"
+      register: fw_apt_install
+      until: fw_apt_install is succeeded
+      retries: 3
+      delay: 15
+      throttle: "{{ prepare_apt_throttle | default(5) }}"
 
     - name: Read all node entries for this host from the active validator config
       vars:
@@ -355,3 +400,6 @@
       loop_control:
         label: "{{ item.item.name }}"
       when: item.rc != 0
+
+- name: Deploy observability stack on all remote hosts
+  import_playbook: deploy-observability.yml

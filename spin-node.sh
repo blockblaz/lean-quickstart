@@ -207,7 +207,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
   if [ "$dryRun" == "true" ]; then
     echo "[DRY RUN] Would prepare remote servers — running Ansible with --check --diff"
   else
-    echo "Preparing remote servers (verifying and installing required software)..."
+    echo "Preparing remote servers (tools, firewall, observability stack)..."
   fi
 
   if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" "" "$dryRun" "" "$networkName"; then
@@ -215,7 +215,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
     exit 1
   fi
 
-  [ "$dryRun" == "true" ] && echo "✅ Dry-run complete — no changes were made." || echo "✅ All remote servers are prepared."
+  [ "$dryRun" == "true" ] && echo "✅ Dry-run complete — no changes were made." || echo "✅ All remote servers are prepared (tools, firewall, Prometheus, Promtail, node_exporter, cadvisor)."
   exit 0
 fi
 
