@@ -252,17 +252,12 @@ Every Ansible deployment automatically deploys an observability stack alongside 
       - `tmp/ansible-run-DD-MM-YYYY-HH-MM.log` for Ansible deployments
     - Example: `NETWORK_DIR=local-devnet ./spin-node.sh --node all --logs`
 19. `--network` sets the network name label attached to every metric and log stream scraped by the observability stack.
-20. `--stop-all-containers` stops every Docker container on each unique `enrFields.ip` in the active `validator-config.yaml`, except the per-host observability stack (`prometheus`, `promtail`, `cadvisor`, `node_exporter`). Use this to tear down stray or leftover lean client containers without touching metrics collection.
+20. `--stop-all-containers` runs `docker ps -a` on each unique `enrFields.ip` in the active `validator-config.yaml` and removes **every** container except the per-host observability stack (`prometheus`, `promtail`, `cadvisor`, `node_exporter`). Stale containers from old deploys, manual runs, or other clients are removed even when their names are not listed in `validator-config.yaml`.
    - **Ansible mode only** — fails if `deployment_mode` is not `ansible`
    - Does not require `--node`; runs one SSH session per unique host IP (same deduplicated inventory as `--prepare`)
-   - Unlike `--stop --node all`, this removes **all** non-observability containers on each host (not only containers whose names match validator rows)
+   - Unlike `--stop --node all`, this is not limited to validator row names — it clears the whole Docker namespace on each host except observability
    - **Allowed with `--stop-all-containers`:** `--validatorConfig`, `--subnets N`, `--sshKey` / `--private-key`, `--useRoot`, `--deploymentMode ansible`, `--network`, `--dry-run`, `--logs`, and `NETWORK_DIR`
    - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --stop-all-containers --network devnet-4 --sshKey ~/.ssh/id_ed25519 --useRoot`
-   - **Required for Ansible deployments** — the script exits with an error if omitted when `deployment_mode: ansible`
-   - For local deployments, falls back to the default network name if not specified
-   - Propagated to Ansible as the `network_name` variable, used in `prometheus.yml.j2` and `promtail.yml.j2` templates
-   - Appears as the `network` label on all Prometheus scrape targets and Promtail log streams, so you can filter by network in Grafana
-   - Example: `--network <your-network-name>`
 
 ### Preparing remote servers
 
@@ -287,7 +282,7 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 -
 - Passing deploy-only flags (e.g. `--node`, `--generateGenesis`, `--stop`, `--metrics`) alongside `--prepare` produces a prominent error. Use `--validatorConfig`, `--subnets N`, `--sshKey`, `--useRoot`, `--deploymentMode ansible`, `--network`, `--dry-run`, or `--logs` when needed so inventory and firewall match your deploy.
 - `--node` is not required; the prepare playbook runs on **one play per unique IP** (deduplicated inventory) so parallel prepares do not fight over the same host
 
-To stop all lean client containers on every validator host while keeping observability running:
+To stop every non-observability container on each validator host (including stale containers not in `validator-config.yaml`) while keeping observability running:
 
 ```bash
 NETWORK_DIR=ansible-devnet ./spin-node.sh --stop-all-containers \

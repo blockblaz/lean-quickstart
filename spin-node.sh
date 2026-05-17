@@ -278,8 +278,8 @@ if [ -n "$stopAllContainers" ] && [ "$stopAllContainers" == "true" ]; then
   if [ "$dryRun" == "true" ]; then
     echo "[DRY RUN] Would stop all non-observability containers on validator hosts"
   else
-    echo "Stopping all non-observability containers on every IP in validator-config.yaml..."
-    echo "Preserving: prometheus, promtail, cadvisor, node_exporter"
+    echo "Stopping every Docker container on each validator host IP (including stale containers not in validator-config.yaml)..."
+    echo "Preserving observability only: prometheus, promtail, cadvisor, node_exporter"
   fi
 
   if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop-all-containers" "" "" "" "$dryRun" "" "$networkName"; then
