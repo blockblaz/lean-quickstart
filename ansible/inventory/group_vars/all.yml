@@ -22,11 +22,27 @@ docker_with_sudo: false
 docker_network_mode: host
 
 # Restart node/observability containers after OOM kill or crash (Docker exit != 0).
-# Applied on --prepare and deploy via the common role; new containers use this in docker run.
+# Applied on --prepare (host config) and in docker run on deploy.
 docker_container_restart_policy: unless-stopped
 
 # Keep the Docker daemon running if systemd stops it (host-level).
 docker_systemd_restart: always
+
+# Per-client cgroup memory caps (issue: ream was ~15GiB RSS on 16GiB hosts → kernel OOM).
+# --memory-swap matches --memory so containers cannot expand into swap and evict neighbors.
+# Budget for 16GiB host: observability ~0.3GiB + up to 3 validators; 8GiB hosts need ≤2 validators
+# or lower limits via host_vars.
+docker_memory_limits:
+  zeam: "4g"
+  ream: "5g"
+  ethlambda: "1536m"
+  gean: "3g"
+  nlean: "3g"
+  qlean: "3g"
+  lantern: "3g"
+  grandine: "3g"
+  lighthouse: "3g"
+  peam: "3g"
 
 # Node deployment mode: 'docker' or 'binary'
 deployment_mode: docker

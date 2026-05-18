@@ -1,0 +1,14 @@
+---
+# 8GiB Hetzner host (ubuntu-8gb-fsn1-1): three validators in validator-config.yaml
+# cannot use the default 16GiB limits without kernel OOM.
+docker_memory_limits:
+  zeam: "2g"
+  ream: "3g"
+  ethlambda: "1200m"
+  gean: "2g"
+  nlean: "2g"
+  qlean: "2g"
+  lantern: "2g"
+  grandine: "2g"
+  lighthouse: "2g"
+  peam: "2g"
