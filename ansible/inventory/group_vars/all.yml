@@ -21,6 +21,13 @@ remote_data_dir: "/opt/lean-quickstart/data"
 docker_with_sudo: false
 docker_network_mode: host
 
+# Restart node/observability containers after OOM kill or crash (Docker exit != 0).
+# Applied on --prepare and deploy via the common role; new containers use this in docker run.
+docker_container_restart_policy: unless-stopped
+
+# Keep the Docker daemon running if systemd stops it (host-level).
+docker_systemd_restart: always
+
 # Node deployment mode: 'docker' or 'binary'
 deployment_mode: docker
 

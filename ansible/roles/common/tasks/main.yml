@@ -142,3 +142,7 @@
     mode: '0755'
   when: node_name is defined
 
+- name: Configure Docker auto-restart on remote hosts
+  include_tasks: docker-restart-policy.yml
+  when: not is_localhost | default(false)
+

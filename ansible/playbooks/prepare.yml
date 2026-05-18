@@ -173,6 +173,14 @@
         - ansible_os_family == "Debian"
         - docker_post.rc == 0
 
+    - name: Configure Docker and container auto-restart (OOM/crash)
+      include_role:
+        name: common
+        tasks_from: docker-restart-policy.yml
+      vars:
+        is_localhost: false
+      when: docker_post.rc == 0
+
     # ──────────────────────────────────────────────────────────────────────────
     # 3. yq — the common role hard-fails at every deploy if this is absent
     # ──────────────────────────────────────────────────────────────────────────

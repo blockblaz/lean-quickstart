@@ -3,4 +3,6 @@
 
 docker_version: latest
 yq_install_method: "auto"  # auto, brew, binary
+docker_container_restart_policy: unless-stopped
+docker_systemd_restart: always
 

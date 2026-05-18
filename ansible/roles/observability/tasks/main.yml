@@ -59,7 +59,7 @@
   command: >-
     docker run -d
     --name cadvisor
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     --privileged
     --device=/dev/kmsg
@@ -86,7 +86,7 @@
   command: >-
     docker run -d
     --name node_exporter
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     --pid host
     -v /proc:/host/proc:ro
@@ -118,7 +118,7 @@
   command: >-
     docker run -d
     --name prometheus
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     -v {{ observability_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     -v {{ observability_dir }}/prometheus-data:/prometheus
@@ -139,7 +139,7 @@
   command: >-
     docker run -d
     --name promtail
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     -v {{ observability_dir }}/promtail.yml:/etc/promtail/config.yml:ro
     -v /var/run/docker.sock:/var/run/docker.sock:ro
