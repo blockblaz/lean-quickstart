@@ -30,8 +30,7 @@ docker_systemd_restart: always
 
 # Per-client cgroup memory caps (issue: ream was ~15GiB RSS on 16GiB hosts → kernel OOM).
 # --memory-swap matches --memory so containers cannot expand into swap and evict neighbors.
-# Budget for 16GiB host: observability ~0.3GiB + up to 3 validators; 8GiB hosts need ≤2 validators
-# or lower limits via host_vars.
+# Budget for 16GiB host: observability ~0.3GiB + up to 3 validators per IP.
 docker_memory_limits:
   zeam: "4g"
   ream: "5g"
