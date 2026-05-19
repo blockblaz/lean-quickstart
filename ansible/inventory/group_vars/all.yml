@@ -28,20 +28,24 @@ docker_container_restart_policy: unless-stopped
 # Keep the Docker daemon running if systemd stops it (host-level).
 docker_systemd_restart: always
 
-# Per-client cgroup memory caps (issue: ream was ~15GiB RSS on 16GiB hosts → kernel OOM).
-# --memory-swap matches --memory so containers cannot expand into swap and evict neighbors.
-# Budget for 16GiB host: observability ~0.3GiB + up to 3 validators per IP.
+# Per-client cgroup memory caps for shared (non-aggregator) hosts.
+# Aggregators are exempt: each role skips --memory/--memory-swap when
+# its `*_is_aggregator` fact is "true" (one container per IP, no
+# co-tenant pressure). Budget for 16GiB shared host: observability
+# ~0.3GiB + up to 3 validators per IP × 4GiB cap = ~12.3GiB worst case.
+# --memory-swap matches --memory so containers cannot expand into swap
+# and evict neighbors.
 docker_memory_limits:
   zeam: "4g"
-  ream: "5g"
-  ethlambda: "1536m"
-  gean: "3g"
-  nlean: "3g"
-  qlean: "3g"
-  lantern: "3g"
-  grandine: "3g"
-  lighthouse: "3g"
-  peam: "3g"
+  ream: "4g"
+  ethlambda: "4g"
+  gean: "4g"
+  nlean: "4g"
+  qlean: "4g"
+  lantern: "4g"
+  grandine: "4g"
+  lighthouse: "4g"
+  peam: "4g"
 
 # Node deployment mode: 'docker' or 'binary'
 deployment_mode: docker
