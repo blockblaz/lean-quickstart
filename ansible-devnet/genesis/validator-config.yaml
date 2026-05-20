@@ -2,12 +2,17 @@
 #
 # Genesis order = YAML list order → validator_index = row index (0..63).
 # attestation_committee_count: 8 → subnet = index % 8.
-# Row pattern repeats zeam → ethlambda → ream → zeam → ethlambda → gean → grandine → nlean
+# Row pattern repeats zeam → ethlambda → ream → zeam → ethlambda → gean → ream → grandine
 # (former qlean/lantern slots are zeam_8..15 and ethlambda_8..15).
-# Aggregators: one per committee subnet (validator_index % 8); each subscribes only to its subnet.
+# Aggregators: one per committee subnet (validator_index % 8); each on Aggregator_servers IP.
+# Subnet → node (only these have isAggregator: true):
+#   0 zeam_8 @ 178.105.22.187   1 ethlambda_8 @ 178.105.124.135   2 ream_0 @ 178.105.117.56
+#   3 zeam_4 @ 178.105.121.214   4 ethlambda_5 @ 178.105.22.193   5 gean_0 @ 178.105.70.184
+#   6 ream_13 @ 178.105.113.166   7 grandine_0 @ 178.105.102.228
 #
 # Regular validators use IPs from lean_ethereum_servers.txt (Validator_servers).
-# Aggregators use dedicated Aggregator_servers (one IP per client type).
+# Aggregators use dedicated Aggregator_servers: exactly one container per IP
+# (quic 9001, api 5055, metrics 9102). No regular validators on those hosts.
 # Tooling host (46.225.10.32) is not used.
 #
 # Ports (per IP): up to four processes per host — quic 9001..9004, api 5055..5058,
@@ -50,19 +55,19 @@ validators:
   - name: "zeam_0"
     privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
     enrFields:
-      ip: "178.105.121.214"
-      quic: 9001
-    metricsPort: 9102
-    apiPort: 5055
+      ip: "65.109.131.177"
+      quic: 9002
+    metricsPort: 9103
+    apiPort: 5056
     isAggregator: false
     count: 1
   - name: "ethlambda_0"
     privkey: "299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a"
     enrFields:
-      ip: "178.105.22.193"
-      quic: 9001
-    metricsPort: 9102
-    apiPort: 5055
+      ip: "178.104.149.208"
+      quic: 9003
+    metricsPort: 9104
+    apiPort: 5057
     isAggregator: false
     count: 1
   - name: "gean_0"
@@ -74,17 +79,17 @@ validators:
     apiPort: 5055
     isAggregator: true
     count: 1
-  - name: "grandine_0"
-    privkey: "c05937b251889e35c58d4601c29bed8153dc22c548448f85e0ab9ca436d4b904"
+  - name: "ream_8"
+    privkey: "2e9be3f1b0d32ca3a4d62017fbfafe3950b7e90fed6802ff8bd2e0f8c4e2ca91"
     enrFields:
-      ip: "178.105.113.166"
+      ip: "157.180.20.55"
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
-    isAggregator: true
+    isAggregator: false
     count: 1
-  - name: "nlean_0"
-    privkey: "2e9be3f1b0d32ca3a4d62017fbfafe3950b7e90fed6802ff8bd2e0f8c4e2ca91"
+  - name: "grandine_0"
+    privkey: "c05937b251889e35c58d4601c29bed8153dc22c548448f85e0ab9ca436d4b904"
     enrFields:
       ip: "178.105.102.228"
       quic: 9001
@@ -146,19 +151,19 @@ validators:
     apiPort: 5055
     isAggregator: false
     count: 1
-  - name: "grandine_1"
-    privkey: "ab6edee1173379f647b4022d74d4b3342d547e7bb6954664a1a489b95b7c9b60"
+  - name: "ream_9"
+    privkey: "74388a2487b943d947c17bf65ca08470f3ad5f045ea0f5aed38a98bbaba1bd49"
     enrFields:
-      ip: "37.27.89.135"
+      ip: "65.109.131.177"
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
     isAggregator: false
     count: 1
-  - name: "nlean_1"
-    privkey: "74388a2487b943d947c17bf65ca08470f3ad5f045ea0f5aed38a98bbaba1bd49"
+  - name: "grandine_1"
+    privkey: "ab6edee1173379f647b4022d74d4b3342d547e7bb6954664a1a489b95b7c9b60"
     enrFields:
-      ip: "157.180.20.55"
+      ip: "37.27.89.135"
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
@@ -218,19 +223,19 @@ validators:
     apiPort: 5055
     isAggregator: false
     count: 1
+  - name: "ream_10"
+    privkey: "53f1956c292eca6aba53bfd1089682828130db1c0ef980746e5e3e1d94f98360"
+    enrFields:
+      ip: "37.27.220.14"
+      quic: 9002
+    metricsPort: 9103
+    apiPort: 5056
+    isAggregator: false
+    count: 1
   - name: "grandine_2"
     privkey: "b4fdf4bc8ea6e74845b19823510c590406ff63371e0573132f1ddb6b455b7bf7"
     enrFields:
       ip: "65.21.182.45"
-      quic: 9001
-    metricsPort: 9102
-    apiPort: 5055
-    isAggregator: false
-    count: 1
-  - name: "nlean_2"
-    privkey: "53f1956c292eca6aba53bfd1089682828130db1c0ef980746e5e3e1d94f98360"
-    enrFields:
-      ip: "65.109.131.177"
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
@@ -270,7 +275,7 @@ validators:
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
-    isAggregator: true
+    isAggregator: false
     count: 1
   - name: "ethlambda_3"
     privkey: "1c454b0399cd2178b46e42c8b599e34f2e7ddab71df96b1fbf510d5951335ea0"
@@ -290,6 +295,15 @@ validators:
     apiPort: 5055
     isAggregator: false
     count: 1
+  - name: "ream_11"
+    privkey: "f52f1216a9a20f5b2c200ed64f1a2a8e7427772574147a7edf4602b40f820e9b"
+    enrFields:
+      ip: "178.104.151.50"
+      quic: 9002
+    metricsPort: 9103
+    apiPort: 5056
+    isAggregator: false
+    count: 1
   - name: "grandine_3"
     privkey: "27b642b91b25a4dd55638d7936469270f0fc4b77ceba768617291415eeb3ab1a"
     enrFields:
@@ -297,15 +311,6 @@ validators:
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
-    isAggregator: false
-    count: 1
-  - name: "nlean_3"
-    privkey: "f52f1216a9a20f5b2c200ed64f1a2a8e7427772574147a7edf4602b40f820e9b"
-    enrFields:
-      ip: "37.27.220.14"
-      quic: 9002
-    metricsPort: 9103
-    apiPort: 5056
     isAggregator: false
     count: 1
   - name: "zeam_12"
@@ -338,16 +343,16 @@ validators:
   - name: "zeam_4"
     privkey: "2aed04fc149298af1376aee0161d5dc67f9d7a47e625a58ae8e44f210d45c2a2"
     enrFields:
-      ip: "135.181.82.109"
-      quic: 9002
-    metricsPort: 9103
-    apiPort: 5056
-    isAggregator: false
+      ip: "178.105.121.214"
+      quic: 9001
+    metricsPort: 9102
+    apiPort: 5055
+    isAggregator: true
     count: 1
   - name: "ethlambda_4"
     privkey: "91c2c932a6589e130bfa5281cc27f6b9930ba7f99aa043d334f14578ef7492f1"
     enrFields:
-      ip: "157.90.254.146"
+      ip: "95.217.158.60"
       quic: 9002
     metricsPort: 9103
     apiPort: 5056
@@ -362,19 +367,19 @@ validators:
     apiPort: 5056
     isAggregator: false
     count: 1
-  - name: "grandine_4"
-    privkey: "936fa39e4f1ce548d977f852f84ee900bbd2789bf85779e0e958d966a1ba7386"
+  - name: "ream_12"
+    privkey: "6cc68faf32d824996ecec2644c61cdb479da9bc1f957f7d09913fac8c49fe578"
     enrFields:
-      ip: "157.180.20.55"
+      ip: "65.109.138.213"
       quic: 9002
     metricsPort: 9103
     apiPort: 5056
     isAggregator: false
     count: 1
-  - name: "nlean_4"
-    privkey: "6cc68faf32d824996ecec2644c61cdb479da9bc1f957f7d09913fac8c49fe578"
+  - name: "grandine_4"
+    privkey: "936fa39e4f1ce548d977f852f84ee900bbd2789bf85779e0e958d966a1ba7386"
     enrFields:
-      ip: "178.104.151.50"
+      ip: "157.180.20.55"
       quic: 9002
     metricsPort: 9103
     apiPort: 5056
@@ -419,11 +424,11 @@ validators:
   - name: "ethlambda_5"
     privkey: "793a5d9add590b890085b440ceefe3e8c805785f7271feee09d35511e7060056"
     enrFields:
-      ip: "204.168.135.7"
-      quic: 9002
-    metricsPort: 9103
-    apiPort: 5056
-    isAggregator: false
+      ip: "178.105.22.193"
+      quic: 9001
+    metricsPort: 9102
+    apiPort: 5055
+    isAggregator: true
     count: 1
   - name: "gean_5"
     privkey: "b55c8e411d54ca0ef5ce69e86cba09ae110add1c5d598ed3356adfa5182b82e9"
@@ -434,19 +439,19 @@ validators:
     apiPort: 5056
     isAggregator: false
     count: 1
+  - name: "ream_13"
+    privkey: "9cf22e42d463e751958eceace0a3201c661b4326076027c900a04aa845a9e683"
+    enrFields:
+      ip: "178.105.113.166"
+      quic: 9001
+    metricsPort: 9102
+    apiPort: 5055
+    isAggregator: true
+    count: 1
   - name: "grandine_5"
     privkey: "99f1df1cbc7429360d52142a8ec5df6a3ad38a4a39897d2ee356b88fd3a69385"
     enrFields:
       ip: "65.109.131.177"
-      quic: 9002
-    metricsPort: 9103
-    apiPort: 5056
-    isAggregator: false
-    count: 1
-  - name: "nlean_5"
-    privkey: "9cf22e42d463e751958eceace0a3201c661b4326076027c900a04aa845a9e683"
-    enrFields:
-      ip: "65.109.138.213"
       quic: 9002
     metricsPort: 9103
     apiPort: 5056
@@ -506,6 +511,15 @@ validators:
     apiPort: 5056
     isAggregator: false
     count: 1
+  - name: "ream_14"
+    privkey: "c9dcdad85cfffc846c9771f950f4198ae4791972cf86841ee01004f8375b9332"
+    enrFields:
+      ip: "157.180.116.162"
+      quic: 9003
+    metricsPort: 9104
+    apiPort: 5057
+    isAggregator: false
+    count: 1
   - name: "grandine_6"
     privkey: "eadfc14b6231cb9a207f96f436f7d55c733ba3781306307b7f81f564e2b53f0a"
     enrFields:
@@ -515,19 +529,10 @@ validators:
     apiPort: 5057
     isAggregator: false
     count: 1
-  - name: "nlean_6"
-    privkey: "c9dcdad85cfffc846c9771f950f4198ae4791972cf86841ee01004f8375b9332"
-    enrFields:
-      ip: "157.180.116.162"
-      quic: 9003
-    metricsPort: 9104
-    apiPort: 5057
-    isAggregator: false
-    count: 1
   - name: "zeam_15"
     privkey: "2907bc1d1e0a3dee4cc317dfda39a09b5e23596671d7108482edb897616c6b6c"
     enrFields:
-      ip: "204.168.178.179"
+      ip: "204.168.135.7"
       quic: 9003
     metricsPort: 9104
     apiPort: 5057
@@ -554,7 +559,7 @@ validators:
   - name: "zeam_7"
     privkey: "97ae5f1d63fa7c05783f7ae5af4ce1fc43a030833c174e430080a8695ce91d56"
     enrFields:
-      ip: "157.90.254.146"
+      ip: "95.217.158.60"
       quic: 9003
     metricsPort: 9104
     apiPort: 5057
@@ -567,7 +572,7 @@ validators:
       quic: 9003
     metricsPort: 9104
     apiPort: 5057
-    isAggregator: true
+    isAggregator: false
     count: 1
   - name: "gean_7"
     privkey: "32e4b103c4b349df214d265db9cb1e6d49346e14093fee656828a5e1ef050b8b"
@@ -578,19 +583,19 @@ validators:
     apiPort: 5057
     isAggregator: false
     count: 1
-  - name: "grandine_7"
-    privkey: "7dd9ca62d79af8e01c95c743ef1a39155a42eded7096599a7f67b3932b387e6c"
+  - name: "ream_15"
+    privkey: "c99cd68f66a7460a8aca095d6dd4b6ce953e175d91077f1e7aba27858f68e301"
     enrFields:
-      ip: "178.104.151.50"
+      ip: "178.104.133.162"
       quic: 9003
     metricsPort: 9104
     apiPort: 5057
     isAggregator: false
     count: 1
-  - name: "nlean_7"
-    privkey: "c99cd68f66a7460a8aca095d6dd4b6ce953e175d91077f1e7aba27858f68e301"
+  - name: "grandine_7"
+    privkey: "7dd9ca62d79af8e01c95c743ef1a39155a42eded7096599a7f67b3932b387e6c"
     enrFields:
-      ip: "178.104.133.162"
+      ip: "178.104.151.50"
       quic: 9003
     metricsPort: 9104
     apiPort: 5057
