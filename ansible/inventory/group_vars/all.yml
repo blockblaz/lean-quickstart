@@ -47,6 +47,24 @@ docker_memory_limits:
   lighthouse: "4g"
   peam: "4g"
 
+# zeam --rayon-threads override for the multisig (XMSS) aggregate prover
+# (zeam #903 / #899). Mirror of the ZEAM_RAYON_THREADS_AGGREGATOR /
+# ZEAM_RAYON_THREADS env vars in client-cmds/zeam-cmd.sh.
+#
+# zeam_rayon_threads_aggregator wins for aggregators; zeam_rayon_threads
+# applies to both roles otherwise. Both empty (the default) means no flag
+# is passed and zeam picks its compiled-in auto-split.
+#
+# 16-vCPU recommended starting point: 12 (= cpu_count - 4 reserved system
+# threads). Do not exceed cpu_count - 4, or libxev/libp2p/api/metrics
+# threads start to starve — watch
+# `zeam_fork_choice_tick_interval_duration_seconds` p99.
+#
+# REQUIRES: a zeam image built from PR #903 or later. Older images will
+# refuse `--rayon-threads` and fail to start; leave both empty in that case.
+zeam_rayon_threads_aggregator: ""
+zeam_rayon_threads: ""
+
 # Node deployment mode: 'docker' or 'binary'
 deployment_mode: docker
 

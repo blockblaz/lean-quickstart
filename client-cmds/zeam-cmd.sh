@@ -86,6 +86,34 @@ case "$zeam_chain_worker" in
         ;;
 esac
 
+# Rayon worker count for the multisig (XMSS) aggregate prover (zeam #903 / #899).
+#
+# Default unset → zeam picks an auto-split that gives roughly half of the
+# post-system-thread CPU budget to rayon and half to its Zig worker pool. That
+# split is fine for non-aggregators (which mostly verify, also via rayon-from-
+# Zig-workers) but underuses CPU on CPU-rich aggregators where the produce-path
+# FFI is the per-slot bottleneck.
+#
+# Two knobs so non-aggregators stay on the default:
+#   - export ZEAM_RAYON_THREADS_AGGREGATOR=12  # aggregator-only override
+#   - export ZEAM_RAYON_THREADS=12             # uniform override for both roles
+# The aggregator-specific value wins for aggregators when both are set.
+#
+# Sizing guidance for a 16-vCPU host: 12 is the recommended starting point
+# (cpu_count - 4 reserved system threads: libxev/libp2p/api/metrics). Do not
+# exceed cpu_count - 4 or those reserved threads start to starve, surfacing as
+# `zeam_fork_choice_tick_interval_duration_seconds` p99 climbing.
+#
+# REQUIRES: a zeam build with PR #903 merged plus a docker image cut from it.
+# Older images do not recognise `--rayon-threads` and will fail to start. Leave
+# both env vars unset to suppress the flag entirely for pre-#903 images.
+rayon_threads_flag=""
+if [ "$isAggregator" == "true" ] && [ -n "${ZEAM_RAYON_THREADS_AGGREGATOR:-}" ]; then
+    rayon_threads_flag="--rayon-threads $ZEAM_RAYON_THREADS_AGGREGATOR"
+elif [ -n "${ZEAM_RAYON_THREADS:-}" ]; then
+    rayon_threads_flag="--rayon-threads $ZEAM_RAYON_THREADS"
+fi
+
 node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       --custom-genesis $configDir \
       --validator-config $validatorConfig \
@@ -99,7 +127,8 @@ node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $db_backend_flag \
-      $chain_worker_flag"
+      $chain_worker_flag \
+      $rayon_threads_flag"
 
 node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_global_flags node \
       --custom-genesis /config \
@@ -114,7 +143,8 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_glob
       $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $db_backend_flag \
-      $chain_worker_flag"
+      $chain_worker_flag \
+      $rayon_threads_flag"
 
 # choose either binary or docker
 node_setup="docker"
