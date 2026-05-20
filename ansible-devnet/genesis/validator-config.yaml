@@ -8,7 +8,7 @@
 # Subnet → node (only these have isAggregator: true):
 #   0 zeam_8 @ 178.105.22.187   1 ethlambda_8 @ 178.105.124.135   2 ream_0 @ 178.105.117.56
 #   3 zeam_4 @ 178.105.121.214   4 ethlambda_5 @ 178.105.22.193   5 gean_0 @ 178.105.70.184
-#   6 ream_13 @ 178.105.113.166   7 grandine_0 @ 178.105.102.228
+#   6 ream_13 @ 178.105.102.228   7 grandine_0 @ 178.105.113.166
 #
 # Regular validators use IPs from lean_ethereum_servers.txt (Validator_servers).
 # Aggregators use dedicated Aggregator_servers: exactly one container per IP
@@ -91,7 +91,7 @@ validators:
   - name: "grandine_0"
     privkey: "c05937b251889e35c58d4601c29bed8153dc22c548448f85e0ab9ca436d4b904"
     enrFields:
-      ip: "178.105.102.228"
+      ip: "178.105.113.166"
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
@@ -118,10 +118,10 @@ validators:
   - name: "ream_1"
     privkey: "fc2f11f90dd90df33bfb5f3467c2cbc37cf93dbb41c7ac556f9eea117418e73d"
     enrFields:
-      ip: "204.168.178.179"
-      quic: 9001
-    metricsPort: 9102
-    apiPort: 5055
+      ip: "37.27.220.14"
+      quic: 9004
+    metricsPort: 9105
+    apiPort: 5058
     isAggregator: false
     count: 1
   - name: "zeam_1"
@@ -145,7 +145,7 @@ validators:
   - name: "gean_1"
     privkey: "5408a68b960a7932e367b32489498a13c339f87ff8090ea54213524b3d76fcff"
     enrFields:
-      ip: "157.90.254.146"
+      ip: "95.217.158.60"
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
@@ -325,10 +325,10 @@ validators:
   - name: "ethlambda_12"
     privkey: "a5dac14f317084d255c57e5080985b1dbd79cf8fc625a9c7fba781abf07001bd"
     enrFields:
-      ip: "204.168.178.179"
-      quic: 9002
-    metricsPort: 9103
-    apiPort: 5056
+      ip: "157.180.116.162"
+      quic: 9004
+    metricsPort: 9105
+    apiPort: 5058
     isAggregator: false
     count: 1
   - name: "ream_4"
@@ -352,7 +352,7 @@ validators:
   - name: "ethlambda_4"
     privkey: "91c2c932a6589e130bfa5281cc27f6b9930ba7f99aa043d334f14578ef7492f1"
     enrFields:
-      ip: "95.217.158.60"
+      ip: "157.90.254.146"
       quic: 9002
     metricsPort: 9103
     apiPort: 5056
@@ -442,7 +442,7 @@ validators:
   - name: "ream_13"
     privkey: "9cf22e42d463e751958eceace0a3201c661b4326076027c900a04aa845a9e683"
     enrFields:
-      ip: "178.105.113.166"
+      ip: "178.105.102.228"
       quic: 9001
     metricsPort: 9102
     apiPort: 5055
@@ -559,7 +559,7 @@ validators:
   - name: "zeam_7"
     privkey: "97ae5f1d63fa7c05783f7ae5af4ce1fc43a030833c174e430080a8695ce91d56"
     enrFields:
-      ip: "95.217.158.60"
+      ip: "157.90.254.146"
       quic: 9003
     metricsPort: 9104
     apiPort: 5057
