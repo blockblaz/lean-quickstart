@@ -74,6 +74,11 @@
 
 - name: Deploy Nlean node using Docker
   block:
+    - name: Pull Nlean docker image
+      command: docker pull {{ nlean_docker_image }}
+      register: nlean_docker_pull
+      changed_when: '"Downloaded newer image" in nlean_docker_pull.stdout'
+
     - name: Stop existing Nlean container (if any)
       command: docker rm -f {{ node_name }}
       register: nlean_stop

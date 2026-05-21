@@ -110,6 +110,11 @@
 
 - name: Deploy Ethlambda node using Docker
   block:
+    - name: Pull Ethlambda docker image
+      command: docker pull {{ ethlambda_docker_image }}
+      register: ethlambda_docker_pull
+      changed_when: '"Downloaded newer image" in ethlambda_docker_pull.stdout'
+
     - name: Stop existing Ethlambda container (if any)
       command: docker rm -f {{ node_name }}
       register: ethlambda_stop

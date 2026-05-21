@@ -87,6 +87,7 @@
     - name: Start Lighthouse container
       command: >-
         docker run -d
+        --pull=always
         --name {{ node_name }}
         --restart {{ docker_container_restart_policy }}
         {{ ('--memory ' + docker_memory_limits.lighthouse) if (lighthouse_is_aggregator | default('false')) != 'true' else '' }}
