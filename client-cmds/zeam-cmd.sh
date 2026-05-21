@@ -94,10 +94,11 @@ esac
 # Zig-workers) but underuses CPU on CPU-rich aggregators where the produce-path
 # FFI is the per-slot bottleneck.
 #
-# Two knobs so non-aggregators stay on the default:
-#   - export ZEAM_RAYON_THREADS_AGGREGATOR=12  # aggregator-only override
-#   - export ZEAM_RAYON_THREADS=12             # uniform override for both roles
-# The aggregator-specific value wins for aggregators when both are set.
+# Aggregators default to 12 rayon threads; non-aggregators stay on zeam's
+# auto-split unless overridden:
+#   - ZEAM_RAYON_THREADS_AGGREGATOR  # aggregator override (default 12)
+#   - ZEAM_RAYON_THREADS             # uniform override for both roles
+# For aggregators, ZEAM_RAYON_THREADS_AGGREGATOR wins when set; otherwise 12.
 #
 # Sizing guidance for a 16-vCPU host: 12 is the recommended starting point
 # (cpu_count - 4 reserved system threads: libxev/libp2p/api/metrics). Do not
@@ -108,8 +109,8 @@ esac
 # Older images do not recognise `--rayon-threads` and will fail to start. Leave
 # both env vars unset to suppress the flag entirely for pre-#903 images.
 rayon_threads_flag=""
-if [ "$isAggregator" == "true" ] && [ -n "${ZEAM_RAYON_THREADS_AGGREGATOR:-}" ]; then
-    rayon_threads_flag="--rayon-threads $ZEAM_RAYON_THREADS_AGGREGATOR"
+if [ "$isAggregator" == "true" ]; then
+    rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_AGGREGATOR:-12}"
 elif [ -n "${ZEAM_RAYON_THREADS:-}" ]; then
     rayon_threads_flag="--rayon-threads $ZEAM_RAYON_THREADS"
 fi
