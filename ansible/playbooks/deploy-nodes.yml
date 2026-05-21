@@ -172,7 +172,7 @@
         _assignments: "{{ _av[node_name] | default([]) }}"
         _base: "{{ _assignments | map(attribute='privkey_file') | map('regex_replace', '_sk\\.ssz$', '') | list }}"
       set_fact:
-        node_hash_sig_files: "{{ (_base | product(['_sk.ssz', '_pk.ssz', '_sk.json', '_pk.json']) | map('join') | list) + ['validator-keys-manifest.yaml'] }}"
+        node_hash_sig_files: "{{ (_base | product(['_sk.ssz', '_pk.ssz']) | map('join') | list) + ['validator-keys-manifest.yaml'] }}"
       when: hash_sig_keys_local.stat.exists
       tags:
         - deploy
@@ -195,6 +195,10 @@
         mode: '0600'
         force: yes
       loop: "{{ node_hash_sig_files | default([]) }}"
+      retries: 3
+      delay: 5
+      register: copy_result
+      until: copy_result is success
       when: hash_sig_keys_local.stat.exists and (node_hash_sig_files | default([]) | length > 0)
       tags:
         - deploy

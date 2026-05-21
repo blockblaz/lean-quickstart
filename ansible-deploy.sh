@@ -59,6 +59,11 @@ Examples:
 
 Environment Variables:
   NETWORK_DIR               Network directory (overrides --network-dir)
+  ANSIBLE_FORKS             Passed as ansible-playbook -f (disables IP-based default)
+  LEAN_VALIDATOR_CONFIG_PATH  Validator YAML used only to compute -f in ansible-deploy
+                              (default: \$NETWORK_DIR/genesis/validator-config.yaml)
+  LEAN_ANSIBLE_FORKS_MIN    Floor for computed forks (default: 5)
+  LEAN_ANSIBLE_FORKS_MAX    Ceiling for computed forks (default: 128)
 
 EOF
 }
@@ -172,6 +177,21 @@ ANSIBLE_CMD="ansible-playbook"
 ANSIBLE_CMD="$ANSIBLE_CMD -i $ANSIBLE_DIR/inventory/hosts.yml"
 ANSIBLE_CMD="$ANSIBLE_CMD $ANSIBLE_DIR/playbooks/$PLAYBOOK"
 ANSIBLE_CMD="$ANSIBLE_CMD -e \"$EXTRA_VARS\""
+
+# Forks: ANSIBLE_FORKS wins; else count unique enrFields.ip in genesis validator-config.yaml
+_vc_for_forks="${LEAN_VALIDATOR_CONFIG_PATH:-$NETWORK_DIR_ABS/genesis/validator-config.yaml}"
+if [[ "${_vc_for_forks}" != /* ]]; then
+  _vc_for_forks="$SCRIPT_DIR/${_vc_for_forks}"
+fi
+if [[ -n "${ANSIBLE_FORKS:-}" ]]; then
+  ANSIBLE_CMD="$ANSIBLE_CMD -f ${ANSIBLE_FORKS}"
+elif [[ -f "${_vc_for_forks}" ]] && command -v yq &>/dev/null; then
+  _ansible_forks="$("$ANSIBLE_DIR/compute-forks-from-validator-config.sh" "${_vc_for_forks}")"
+  ANSIBLE_CMD="$ANSIBLE_CMD -f ${_ansible_forks}"
+  echo -e "${GREEN}Ansible forks:${NC} ${_ansible_forks} (unique IPs in ${_vc_for_forks}; set ANSIBLE_FORKS or LEAN_VALIDATOR_CONFIG_PATH to override)"
+elif [[ -f "${_vc_for_forks}" ]]; then
+  echo -e "${YELLOW}Warning:${NC} yq not found; omitting -f (using ansible.cfg forks default)"
+fi
 
 if [ -n "$TAGS" ]; then
     ANSIBLE_CMD="$ANSIBLE_CMD --tags $TAGS"

@@ -6,7 +6,7 @@
 # NLEAN_REPO should point to this repository when lean-quickstart is outside this workspace.
 # Default assumes sibling checkouts: <workspace>/nlean and <workspace>/lean-quickstart.
 nlean_repo="${NLEAN_REPO:-$scriptDir/../nlean}"
-nlean_docker_image="${NLEAN_DOCKER_IMAGE:-ghcr.io/nleaneth/nlean:devnet3}"
+nlean_docker_image="${NLEAN_DOCKER_IMAGE:-ghcr.io/nleaneth/nlean:devnet4}"
 nlean_network_name="${NLEAN_NETWORK_NAME:-devnet0}"
 log_level="${NLEAN_LOG_LEVEL:-}"
 enable_metrics="${enableMetrics:-false}"
@@ -35,6 +35,15 @@ if [[ "${isAggregator:-false}" == "true" ]]; then
   aggregator_flag="--is-aggregator"
 fi
 
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [[ "${isAggregator:-false}" == "true" ]] && [[ -n "${aggregateSubnetIds:-}" ]] && [[ "$aggregateSubnetIds" == *,* ]]; then
+  aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
+fi
+
 # Set attestation committee count flag if explicitly configured
 attestation_committee_flag=""
 if [[ -n "${attestationCommitteeCount:-}" ]]; then
@@ -60,19 +69,18 @@ binary_path="$nlean_repo/artifacts/lean-client/Lean.Client"
 mkdir -p "$dataDir/$item"
 
 node_binary="$binary_path \
-      --validator-config $configDir/validator-config.yaml \
+      --custom-network-config-dir $configDir \
       --node $item \
       --data-dir $dataDir/$item \
-      --network $nlean_network_name \
       --node-key $configDir/$node_private_key_path \
       --socket-port $quicPort \
       --metrics $enable_metrics \
       --metrics-port $metricsPort \
       --metrics-address 0.0.0.0 \
-      --hash-sig-key-dir $configDir/hash-sig-keys \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $log_level_arg"
 
@@ -103,19 +111,18 @@ if [[ -n "${NLEAN_DEBUG_DUMP_OBSERVED_BLOCKS_DIR:-}" ]]; then
 fi
 
 node_docker="${nlean_docker_extra_env} ${nlean_docker_image} \
-      --validator-config /config/validator-config.yaml \
+      --custom-network-config-dir /config \
       --node $item \
       --data-dir /data \
-      --network $nlean_network_name \
       --node-key /config/$node_private_key_path \
       --socket-port $quicPort \
       --metrics $enable_metrics \
       --metrics-port $metricsPort \
       --metrics-address 0.0.0.0 \
-      --hash-sig-key-dir /config/hash-sig-keys \
       $api_port_flag \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $log_level_arg"
 

@@ -86,6 +86,20 @@ docker ps | grep zeam_0
 - `roles/` - Reusable role modules (zeam, ream, qlean, lantern, lighthouse, grandine, ethlambda, genesis, common)
 - `requirements.yml` - Ansible Galaxy dependencies
 
+## Parallelism (large devnets)
+
+`ansible.cfg` sets **`strategy = free`** and a **`forks`** fallback for bare `ansible-playbook` invocations.
+
+**`run-ansible.sh`** and **`ansible-deploy.sh`** pass **`-f N`** where `N` comes from counting **unique `enrFields.ip`** values in the active `validator-config.yaml` (via `ansible/compute-forks-from-validator-config.sh`), clamped between **`LEAN_ANSIBLE_FORKS_MIN`** (default `5`) and **`LEAN_ANSIBLE_FORKS_MAX`** (default `128`). The minimum avoids fully serializing deploys when every validator row shares one IP (many nodes, one machine) while still reflecting larger devnets by unique address.
+
+- Override forks: `ANSIBLE_FORKS=100` or `ansible-playbook -f 100 ...`
+- Override validator config path for fork counting only (ansible-deploy): `LEAN_VALIDATOR_CONFIG_PATH=/path/to/validator-config.yaml`
+- Tune clamp: `LEAN_ANSIBLE_FORKS_MIN=1 LEAN_ANSIBLE_FORKS_MAX=256`
+
+If `yq` is missing, the wrappers omit `-f` and Ansible uses `ansible.cfg` **`forks`**.
+
+Very high forks can stress SSH, the control node, or image registries; back off if you see timeouts or rate limits.
+
 ## Configuration Source
 
 Ansible roles automatically extract Docker images and deployment modes from `client-cmds/*-cmd.sh` files:
@@ -205,8 +219,10 @@ Test copying genesis files to remote hosts (genesis files must be generated loca
 
 **Verify copied files on remote host:**
 ```sh
-ls -la local-devnet/genesis/
-# Should see: config.yaml, validators.yaml, nodes.yaml, genesis.json, genesis.ssz, *.key files
+# Local genesis dir still holds every *.key after generate-genesis.
+# On each remote host you get shared yamls/ssz/json plus *.key only for validators
+# whose enrFields.ip matches that host (collocated nodes on one machine share the same set).
+ls -la /opt/lean-quickstart/genesis/
 ```
 
 ### Phase 4: Test Docker Image Extraction (Latest Changes)

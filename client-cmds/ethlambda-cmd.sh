@@ -10,6 +10,15 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+    aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
+fi
+
 # Set attestation committee count flag if explicitly configured
 attestation_committee_flag=""
 if [ -n "$attestationCommitteeCount" ]; then
@@ -24,7 +33,12 @@ fi
 
 # Command when running as binary
 node_binary="$binary_path \
-      --custom-network-config-dir $configDir \
+      --genesis $configDir/config.yaml \
+      --validators $configDir/annotated_validators.yaml \
+      --bootnodes $configDir/nodes.yaml \
+      --validator-config $configDir/validator-config.yaml \
+      --hash-sig-keys-dir $configDir/hash-sig-keys \
+      --data-dir $dataDir/$item \
       --gossipsub-port $quicPort \
       --node-id $item \
       --node-key $configDir/$item.key \
@@ -33,11 +47,17 @@ node_binary="$binary_path \
       --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag"
 
 # Command when running as docker container
-node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
-      --custom-network-config-dir /config \
+node_docker="ghcr.io/lambdaclass/ethlambda:devnet4 \
+      --genesis /config/config.yaml \
+      --validators /config/annotated_validators.yaml \
+      --bootnodes /config/nodes.yaml \
+      --validator-config /config/validator-config.yaml \
+      --hash-sig-keys-dir /config/hash-sig-keys \
+      --data-dir /data \
       --gossipsub-port $quicPort \
       --node-id $item \
       --node-key /config/$item.key \
@@ -46,6 +66,7 @@ node_docker="ghcr.io/lambdaclass/ethlambda:devnet3 \
       --metrics-port $metricsPort \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag"
 
 node_setup="docker"

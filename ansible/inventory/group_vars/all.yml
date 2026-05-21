@@ -1,5 +1,10 @@
 ---
 # Global variables for all nodes
+#
+# Parallel runs: ansible/ansible.cfg sets strategy=free and forks=25 as fallback when
+# no -f is passed. run-ansible.sh and ansible-deploy.sh set -f from unique enrFields.ip
+# in validator-config (clamped by LEAN_ANSIBLE_FORKS_MIN / LEAN_ANSIBLE_FORKS_MAX).
+# Override forks: ANSIBLE_FORKS=100 or ansible-playbook -f 100 ...
 
 # Paths (relative to playbook execution directory or absolute)
 network_dir: "{{ playbook_dir }}/../local-devnet"

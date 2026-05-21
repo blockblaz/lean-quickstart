@@ -7,9 +7,9 @@
 # Platform-specific qlean image
 ARCH=$(uname -m)
 if [ "$ARCH" = "x86_64" ]; then
-    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-3-amd64"
+    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-4-amd64"
 elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-3-arm64"
+    QLEAN_IMAGE="qdrvm/qlean-mini:devnet-4-arm64"
 else
     echo "Unsupported architecture: $ARCH"
     exit 1
@@ -19,6 +19,15 @@ fi
 aggregator_flag=""
 if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
+fi
+
+# In multi-subnet deployments, an aggregator must subscribe to every subnet's
+# attestation topics so it can aggregate votes from all committees. The caller
+# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
+# full subnet id set for the network.
+aggregate_subnet_ids_flag=""
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+    aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
 fi
 
 # Set attestation committee count flag if explicitly configured
@@ -33,14 +42,8 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
-node_binary="$scriptDir/qlean/build/src/executable/qlean \
-      --modules-dir $scriptDir/qlean/build/src/modules \
-      --genesis $configDir/config.yaml \
-      --validator-registry-path $configDir/validators.yaml \
-      --validator-keys-manifest $configDir/hash-sig-keys/validator-keys-manifest.yaml \
-      --xmss-pk $hashSigPkPath \
-      --xmss-sk $hashSigSkPath \
-      --bootnodes $configDir/nodes.yaml \
+node_binary="$scriptDir/qlean/build/out/bin/qlean \
+      --genesis-dir $configDir \
       --data-dir $dataDir/$item \
       --node-id $item --node-key $configDir/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
@@ -50,17 +53,12 @@ node_binary="$scriptDir/qlean/build/src/executable/qlean \
       --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
-      -ldebug \
-      -ltrace"
-      
+      -ldebug"
+
 node_docker="$QLEAN_IMAGE \
-      --genesis /config/config.yaml \
-      --validator-registry-path /config/validators.yaml \
-      --validator-keys-manifest /config/hash-sig-keys/validator-keys-manifest.yaml \
-      --xmss-pk /config/hash-sig-keys/validator_${hashSigKeyIndex}_pk.json \
-      --xmss-sk /config/hash-sig-keys/validator_${hashSigKeyIndex}_sk.json \
-      --bootnodes /config/nodes.yaml \
+      --genesis-dir /config \
       --data-dir /data \
       --node-id $item --node-key /config/$privKeyPath \
       --listen-addr /ip4/0.0.0.0/udp/$quicPort/quic-v1 \
@@ -70,9 +68,9 @@ node_docker="$QLEAN_IMAGE \
       --api-port $apiPort \
       $attestation_committee_flag \
       $aggregator_flag \
+      $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
-      -ldebug \
-      -ltrace"
+      -ldebug"
 
 # choose either binary or docker
 node_setup="docker"
