@@ -6,3 +6,12 @@
 ream_docker_image: "ghcr.io/reamlabs/ream:latest-devnet4"
 deployment_mode: docker  # docker or binary
 
+# Number of attestation committees (subnets). Extracted from .config.attestation_committee_count
+# in validator-config.yaml at runtime. Override via -e ream_attestation_committee_count=N if needed.
+ream_attestation_committee_count: 1
+
+# These should be passed from the playbook
+node_name: ""
+genesis_dir: ""
+data_dir: ""
+

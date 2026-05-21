@@ -4,10 +4,13 @@
 
 - name: Extract docker image from client-cmd.sh
   shell: |
-    # Extract the first word (docker image) from node_docker line
-    # playbook_dir points to ansible/playbooks, go up two levels to reach project root
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
-    grep -E '^node_docker=' "$project_root/client-cmds/ream-cmd.sh" | head -1 | sed -E 's/.*node_docker="([^ "]+).*/\1/'
+    script_path="$project_root/client-cmds/ream-cmd.sh"
+    if [ ! -f "$script_path" ]; then
+      echo "ERROR: Script not found at $script_path (project_root=$project_root, playbook_dir={{ playbook_dir }})" >&2
+      exit 1
+    fi
+    grep -E '^node_docker=' "$script_path" | head -1 | grep -oE '[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+' | head -1
   register: ream_docker_image_raw
   changed_when: false
   delegate_to: localhost
@@ -15,7 +18,6 @@
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |
-    # Extract the value from node_setup line
     project_root="$(cd '{{ playbook_dir }}/../..' && pwd)"
     grep -E '^node_setup=' "$project_root/client-cmds/ream-cmd.sh" | head -1 | sed -E 's/.*node_setup="([^"]+)".*/\1/'
   register: ream_deployment_mode_raw
@@ -27,6 +29,8 @@
   set_fact:
     ream_docker_image: "{{ ream_docker_image_raw.stdout | trim | default('ghcr.io/reamlabs/ream:latest-devnet4') }}"
     deployment_mode: "{{ ream_deployment_mode_raw.stdout | trim | default('docker') }}"
+  delegate_to: localhost
+  run_once: true
 
 - name: Extract node configuration from validator-config.yaml
   shell: |
@@ -38,7 +42,6 @@
     - enrFields.quic
     - metricsPort
     - apiPort
-    - privkey
     - isAggregator
   when: node_name is defined
 
@@ -47,9 +50,54 @@
     ream_quic_port: "{{ ream_node_config.results[0].stdout }}"
     ream_metrics_port: "{{ ream_node_config.results[1].stdout }}"
     ream_api_port: "{{ ream_node_config.results[2].stdout }}"
-    ream_privkey: "{{ ream_node_config.results[3].stdout }}"
-    ream_is_aggregator: "{{ 'true' if (ream_node_config.results[4].stdout | default('') | trim) == 'true' else 'false' }}"
+    ream_is_aggregator: "{{ 'true' if (ream_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: ream_node_config is defined
+
+# Read attestation_committee_count from the top-level config block.
+# Mirrors the same logic used in the zeam role so both clients get the same subnet count.
+- name: Compute attestation committee count from validator-config.yaml
+  shell: |
+    set -e
+    ac=$(yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}")
+    ac=$(echo "$ac" | tr -d '\r\n' | head -1)
+    case "$ac" in ''|*[!0-9]*) ac=1;; esac
+    if [ "$ac" -lt 1 ]; then ac=1; fi
+    echo "$ac"
+  register: ream_attestation_committee_count_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set attestation committee count
+  set_fact:
+    ream_attestation_committee_count: "{{ ream_attestation_committee_count_raw.stdout | trim | int }}"
+  run_once: true
+
+# Build a comma-separated list of every subnet id (0 … N-1) so that aggregator
+# nodes can subscribe to attestations from all committees — same approach as zeam.
+- name: Compute aggregate subnet ids from attestation_committee_count
+  shell: |
+    set -e
+    ac=$(yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}")
+    ac=$(echo "$ac" | tr -d '\r\n' | head -1)
+    case "$ac" in ''|*[!0-9]*) ac=1;; esac
+    if [ "$ac" -lt 1 ]; then ac=1; fi
+    out="0"
+    i=1
+    while [ "$i" -lt "$ac" ]; do
+      out="$out,$i"
+      i=$((i + 1))
+    done
+    echo "$out"
+  register: ream_all_subnets_raw
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Set aggregate subnet ids csv
+  set_fact:
+    ream_aggregate_subnet_ids: "{{ ream_all_subnets_raw.stdout | trim }}"
+  run_once: true
 
 - name: Ensure node key file exists
   stat:
@@ -110,7 +158,9 @@
         --metrics-port {{ ream_metrics_port }}
         --http-address 0.0.0.0
         --http-port {{ ream_api_port }}
+        --attestation-committee-count {{ ream_attestation_committee_count }}
         {{ '--is-aggregator' if (ream_is_aggregator | default('false')) == 'true' else '' }}
+        {{ ('--aggregate-subnet-ids ' + ream_aggregate_subnet_ids) if (ream_is_aggregator | default('false')) == 'true' and (',' in (ream_aggregate_subnet_ids | default(''))) else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ream_container
       changed_when: ream_container.rc == 0
