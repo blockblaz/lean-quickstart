@@ -40,8 +40,8 @@ validators:
   apiPort: 5052
   isAggregator: false
   count: 1
-- name: zeam_4
-  privkey: e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1
+- name: qlean_0
+  privkey: b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c390
   enrFields:
     ip: 100.0.0.5
     quic: 9005
@@ -49,8 +49,8 @@ validators:
   apiPort: 5052
   isAggregator: false
   count: 1
-- name: zeam_5
-  privkey: f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2
+- name: qlean_1
+  privkey: b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c391
   enrFields:
     ip: 100.0.0.6
     quic: 9006
@@ -58,8 +58,8 @@ validators:
   apiPort: 5052
   isAggregator: true
   count: 1
-- name: zeam_6
-  privkey: a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c3
+- name: qlean_2
+  privkey: b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c392
   enrFields:
     ip: 100.0.0.7
     quic: 9007
@@ -67,8 +67,8 @@ validators:
   apiPort: 5052
   isAggregator: false
   count: 1
-- name: zeam_7
-  privkey: b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c3d4
+- name: qlean_3
+  privkey: b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c393
   enrFields:
     ip: 100.0.0.8
     quic: 9008
