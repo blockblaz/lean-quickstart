@@ -1,43 +1,78 @@
 shuffle: roundrobin
-# Deployment mode for Shadow network simulator
 deployment_mode: local
 config:
   activeEpoch: 18
-  keyType: "hash-sig"
+  keyType: hash-sig
 validators:
-  - name: "zeam_0"
-    privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
-    enrFields:
-      ip: "100.0.0.1"
-      quic: 9001
-    metricsPort: 8081
-    apiPort: 5052
-    isAggregator: false
-    count: 1
-  - name: "zeam_1"
-    privkey: "af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32"
-    enrFields:
-      ip: "100.0.0.2"
-      quic: 9002
-    metricsPort: 8082
-    apiPort: 5052
-    isAggregator: true
-    count: 1
-  - name: "zeam_2"
-    privkey: "c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9"
-    enrFields:
-      ip: "100.0.0.3"
-      quic: 9003
-    metricsPort: 8083
-    apiPort: 5052
-    isAggregator: false
-    count: 1
-  - name: "zeam_3"
-    privkey: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5"
-    enrFields:
-      ip: "100.0.0.4"
-      quic: 9004
-    metricsPort: 8084
-    apiPort: 5052
-    isAggregator: false
-    count: 1
+- name: zeam_0
+  privkey: bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5
+  enrFields:
+    ip: 100.0.0.1
+    quic: 9001
+  metricsPort: 8081
+  apiPort: 5052
+  isAggregator: false
+  count: 1
+- name: zeam_1
+  privkey: af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32
+  enrFields:
+    ip: 100.0.0.2
+    quic: 9002
+  metricsPort: 8082
+  apiPort: 5052
+  isAggregator: true
+  count: 1
+- name: zeam_2
+  privkey: c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9d4b8b6b8c2bbdac5e876b3e9
+  enrFields:
+    ip: 100.0.0.3
+    quic: 9003
+  metricsPort: 8083
+  apiPort: 5052
+  isAggregator: false
+  count: 1
+- name: zeam_3
+  privkey: d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5
+  enrFields:
+    ip: 100.0.0.4
+    quic: 9004
+  metricsPort: 8084
+  apiPort: 5052
+  isAggregator: false
+  count: 1
+- name: zeam_4
+  privkey: e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1
+  enrFields:
+    ip: 100.0.0.5
+    quic: 9005
+  metricsPort: 8085
+  apiPort: 5052
+  isAggregator: false
+  count: 1
+- name: zeam_5
+  privkey: f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2
+  enrFields:
+    ip: 100.0.0.6
+    quic: 9006
+  metricsPort: 8086
+  apiPort: 5052
+  isAggregator: true
+  count: 1
+- name: zeam_6
+  privkey: a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c3
+  enrFields:
+    ip: 100.0.0.7
+    quic: 9007
+  metricsPort: 8087
+  apiPort: 5052
+  isAggregator: false
+  count: 1
+- name: zeam_7
+  privkey: b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5a1b2c3d4
+  enrFields:
+    ip: 100.0.0.8
+    quic: 9008
+  metricsPort: 8088
+  apiPort: 5052
+  isAggregator: false
+  count: 1

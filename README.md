@@ -1179,7 +1179,7 @@ cd lean-quickstart
 This single command:
 1. Generates genesis with a fixed Shadow-compatible timestamp (`946684860`)
 2. Generates `shadow.yaml` from `shadow-devnet/genesis/validator-config.yaml`
-3. Runs Shadow simulation (default: 360 seconds)
+3. Runs Shadow simulation (default: 60 seconds)
 
 ### Options
 

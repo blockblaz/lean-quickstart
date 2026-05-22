@@ -152,7 +152,7 @@ for i in "${!node_names[@]}"; do
     # These scripts expect: $item, $configDir, $dataDir, $scriptDir, $validatorConfig
     export scriptDir="$SCRIPT_DIR"
     export configDir="$GENESIS_DIR"
-    export dataDir="$PROJECT_ROOT/shadow.data/hosts/$hostname"
+    export dataDir="${SHADOW_DATA_DIR:-$PROJECT_ROOT/shadow.data}/hosts/$hostname"
     export validatorConfig="$GENESIS_DIR"
 
     # Source parse-vc.sh to extract per-node config (quicPort, metricsPort, apiPort, etc.)
