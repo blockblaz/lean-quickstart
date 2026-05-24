@@ -255,7 +255,7 @@ echo "Detected nodes: ${nodes[@]}"
 spin_nodes=()
 restart_with_checkpoint_sync=false
 
-# Aggregator selection — one aggregator per subnet.
+# Aggregator selection — at least one aggregator per subnet.
 #
 # Skipped entirely for --restart-client: restarting a single node must not
 # disturb the existing isAggregator assignments for the rest of the network.
@@ -271,15 +271,22 @@ restart_with_checkpoint_sync=false
 # shows ops/inventory groups — not the per-validator committee subnet map.
 # Nodes without 'subnet:' and without a clear rule default to subnet 0.
 #
-# When --aggregator is specified, that node is used as the aggregator for
-# its own subnet; all other subnets still get a random selection (still
-# excluding that node's client type from pools on other subnets).
+# Selection policy:
+#   1. If --aggregator NODE is given: NODE is the sole aggregator for its
+#      subnet (any presets on that subnet are discarded). Other subnets fall
+#      through to step 2/3.
+#   2. If a subnet already has one or more nodes with isAggregator: true in
+#      the YAML, ALL of those presets are honoured — the operator's manual
+#      choice wins. Multiple aggregators per subnet are intentional and
+#      desirable for redundancy.
+#   3. If a subnet has no presets, exactly one aggregator is picked at
+#      random, preferring client types not yet aggregating elsewhere
+#      (prefix before the first '_', e.g. zeam from zeam_0). If all client
+#      types are already used, fall back to unrestricted random in that
+#      subnet with a warning.
 #
-# Default random mode (no --aggregator): aggregators are unique by CLIENT
-# (prefix before the first '_', e.g. zeam from zeam_0). Example with 5 subnets:
-# if zeam_* is chosen for subnet 0, no zeam_* node may be aggregator on
-# subnets 1–4. If subnets outnumber distinct clients, the pool is exhausted
-# and we fall back to unrestricted random with a warning.
+# Invariant: every subnet ends up with >= 1 aggregator. Subnets may have
+# more if the YAML pre-configures them.
 
 # Helper: get the subnet index for a node from the config.
 # If the node has an explicit 'subnet' field, use it.
@@ -345,68 +352,64 @@ else
 
   echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
 
-  # Snapshot which nodes already have isAggregator: true before we reset anything.
-  # This lets us honour manual edits in the YAML when no --aggregator flag was passed.
-  # Uses dynamic variable names (_preset_agg_<subnet>) for bash 3.2 compatibility
-  # (bash 3.2 ships with macOS and does not support declare -A).
+  # Snapshot every node that already has isAggregator: true. We keep ALL
+  # presets per subnet (not just the first) so operators can configure
+  # multiple aggregators in the YAML for redundancy.
+  #
+  # Storage uses dynamic variable names (_presets_<subnet>, space-separated
+  # node list) for bash 3.2 compatibility — bash 3.2 ships with macOS and
+  # does not support `declare -A`.
   for _node in "${nodes[@]}"; do
     _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
     if [[ "$_is_agg" == "true" ]]; then
       _sn="$(_node_subnet "$_node")"
-      _varname="_preset_agg_${_sn}"
-      # Keep the first preset aggregator found per subnet.
-      [[ -z "${!_varname:-}" ]] && printf -v "$_varname" '%s' "$_node"
+      _varname="_presets_${_sn}"
+      _existing="${!_varname:-}"
+      printf -v "$_varname" '%s' "${_existing}${_node} "
     fi
   done
 
-  # Reset every node's isAggregator flag (skipped in dry-run).
-  if [ "$dryRun" != "true" ]; then
-    yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
-  fi
-
-  # Select one aggregator per subnet and set the flag.
-  # Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
-  # _used_agg_prefixes: client types already chosen (default random / preset / --aggregator).
+  # Decide each subnet's final aggregator set.
+  #
+  # Result is collected in _final_aggs (space-separated, all subnets) and
+  # _aggregator_summary (one display line per subnet listing all aggs).
+  # _used_agg_prefixes tracks client types already in use so the random
+  # fallback can prefer unused clients.
   _aggregator_summary=()
   _used_agg_prefixes=" "
+  _final_aggs=" "
   for _subnet_idx in "${_unique_subnets[@]}"; do
     _subnet_nodes=()
     for _node in "${nodes[@]}"; do
       [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]] && _subnet_nodes+=("$_node")
     done
 
-    _selected_agg=""
+    _selected_aggs=()
 
     if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
-      # 1. Explicit --aggregator flag.
-      _selected_agg="$aggregatorNode"
-    elif _pv="_preset_agg_${_subnet_idx}"; [ -n "${!_pv:-}" ]; then
-      # 2. A node had isAggregator: true in the config — respect the manual choice.
-      _preset="${!_pv}"
-      # Validate the preset node is still in the active nodes list.
-      _preset_valid=false
-      for _n in "${_subnet_nodes[@]}"; do
-        [[ "$_n" == "$_preset" ]] && _preset_valid=true && break
-      done
-      if [[ "$_preset_valid" == "true" ]]; then
-        _selected_agg="$_preset"
-        # Default mode: one client type at most once across subnets — drop conflicting presets.
-        if [ -z "$aggregatorNode" ]; then
-          _pp="$(_client_prefix "$_selected_agg")"
-          if [[ "$_used_agg_prefixes" == *" $_pp "* ]]; then
-            echo "Warning: preset aggregator '$_preset' (client $_pp) already aggregates another subnet; selecting randomly in subnet $_subnet_idx." >&2
-            _selected_agg=""
-          fi
+      # 1. Explicit --aggregator overrides any presets in this subnet.
+      _selected_aggs=("$aggregatorNode")
+    else
+      # 2. Honour every preset for this subnet that is still in the active
+      #    node list. Operators can opt in to multi-aggregator subnets by
+      #    setting isAggregator: true on more than one row.
+      _pv="_presets_${_subnet_idx}"
+      for _preset in ${!_pv:-}; do
+        _preset_valid=false
+        for _n in "${_subnet_nodes[@]}"; do
+          [[ "$_n" == "$_preset" ]] && _preset_valid=true && break
+        done
+        if [[ "$_preset_valid" == "true" ]]; then
+          _selected_aggs+=("$_preset")
+        else
+          echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; ignoring." >&2
         fi
-      else
-        # Preset node no longer exists — fall back to random and warn.
-        echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
-        _selected_agg=""
-      fi
+      done
     fi
 
-    # 3. Random (or preset fallback): prefer client types not yet used as aggregator.
-    if [ -z "$_selected_agg" ]; then
+    # 3. If no aggregator yet for this subnet, pick one at random,
+    #    preferring client types not yet used as aggregator anywhere.
+    if [ ${#_selected_aggs[@]} -eq 0 ]; then
       _eligible_aggs=()
       for _n in "${_subnet_nodes[@]}"; do
         _np="$(_client_prefix "$_n")"
@@ -420,23 +423,46 @@ else
         _eligible_aggs=("${_subnet_nodes[@]}")
       fi
       if [ ${#_eligible_aggs[@]} -gt 0 ]; then
-        _selected_agg="${_eligible_aggs[$((RANDOM % ${#_eligible_aggs[@]}))]}"
+        _selected_aggs+=("${_eligible_aggs[$((RANDOM % ${#_eligible_aggs[@]}))]}")
       else
         echo "Error: subnet $_subnet_idx has no nodes to select an aggregator from." >&2
         exit 1
       fi
     fi
 
-    _sel_pref="$(_client_prefix "$_selected_agg")"
-    _used_agg_prefixes+="$_sel_pref "
+    # Track client prefixes used so the random fallback in later subnets
+    # can prefer unused families. Note: presets may legitimately violate
+    # cross-subnet uniqueness — we still record them so random fallbacks
+    # in remaining subnets steer clear.
+    for _agg in "${_selected_aggs[@]}"; do
+      _used_agg_prefixes+="$(_client_prefix "$_agg") "
+      _final_aggs+="$_agg "
+    done
 
-    if [ "$dryRun" != "true" ]; then
-      yq eval -i "(.validators[] | select(.name == \"$_selected_agg\") | .isAggregator) = true" "$validator_config_file"
-    fi
-    _aggregator_summary+=("subnet $_subnet_idx → $_selected_agg")
+    # Build the display line: "subnet 0 → zeam_0, grandine_0".
+    _line="subnet $_subnet_idx → $(IFS=, ; echo "${_selected_aggs[*]}")"
+    _line="${_line//,/, }"
+    _aggregator_summary+=("$_line")
   done
 
-  # Verify the invariant: exactly 1 aggregator per subnet (skipped in dry-run).
+  # Apply the final aggregator set to the YAML in a single pass: every
+  # node in _final_aggs gets isAggregator: true, every other node gets
+  # isAggregator: false. Doing it as one update (instead of reset-then-set)
+  # avoids leaving the file in a transiently invalid state.
+  if [ "$dryRun" != "true" ]; then
+    for _node in "${nodes[@]}"; do
+      if [[ "$_final_aggs" == *" $_node "* ]]; then
+        _new_val=true
+      else
+        _new_val=false
+      fi
+      yq eval -i "(.validators[] | select(.name == \"$_node\") | .isAggregator) = $_new_val" "$validator_config_file"
+    done
+  fi
+
+  # Verify the invariant: every subnet ends up with at least 1 aggregator
+  # (skipped in dry-run). Multiple aggregators per subnet are allowed and
+  # do not trip this check.
   if [ "$dryRun" != "true" ]; then
     _verify_failed=false
     for _subnet_idx in "${_unique_subnets[@]}"; do
@@ -447,8 +473,8 @@ else
           [[ "$_is_agg" == "true" ]] && _agg_count=$((_agg_count + 1))
         fi
       done
-      if [ "$_agg_count" -ne 1 ]; then
-        echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
+      if [ "$_agg_count" -lt 1 ]; then
+        echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected at least 1" >&2
         _verify_failed=true
       fi
     done
