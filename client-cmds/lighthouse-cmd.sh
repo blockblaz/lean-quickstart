@@ -9,10 +9,11 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
-# In multi-subnet deployments, an aggregator must subscribe to every subnet's
-# attestation topics so it can aggregate votes from all committees. The caller
-# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
-# full subnet id set for the network.
+# Multi-subnet: lean-quickstart picks one aggregator per subnet (spin-node.sh).
+# compute-aggregate-subnet-ids.sh reports the node's own committee subnet id;
+# Zeam and other clients derive attestation gossip from local validator placement,
+# so --aggregate-subnet-ids is only passed when the CSV explicitly lists multiple
+# ids (comma). Background: blockblaz/zeam#863.
 aggregate_subnet_ids_flag=""
 if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
     aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"

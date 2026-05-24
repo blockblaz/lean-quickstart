@@ -69,20 +69,27 @@ if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
     isAggregator="false"
 fi
 
-# CSV of all attestation subnet ids (e.g. "0,1"). Clients do not read a YAML
-# `subnet:` field for consensus — subnets are validator_index % committee_count.
-# Aggregators must still hear every subnet, so derive ids from
-# config.attestation_committee_count (not from per-validator subnet metadata).
-_ac=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
-_ac=$(echo "$_ac" | tr -d '\r\n' | head -1)
-case "$_ac" in ''|*[!0-9]*) _ac=1;; esac
-if [ "$_ac" -lt 1 ] 2>/dev/null; then _ac=1; fi
-aggregateSubnetIds="0"
-_i=1
-while [ "$_i" -lt "$_ac" ] 2>/dev/null; do
-    aggregateSubnetIds+=",$_i"
-    _i=$((_i + 1))
-done
+# CSV of attestation subnet ids THIS aggregator should subscribe to.
+#
+# blockblaz/zeam#863 follow-up: instead of every aggregator listening
+# to every subnet (which under multi-subnet load fans every gossip
+# attestation N-ways into the libxev thread), compute-aggregate-subnet-ids.sh
+# now reports only this node's OWN committee subnet id. With one
+# aggregator per subnet (spin-node.sh), clients' validator-derived gossip
+# subscriptions are enough; a comma-separated list is only for rare
+# explicit overrides (see client-cmds: they pass the flag when the CSV
+# contains a comma).
+#
+# Computation lives in compute-aggregate-subnet-ids.sh so the same
+# helper is reused by ansible/roles/{zeam,ethlambda}/tasks/main.yml
+# without yq-logic drift between the two paths.
+_compute_helper="${scriptDir:-$(dirname "${BASH_SOURCE[0]}")}/compute-aggregate-subnet-ids.sh"
+if [ -x "$_compute_helper" ]; then
+    aggregateSubnetIds=$("$_compute_helper" "$validator_config_file" "$item")
+else
+    echo "Warning: $_compute_helper not found or not executable; falling back to single-subnet coverage" >&2
+    aggregateSubnetIds="0"
+fi
 export aggregateSubnetIds
 
 # Extract attestation_committee_count from config section (optional - only if explicitly set)
