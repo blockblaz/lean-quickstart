@@ -9,6 +9,7 @@
 - name: Stop non-observability containers on all validator hosts
   hosts: prepare_hosts
   gather_facts: no
+  ignore_unreachable: true
   vars:
     observability_containers:
       - prometheus
@@ -24,7 +25,7 @@
 
     - name: Stop and remove every container except observability stack
       command: docker rm -f {{ item }}
-      loop: "{{ all_containers.stdout_lines | difference(observability_containers) | select('length') | list }}"
+      loop: "{{ all_containers.stdout_lines | default([]) | difference(observability_containers) | reject('equalto', '') | list }}"
       register: stop_result
       failed_when: false
 
@@ -34,3 +35,16 @@
       when:
         - stop_result.results is defined
         - stop_result.results | selectattr('rc', 'defined') | selectattr('rc', 'equalto', 0) | list | length > 0
+
+- name: Summarize stop-all-containers run
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Warn about unreachable validator hosts
+      debug:
+        msg: "Skipped (SSH unreachable): {{ hostvars[item].ansible_host | default(item) }}"
+      loop: "{{ groups['prepare_hosts'] | default([]) }}"
+      when: hostvars[item].unreachable | default(false)
+      run_once: true

@@ -86,14 +86,14 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
 ### Aggregator Selection
 
 ```sh
-# Let the system randomly select an aggregator (default behavior)
+# Default: keep isAggregator flags from validator-config.yaml
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 
-# Manually specify which node should be the aggregator
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregator zeam_0
+# Randomly select one aggregator per subnet (unique by client type when possible)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --randomize
 
-# The aggregator selection is applied automatically and the isAggregator flag
-# is updated in validator-config.yaml before nodes are started
+# Set one subnet's aggregator without changing other subnets
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregator zeam_0
 ```
 
 ### Leanpoint deployment
@@ -217,12 +217,11 @@ Every Ansible deployment automatically deploys an observability stack alongside 
     - On Ctrl+C cleanup, the metrics stack is stopped automatically
 
     Note: Client metrics endpoints are always enabled regardless of this flag.
-12. `--aggregator` specifies which node should act as the aggregator (1 aggregator per subnet).
-   - If not provided, one node will be randomly selected as the aggregator
-   - If provided, the specified node will be set as the aggregator
-   - The aggregator selection updates the `isAggregator` flag in `validator-config.yaml`
-   - Example: `--aggregator zeam_0` to make zeam_0 the aggregator
-   - Example: Without flag, a random node will be selected automatically
+12. Aggregator flags (1 aggregator per subnet; `isAggregator` in `validator-config.yaml`):
+   - **Default:** existing `isAggregator` assignments are kept (not reshuffled on each run)
+   - `--randomize` resets and randomly selects one aggregator per subnet (unique by client type when possible)
+   - `--aggregator zeam_0` sets that node as aggregator for its subnet only; other subnets unchanged
+   - With `--randomize --aggregator zeam_0`, that subnet uses `zeam_0` and remaining subnets are filled at random
 13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
 15. `--prepare` verify and install the software required to run lean nodes on every remote server, and open + persist the necessary firewall ports.

@@ -23,7 +23,7 @@ validators:
   apiPort: 5055
   isAggregator: true
   count: 1
-- name: ream_0
+- name: lantern_0
   privkey: af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32
   enrFields:
     ip: 89.167.114.168
@@ -95,7 +95,7 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ream_1
+- name: lantern_1
   privkey: fc2f11f90dd90df33bfb5f3467c2cbc37cf93dbb41c7ac556f9eea117418e73d
   enrFields:
     ip: 37.27.220.14
@@ -167,7 +167,7 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ream_2
+- name: lantern_2
   privkey: d723f0cc94645848bbacf8aea4e01944e2f4a6f9f2c69b17ed1868f492374a7a
   enrFields:
     ip: 178.104.149.208
@@ -239,7 +239,7 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ream_3
+- name: lantern_3
   privkey: 4701dd38aa11a1affd69b5d95e535210f8c29e720222b906c46bd64cf018f9c7
   enrFields:
     ip: 95.217.19.42
@@ -311,7 +311,7 @@ validators:
   apiPort: 5058
   isAggregator: false
   count: 1
-- name: ream_4
+- name: lantern_4
   privkey: 62e6c79311ce4ee1b95ff52c8d6b7cccea0bf0b927fbed595d454858b32c49d6
   enrFields:
     ip: 204.168.190.188
@@ -383,7 +383,7 @@ validators:
   apiPort: 5056
   isAggregator: false
   count: 1
-- name: ream_5
+- name: lantern_5
   privkey: 4caa321fc7598a3da98623a03774ee177c0025fa783fc2fc9c082b297ed96433
   enrFields:
     ip: 178.104.149.91
@@ -455,7 +455,7 @@ validators:
   apiPort: 5056
   isAggregator: false
   count: 1
-- name: ream_6
+- name: lantern_6
   privkey: 5401bb0acca1620ffddd776c98b5de53034b960eb84a1fe0ce381161789fd980
   enrFields:
     ip: 95.216.173.151
@@ -527,7 +527,7 @@ validators:
   apiPort: 5057
   isAggregator: false
   count: 1
-- name: ream_7
+- name: lantern_7
   privkey: a8a9cb1f243380d915e4997b3bc5058295d94704870885d5ed6cb1dfea24d77e
   enrFields:
     ip: 135.181.82.109

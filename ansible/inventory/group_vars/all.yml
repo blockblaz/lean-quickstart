@@ -62,7 +62,7 @@ docker_memory_limits:
 #
 # REQUIRES: a zeam image built from PR #903 or later. Older images will
 # refuse `--rayon-threads` and fail to start; leave both empty in that case.
-zeam_rayon_threads_aggregator: ""
+zeam_rayon_threads_aggregator: "12"
 zeam_rayon_threads: ""
 
 # Node deployment mode: 'docker' or 'binary'

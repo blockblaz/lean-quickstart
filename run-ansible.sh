@@ -266,7 +266,8 @@ if [ $EXIT_CODE -eq 0 ]; then
   elif [ "$action" == "observability" ]; then
     echo "✅ Observability stack deployed on all hosts!${_dry_tag}"
   elif [ "$action" == "stop-all-containers" ]; then
-    echo "✅ Stopped all non-observability containers on validator hosts!${_dry_tag}"
+    echo "✅ Stopped all non-observability containers on reachable validator hosts!${_dry_tag}"
+    echo "   (Unreachable hosts are skipped; see playbook summary for SSH failures.)"
   else
     echo "✅ Ansible deployment completed successfully!${_dry_tag}"
   fi

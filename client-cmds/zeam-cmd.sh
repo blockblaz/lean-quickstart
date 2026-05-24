@@ -55,34 +55,27 @@ db_backend_flag="--db-backend ${zeam_db_backend}"
 # (typical=1, never >16), and `lean_chain_queue_dropped_total` (should
 # stay 0 under nominal load).
 #
-# Default `on`: matches the zeam compiled-in default (post-PR #830).
-# Operators can override via `export ZEAM_CHAIN_WORKER=off` to flip
-# back to the legacy synchronous path (kill-switch) without a
-# rebuild/redeploy of zeam itself.
+# Default empty/on: omit --chain-worker so zeam uses its compiled-in
+# default (enabled post-PR #830). Do NOT pass `--chain-worker on` —
+# zeam's bool flag does not take on/off values and "on" breaks parsing
+# of subsequent flags such as --rayon-threads.
 #
-# REQUIRES: a zeam build with chain-worker support, i.e.
-# `blockblaz/zeam:devnet4` >= v0.4.15. Older images (v0.4.14 with the
-# broken bool CLI shape, or v0.4.13 / pre-c-1) do not recognise
-# `--chain-worker on` and will fail to start. If running against an
-# older image set `export ZEAM_CHAIN_WORKER=` (empty) to suppress
-# the flag entirely.
+# Override via `export ZEAM_CHAIN_WORKER=off` to emit
+# `--chain-worker false` (legacy synchronous kill-switch).
+#
 # Note `${VAR-default}` (no colon) so an explicitly-empty
-# `ZEAM_CHAIN_WORKER=` suppresses the flag entirely — the colon form
-# would also overwrite the empty value with `on`, leaving no way to
-# bypass for older zeam builds.
+# `ZEAM_CHAIN_WORKER=` suppresses the flag entirely.
 zeam_chain_worker="${ZEAM_CHAIN_WORKER-on}"
 chain_worker_flag=""
 case "$zeam_chain_worker" in
-    on|off)
-        chain_worker_flag="--chain-worker $zeam_chain_worker"
+    on|"")
+        # Enabled (compiled default); omit flag.
         ;;
-    "")
-        # Explicitly empty — no flag, zeam takes its compiled-in
-        # default (`.on` post-PR #830). Use this against zeam
-        # builds that do not recognise `--chain-worker` at all.
+    off|false)
+        chain_worker_flag="--chain-worker false"
         ;;
     *)
-        echo "WARN(zeam-cmd): ZEAM_CHAIN_WORKER='$zeam_chain_worker' is not 'on' or 'off' or empty; ignoring (no --chain-worker flag passed)" >&2
+        echo "WARN(zeam-cmd): ZEAM_CHAIN_WORKER='$zeam_chain_worker' is not 'on', 'off', 'false', or empty; ignoring (no --chain-worker flag passed)" >&2
         ;;
 esac
 

@@ -93,17 +93,20 @@
 # zeam_rayon_threads applies to both roles, otherwise the flag is omitted
 # entirely so zeam picks its compiled-in auto-split (zeam #903 / #899).
 #
-# Both vars are typically set in group_vars/all.yml. Default unset means no
-# flag is passed — required for pre-#903 images, which would reject it.
+# IMPORTANT: an empty Jinja branch must become "" not None — Ansible's
+# default('') filter does NOT coalesce None (only undefined), and None
+# stringifies to "None" in the docker command → zeam CLI InvalidCharacter.
 - name: Resolve effective rayon-threads override
   set_fact:
-    zeam_effective_rayon_threads: >-
+    zeam_effective_rayon_threads: "{{ _zeam_rayon_raw | default('', true) | string | trim }}"
+  vars:
+    _zeam_rayon_raw: >-
       {%- if (zeam_is_aggregator | default('false')) == 'true'
-            and (zeam_rayon_threads_aggregator | default('') | string | length) > 0 -%}
+            and (zeam_rayon_threads_aggregator | default('') | string | trim | length) > 0 -%}
       {{ zeam_rayon_threads_aggregator }}
-      {%- elif (zeam_rayon_threads | default('') | string | length) > 0 -%}
+      {%- elif (zeam_rayon_threads | default('') | string | trim | length) > 0 -%}
       {{ zeam_rayon_threads }}
-      {%- else -%}{%- endif -%}
+      {%- endif -%}
 
 - name: Ensure node key file exists
   stat:
@@ -166,8 +169,8 @@
         {{ ('--aggregate-subnet-ids ' + zeam_aggregate_subnet_ids) if (zeam_is_aggregator | default('false')) == 'true' and (zeam_aggregate_subnet_ids | default('') | length > 0) else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
         {{ ('--db-backend ' + zeam_db_backend) if (zeam_db_backend | default('') | length > 0) else '' }}
-        {{ ('--chain-worker ' + zeam_chain_worker) if (zeam_chain_worker | default('') | length > 0) else '' }}
-        {{ ('--rayon-threads ' + (zeam_effective_rayon_threads | trim)) if (zeam_effective_rayon_threads | default('') | trim | length > 0) else '' }}
+        {{ '--chain-worker false' if (zeam_chain_worker | default('') | lower in ['off', 'false']) else '' }}
+        {{ ('--rayon-threads ' + zeam_effective_rayon_threads) if (zeam_effective_rayon_threads | length > 0) else '' }}
       register: zeam_container_result
       changed_when: zeam_container_result.rc == 0
 
