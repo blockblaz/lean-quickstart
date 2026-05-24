@@ -88,7 +88,7 @@ docker ps | grep zeam_0
 
 ## Parallelism (large devnets)
 
-`ansible.cfg` sets **`strategy = free`** and a **`forks`** fallback for bare `ansible-playbook` invocations.
+`ansible.cfg` sets **`forks`** as a fallback for bare `ansible-playbook` invocations. **`strategy = free`** is not set globally because it is incompatible with **`add_host`** (used by deploy/stop/clean/copy-genesis). Remote plays that benefit use **`strategy: free`** in the playbook; plays that run **`add_host`** stay on the default **linear** strategy.
 
 **`run-ansible.sh`** and **`ansible-deploy.sh`** pass **`-f N`** where `N` comes from counting **unique `enrFields.ip`** values in the active `validator-config.yaml` (via `ansible/compute-forks-from-validator-config.sh`), clamped between **`LEAN_ANSIBLE_FORKS_MIN`** (default `5`) and **`LEAN_ANSIBLE_FORKS_MAX`** (default `128`). The minimum avoids fully serializing deploys when every validator row shares one IP (many nodes, one machine) while still reflecting larger devnets by unique address.
 
