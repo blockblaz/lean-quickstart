@@ -81,31 +81,38 @@ esac
 
 # Rayon worker count for the multisig (XMSS) aggregate prover (zeam #903 / #899).
 #
-# Default unset → zeam picks an auto-split that gives roughly half of the
-# post-system-thread CPU budget to rayon and half to its Zig worker pool. That
-# split is fine for non-aggregators (which mostly verify, also via rayon-from-
-# Zig-workers) but underuses CPU on CPU-rich aggregators where the produce-path
-# FFI is the per-slot bottleneck.
+# Aggregators use zeam auto-tune (cpu_count - 4 reserved system threads) when
+# ZEAM_RAYON_THREADS_AGGREGATOR is unset. Non-aggregators default to 6 so
+# block/attestation XMSS verification (onBlock verify_signatures) gets enough
+# rayon workers on typical 8-vCPU devnet hosts.
 #
-# Aggregators default to 12 rayon threads; non-aggregators stay on zeam's
-# auto-split unless overridden:
-#   - ZEAM_RAYON_THREADS_AGGREGATOR  # aggregator override (default 12)
-#   - ZEAM_RAYON_THREADS             # uniform override for both roles
-# For aggregators, ZEAM_RAYON_THREADS_AGGREGATOR wins when set; otherwise 12.
+# Override env vars (client-cmds / ansible group_vars):
+#   - ZEAM_RAYON_THREADS_AGGREGATOR      # optional aggregator override
+#   - ZEAM_RAYON_THREADS_NON_AGGREGATOR  # non-aggregator default (6)
+#   - ZEAM_RAYON_THREADS                 # uniform override for both roles
 #
-# Sizing guidance for a 16-vCPU host: 12 is the recommended starting point
-# (cpu_count - 4 reserved system threads: libxev/libp2p/api/metrics). Do not
-# exceed cpu_count - 4 or those reserved threads start to starve, surfacing as
+# For aggregators, ZEAM_RAYON_THREADS_AGGREGATOR wins when set; otherwise zeam
+# auto-tune. For non-aggregators, ZEAM_RAYON_THREADS wins when set; otherwise
+# ZEAM_RAYON_THREADS_NON_AGGREGATOR (6).
+#
+# Sizing guidance for a 16-vCPU host: 12 is the recommended aggregator starting
+# point (cpu_count - 4 reserved system threads: libxev/libp2p/api/metrics). For
+# 8-vCPU non-aggregators: 6 (= cpu_count - 4, same budget rule). Do not exceed
+# cpu_count - 4 or those reserved threads start to starve, surfacing as
 # `zeam_fork_choice_tick_interval_duration_seconds` p99 climbing.
 #
 # REQUIRES: a zeam build with PR #903 merged plus a docker image cut from it.
 # Older images do not recognise `--rayon-threads` and will fail to start. Leave
-# both env vars unset to suppress the flag entirely for pre-#903 images.
+# all three env vars unset to suppress the flag entirely for pre-#903 images.
 rayon_threads_flag=""
 if [ "$isAggregator" == "true" ]; then
-    rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_AGGREGATOR:-12}"
+    if [ -n "${ZEAM_RAYON_THREADS_AGGREGATOR:-}" ]; then
+        rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_AGGREGATOR}"
+    fi
 elif [ -n "${ZEAM_RAYON_THREADS:-}" ]; then
     rayon_threads_flag="--rayon-threads $ZEAM_RAYON_THREADS"
+else
+    rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_NON_AGGREGATOR:-6}"
 fi
 
 node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
@@ -124,7 +131,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       $chain_worker_flag \
       $rayon_threads_flag"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_global_flags node \
+node_docker="--security-opt seccomp=unconfined 0xpartha/zeam:local $zeam_global_flags node \
       --custom-genesis /config \
       --validator-config $validatorConfig \
       --data-dir /data \

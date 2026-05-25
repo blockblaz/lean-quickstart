@@ -31,7 +31,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    zeam_docker_image: "{{ zeam_docker_image_raw.stdout | trim | default('blockblaz/zeam:devnet4') }}"
+    zeam_docker_image: "{{ zeam_docker_image_raw.stdout | trim | default('0xpartha/zeam:local') }}"
     deployment_mode: "{{ zeam_deployment_mode_raw.stdout | trim | default('docker') }}"
   delegate_to: localhost
   run_once: true
@@ -89,9 +89,9 @@
   when: (zeam_is_aggregator | default('false')) != 'true'
 
 # Resolve --rayon-threads override for this node. Mirrors the zeam-cmd.sh
-# precedence: zeam_rayon_threads_aggregator wins for aggregators, otherwise
-# zeam_rayon_threads applies to both roles, otherwise the flag is omitted
-# entirely so zeam picks its compiled-in auto-split (zeam #903 / #899).
+# precedence: zeam_rayon_threads_aggregator wins for aggregators;
+# zeam_rayon_threads applies to both roles when set; non-aggregators otherwise
+# use zeam_rayon_threads_non_aggregator (default 6).
 #
 # IMPORTANT: an empty Jinja branch must become "" not None — Ansible's
 # default('') filter does NOT coalesce None (only undefined), and None
@@ -106,6 +106,9 @@
       {{ zeam_rayon_threads_aggregator }}
       {%- elif (zeam_rayon_threads | default('') | string | trim | length) > 0 -%}
       {{ zeam_rayon_threads }}
+      {%- elif (zeam_is_aggregator | default('false')) != 'true'
+            and (zeam_rayon_threads_non_aggregator | default('') | string | trim | length) > 0 -%}
+      {{ zeam_rayon_threads_non_aggregator }}
       {%- endif -%}
 
 - name: Ensure node key file exists
