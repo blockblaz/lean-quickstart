@@ -1,0 +1,51 @@
+---
+# Deploy Prometheus, Promtail, node_exporter, and cadvisor on every remote host
+# (one play per unique enrFields.ip — uses inventory/hosts-prepare.yml).
+#
+# Imported by prepare.yml after tools and firewall are configured.
+# Can also run standalone via run-ansible.sh action=observability.
+
+- name: Deploy observability stack on all remote hosts
+  hosts: prepare_hosts
+  gather_facts: yes
+  vars:
+    observability_force_primary: true
+    genesis_dir: "{{ remote_genesis_dir | default('/opt/lean-quickstart/genesis') }}"
+    # Role defaults are not in play scope after include_role; set ports for health checks.
+    prometheus_port: 9090
+    promtail_port: 9080
+    cadvisor_port: 9098
+    node_exporter_port: 9100
+
+  tasks:
+    - name: Deploy observability stack
+      include_role:
+        name: observability
+
+    - name: Verify observability containers are running
+      command: >-
+        docker inspect -f
+        {% raw %}'{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}'{% endraw %}
+        {{ item }}
+      register: obs_container_status
+      changed_when: false
+      loop:
+        - cadvisor
+        - node_exporter
+        - prometheus
+        - promtail
+      failed_when: obs_container_status.stdout.split()[0] != 'running'
+
+    - name: Wait for observability HTTP endpoints
+      uri:
+        url: "http://127.0.0.1:{{ item.port }}{{ item.path }}"
+        status_code: 200
+      loop:
+        - { port: "{{ prometheus_port }}", path: "/-/healthy" }
+        - { port: "{{ node_exporter_port }}", path: "/metrics" }
+        - { port: "{{ cadvisor_port }}", path: "/healthz" }
+        - { port: "{{ promtail_port }}", path: "/ready" }
+      register: obs_http_check
+      until: obs_http_check is succeeded
+      retries: 6
+      delay: 10

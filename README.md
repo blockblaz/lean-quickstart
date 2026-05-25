@@ -86,14 +86,14 @@ Grafana is started with the two pre-provisioned dashboards from [leanMetrics](ht
 ### Aggregator Selection
 
 ```sh
-# Let the system randomly select an aggregator (default behavior)
+# Default: keep isAggregator flags from validator-config.yaml
 NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis
 
-# Manually specify which node should be the aggregator
-NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregator zeam_0
+# Randomly select one aggregator per subnet (unique by client type when possible)
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --randomize
 
-# The aggregator selection is applied automatically and the isAggregator flag
-# is updated in validator-config.yaml before nodes are started
+# Set one subnet's aggregator without changing other subnets
+NETWORK_DIR=local-devnet ./spin-node.sh --node all --generateGenesis --aggregator zeam_0
 ```
 
 ### Leanpoint deployment
@@ -107,7 +107,7 @@ After validator nodes are spun up, leanpoint is deployed so it can monitor them.
 1. `convert-validator-config.py` reads `validator-config.yaml` and generates `upstreams.json` (validator URLs for health checks).
 2. `sync-leanpoint-upstreams.sh` either deploys leanpoint locally (local devnet) or syncs to the tooling server and recreates the remote container (Ansible).
 
-**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`, published port **5555→5555** (`LEANPOINT_HOST_PORT`, default **5555**). Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
+**Remote defaults:** Tooling server `46.225.10.32`, user `root`, remote path `/etc/leanpoint/upstreams.json`, container name `leanpoint`, published port **5555→5555** (`LEANPOINT_HOST_PORT`, default **5555**). **`LEANPOINT_IMAGE`** defaults to **`0xpartha/leanpoint:latest`** (do not use **`blockblaz/leanpoint:latest`** on the shared tooling VM unless that image is verified on the host CPU). Override with env vars (see script header in `sync-leanpoint-upstreams.sh`).
 
 **SSH key for remote sync:** When using Ansible deployment, the tooling server may require a specific SSH key. Pass `--sshKey ~/.ssh/id_ed25519_github` (or `--private-key`) so the sync can succeed.
 
@@ -217,12 +217,11 @@ Every Ansible deployment automatically deploys an observability stack alongside 
     - On Ctrl+C cleanup, the metrics stack is stopped automatically
 
     Note: Client metrics endpoints are always enabled regardless of this flag.
-12. `--aggregator` specifies which node should act as the aggregator (1 aggregator per subnet).
-   - If not provided, one node will be randomly selected as the aggregator
-   - If provided, the specified node will be set as the aggregator
-   - The aggregator selection updates the `isAggregator` flag in `validator-config.yaml`
-   - Example: `--aggregator zeam_0` to make zeam_0 the aggregator
-   - Example: Without flag, a random node will be selected automatically
+12. Aggregator flags (1 aggregator per subnet; `isAggregator` in `validator-config.yaml`):
+   - **Default:** existing `isAggregator` assignments are kept (not reshuffled on each run)
+   - `--randomize` resets and randomly selects one aggregator per subnet (unique by client type when possible)
+   - `--aggregator zeam_0` sets that node as aggregator for its subnet only; other subnets unchanged
+   - With `--randomize --aggregator zeam_0`, that subnet uses `zeam_0` and remaining subnets are filled at random
 13. `--checkpoint-sync-url` specifies the URL to fetch finalized checkpoint state from for checkpoint sync. Default: `https://leanpoint.leanroadmap.org/lean/v0/states/finalized`. Only used when `--restart-client` is specified.
 14. `--restart-client` comma-separated list of client node names (e.g., `zeam_0,ream_0`). When specified, those clients are stopped, their data cleared, and restarted using checkpoint sync. Genesis is skipped. Use with `--checkpoint-sync-url` to override the default URL.
 15. `--prepare` verify and install the software required to run lean nodes on every remote server, and open + persist the necessary firewall ports.
@@ -252,11 +251,12 @@ Every Ansible deployment automatically deploys an observability stack alongside 
       - `tmp/ansible-run-DD-MM-YYYY-HH-MM.log` for Ansible deployments
     - Example: `NETWORK_DIR=local-devnet ./spin-node.sh --node all --logs`
 19. `--network` sets the network name label attached to every metric and log stream scraped by the observability stack.
-   - **Required for Ansible deployments** — the script exits with an error if omitted when `deployment_mode: ansible`
-   - For local deployments, falls back to the default network name if not specified
-   - Propagated to Ansible as the `network_name` variable, used in `prometheus.yml.j2` and `promtail.yml.j2` templates
-   - Appears as the `network` label on all Prometheus scrape targets and Promtail log streams, so you can filter by network in Grafana
-   - Example: `--network <your-network-name>`
+20. `--stop-all-containers` runs `docker ps -a` on each unique `enrFields.ip` in the active `validator-config.yaml` and removes **every** container except the per-host observability stack (`prometheus`, `promtail`, `cadvisor`, `node_exporter`). Stale containers from old deploys, manual runs, or other clients are removed even when their names are not listed in `validator-config.yaml`.
+   - **Ansible mode only** — fails if `deployment_mode` is not `ansible`
+   - Does not require `--node`; runs one SSH session per unique host IP (same deduplicated inventory as `--prepare`)
+   - Unlike `--stop --node all`, this is not limited to validator row names — it clears the whole Docker namespace on each host except observability
+   - **Allowed with `--stop-all-containers`:** `--validatorConfig`, `--subnets N`, `--sshKey` / `--private-key`, `--useRoot`, `--deploymentMode ansible`, `--network`, `--dry-run`, `--logs`, and `NETWORK_DIR`
+   - Example: `NETWORK_DIR=ansible-devnet ./spin-node.sh --stop-all-containers --network devnet-4 --sshKey ~/.ssh/id_ed25519 --useRoot`
 
 ### Preparing remote servers
 
@@ -280,6 +280,13 @@ NETWORK_DIR=ansible-devnet ./spin-node.sh --prepare --sshKey ~/.ssh/id_ed25519 -
 - Only works in ansible mode (`deployment_mode: ansible` in your config, or `--deploymentMode ansible`)
 - Passing deploy-only flags (e.g. `--node`, `--generateGenesis`, `--stop`, `--metrics`) alongside `--prepare` produces a prominent error. Use `--validatorConfig`, `--subnets N`, `--sshKey`, `--useRoot`, `--deploymentMode ansible`, `--network`, `--dry-run`, or `--logs` when needed so inventory and firewall match your deploy.
 - `--node` is not required; the prepare playbook runs on **one play per unique IP** (deduplicated inventory) so parallel prepares do not fight over the same host
+
+To stop every non-observability container on each validator host (including stale containers not in `validator-config.yaml`) while keeping observability running:
+
+```bash
+NETWORK_DIR=ansible-devnet ./spin-node.sh --stop-all-containers \
+  --network devnet-4 --sshKey ~/.ssh/id_ed25519 --useRoot
+```
 
 Once preparation succeeds, proceed with the normal deploy command:
 

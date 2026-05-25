@@ -50,32 +50,37 @@
     ethlambda_is_aggregator: "{{ 'true' if (ethlambda_node_config.results[3].stdout | default('') | trim) == 'true' else 'false' }}"
   when: ethlambda_node_config is defined
 
-# Compute the full set of subnet ids in the network so aggregators can subscribe
-# to attestations from every subnet (not just the one their validators live in).
-# Required in multi-subnet deployments for cross-subnet attestation aggregation.
-- name: Compute aggregate subnet ids from attestation_committee_count
+# Aggregators subscribe only to their committee subnet (validator_index % committee_count).
+- name: Compute aggregate subnet id for this aggregator node
   shell: |
     set -e
+    idx=$(yq eval '.validators | to_entries | .[] | select(.value.name == "{{ node_name }}") | .key' "{{ local_validator_config_path }}")
     ac=$(yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}")
+    idx=$(echo "$idx" | tr -d '\r\n' | head -1)
     ac=$(echo "$ac" | tr -d '\r\n' | head -1)
+    case "$idx" in ''|*[!0-9]*) echo ""; exit 0;; esac
     case "$ac" in ''|*[!0-9]*) ac=1;; esac
     if [ "$ac" -lt 1 ]; then ac=1; fi
-    out="0"
-    i=1
-    while [ "$i" -lt "$ac" ]; do
-      out="$out,$i"
-      i=$((i + 1))
-    done
-    echo "$out"
-  register: ethlambda_all_subnets_raw
+    echo $((idx % ac))
+  register: ethlambda_node_subnet_raw
   changed_when: false
   delegate_to: localhost
-  run_once: true
+  when:
+    - node_name is defined
+    - (ethlambda_is_aggregator | default('false')) == 'true'
 
-- name: Set aggregate subnet ids csv
+- name: Set aggregate subnet id for aggregator
   set_fact:
-    ethlambda_aggregate_subnet_ids: "{{ ethlambda_all_subnets_raw.stdout | trim }}"
-  run_once: true
+    ethlambda_aggregate_subnet_ids: "{{ ethlambda_node_subnet_raw.stdout | trim }}"
+  when:
+    - (ethlambda_is_aggregator | default('false')) == 'true'
+    - ethlambda_node_subnet_raw is defined
+    - ethlambda_node_subnet_raw.stdout | trim | length > 0
+
+- name: Clear aggregate subnet ids for non-aggregator
+  set_fact:
+    ethlambda_aggregate_subnet_ids: ""
+  when: (ethlambda_is_aggregator | default('false')) != 'true'
 
 - name: Ensure node key file exists
   stat:
@@ -105,6 +110,11 @@
 
 - name: Deploy Ethlambda node using Docker
   block:
+    - name: Pull Ethlambda docker image
+      command: docker pull {{ ethlambda_docker_image }}
+      register: ethlambda_docker_pull
+      changed_when: '"Downloaded newer image" in ethlambda_docker_pull.stdout'
+
     - name: Stop existing Ethlambda container (if any)
       command: docker rm -f {{ node_name }}
       register: ethlambda_stop
@@ -116,7 +126,9 @@
         docker run -d
         --pull=always
         --name {{ node_name }}
-        --restart unless-stopped
+        --restart {{ docker_container_restart_policy }}
+        {{ ('--memory ' + docker_memory_limits.ethlambda) if (ethlambda_is_aggregator | default('false')) != 'true' else '' }}
+        {{ ('--memory-swap ' + docker_memory_limits.ethlambda) if (ethlambda_is_aggregator | default('false')) != 'true' else '' }}
         --network host
         {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro
@@ -135,7 +147,7 @@
         --api-port {{ ethlambda_api_port }}
         --metrics-port {{ ethlambda_metrics_port }}
         {{ '--is-aggregator' if (ethlambda_is_aggregator | default('false')) == 'true' else '' }}
-        {{ ('--aggregate-subnet-ids ' + ethlambda_aggregate_subnet_ids) if (ethlambda_is_aggregator | default('false')) == 'true' and (',' in ethlambda_aggregate_subnet_ids | default('')) else '' }}
+        {{ ('--aggregate-subnet-ids ' + ethlambda_aggregate_subnet_ids) if (ethlambda_is_aggregator | default('false')) == 'true' and (ethlambda_aggregate_subnet_ids | default('') | length > 0) else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ethlambda_container
       changed_when: ethlambda_container.rc == 0

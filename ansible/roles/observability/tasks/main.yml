@@ -13,7 +13,10 @@
 - name: Set colocated nodes fact
   set_fact:
     colocated_nodes: "{{ colocated_nodes_raw.stdout | from_json }}"
-    is_primary_node: "{{ (colocated_nodes_raw.stdout | from_json)[0].name == node_name }}"
+    node_name: "{{ node_name | default((colocated_nodes_raw.stdout | from_json)[0].name) }}"
+    observability_manage_host: >-
+      {{ observability_force_primary | default(false) | bool
+         or ((colocated_nodes_raw.stdout | from_json)[0].name == node_name) }}
 
 - name: Create observability config directory
   file:
@@ -34,19 +37,29 @@
     mode: '0644'
 
 # --- cadvisor (always recreate to ensure correct flags) ---
-# Only the first colocated node on each machine manages infra containers
-# to avoid parallel rm+run races when multiple nodes share a host.
+# Only one play per machine manages infra containers (primary deploy node or
+# deploy-observability.yml with observability_force_primary).
+
+- name: Pull observability container images
+  command: docker pull {{ item }}
+  loop:
+    - "{{ cadvisor_image }}"
+    - "{{ node_exporter_image }}"
+    - "{{ prometheus_image }}"
+    - "{{ promtail_image }}"
+  register: observability_pull
+  when: observability_manage_host | bool
 
 - name: Remove existing cadvisor container
   command: docker rm -f cadvisor
   failed_when: false
-  when: is_primary_node
+  when: observability_manage_host | bool
 
 - name: Start cadvisor container
   command: >-
     docker run -d
     --name cadvisor
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     --privileged
     --device=/dev/kmsg
@@ -60,20 +73,20 @@
     -v /var/lib/docker/:/var/lib/docker:ro
     {{ cadvisor_image }}
     --port={{ cadvisor_port }}
-  when: is_primary_node
+  when: observability_manage_host | bool
 
 # --- node_exporter (always recreate to ensure correct flags) ---
 
 - name: Remove existing node_exporter container
   command: docker rm -f node_exporter
   failed_when: false
-  when: is_primary_node
+  when: observability_manage_host | bool
 
 - name: Start node_exporter container
   command: >-
     docker run -d
     --name node_exporter
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     --pid host
     -v /proc:/host/proc:ro
@@ -84,7 +97,7 @@
     --path.sysfs=/host/sys
     --path.rootfs=/rootfs
     --web.listen-address=0.0.0.0:{{ node_exporter_port }}
-  when: is_primary_node
+  when: observability_manage_host | bool
 
 # --- prometheus (always recreate to pick up config/mount changes, data persists on host) ---
 
@@ -94,17 +107,18 @@
     state: directory
     mode: '0777'
     recurse: yes
+  when: observability_manage_host | bool
 
 - name: Remove existing prometheus container
   command: docker rm -f prometheus
   failed_when: false
-  when: is_primary_node
+  when: observability_manage_host | bool
 
 - name: Start prometheus container
   command: >-
     docker run -d
     --name prometheus
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     -v {{ observability_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     -v {{ observability_dir }}/prometheus-data:/prometheus
@@ -112,20 +126,20 @@
     --config.file=/etc/prometheus/prometheus.yml
     --storage.tsdb.retention.time=15d
     --web.listen-address=0.0.0.0:{{ prometheus_port }}
-  when: is_primary_node
+  when: observability_manage_host | bool
 
 # --- promtail (always recreate to pick up config/mount changes) ---
 
 - name: Remove existing promtail container
   command: docker rm -f promtail
   failed_when: false
-  when: is_primary_node
+  when: observability_manage_host | bool
 
 - name: Start promtail container
   command: >-
     docker run -d
     --name promtail
-    --restart unless-stopped
+    --restart {{ docker_container_restart_policy }}
     --network host
     -v {{ observability_dir }}/promtail.yml:/etc/promtail/config.yml:ro
     -v /var/run/docker.sock:/var/run/docker.sock:ro
@@ -133,4 +147,4 @@
     {{ promtail_image }}
     -config.file=/etc/promtail/config.yml
     -server.http-listen-port={{ promtail_port }}
-  when: is_primary_node
+  when: observability_manage_host | bool

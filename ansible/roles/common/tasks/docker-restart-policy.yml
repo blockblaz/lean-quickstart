@@ -1,0 +1,41 @@
+---
+# Host-level auto-restart for Docker workloads (OOM kill, crash, daemon recovery).
+# Configures systemd for the Docker service and sets restart policy on all containers.
+
+- name: Ensure Docker systemd drop-in directory exists
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: '0755'
+  become: yes
+  when: not is_localhost | default(false)
+
+- name: Configure Docker daemon systemd auto-restart
+  copy:
+    dest: /etc/systemd/system/docker.service.d/restart-on-failure.conf
+    mode: '0644'
+    content: |
+      [Service]
+      Restart={{ docker_systemd_restart }}
+      RestartSec=5
+  become: yes
+  notify:
+    - Reload systemd
+    - Restart docker
+  when: not is_localhost | default(false)
+
+- name: List all Docker container names
+  command: docker ps -a --format '{{ "{{" }}.Names{{ "}}" }}'
+  register: docker_all_container_names
+  changed_when: false
+  when: not is_localhost | default(false)
+
+- name: Set restart policy on all containers (OOM/crash recovery)
+  command: docker update --restart={{ docker_container_restart_policy }} {{ item }}
+  loop: "{{ docker_all_container_names.stdout_lines | default([]) | reject('equalto', '') | list }}"
+  register: docker_restart_policy_update
+  changed_when: docker_restart_policy_update.rc == 0
+  failed_when: false
+  when:
+    - not is_localhost | default(false)
+    - docker_all_container_names.stdout_lines | default([]) | length > 0

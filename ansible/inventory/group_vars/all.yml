@@ -21,6 +21,51 @@ remote_data_dir: "/opt/lean-quickstart/data"
 docker_with_sudo: false
 docker_network_mode: host
 
+# Restart node/observability containers after OOM kill or crash (Docker exit != 0).
+# Applied on --prepare (host config) and in docker run on deploy.
+docker_container_restart_policy: unless-stopped
+
+# Keep the Docker daemon running if systemd stops it (host-level).
+docker_systemd_restart: always
+
+# Per-client cgroup memory caps for shared (non-aggregator) hosts.
+# Aggregators are exempt: each role skips --memory/--memory-swap when
+# its `*_is_aggregator` fact is "true" (one container per IP, no
+# co-tenant pressure). Budget for 16GiB shared host: observability
+# ~0.3GiB + up to 3 validators per IP × 4GiB cap = ~12.3GiB worst case.
+# --memory-swap matches --memory so containers cannot expand into swap
+# and evict neighbors.
+docker_memory_limits:
+  zeam: "4g"
+  ream: "4g"
+  ethlambda: "4g"
+  gean: "4g"
+  nlean: "4g"
+  qlean: "4g"
+  lantern: "4g"
+  grandine: "4g"
+  lighthouse: "4g"
+  peam: "4g"
+
+# zeam --rayon-threads override for the multisig (XMSS) aggregate prover
+# (zeam #903 / #899). Mirror of the ZEAM_RAYON_THREADS_* env vars in
+# client-cmds/zeam-cmd.sh.
+#
+# zeam_rayon_threads_aggregator wins for aggregators; zeam_rayon_threads
+# applies to both roles when set; non-aggregators otherwise use
+# zeam_rayon_threads_non_aggregator (default 6 on 8-vCPU devnet hosts).
+#
+# 16-vCPU recommended aggregator starting point: 12 (= cpu_count - 4 reserved
+# system threads). 8-vCPU non-aggregators: 6 (same cpu_count - 4 rule). Do not
+# exceed cpu_count - 4, or libxev/libp2p/api/metrics threads start to starve —
+# watch `zeam_fork_choice_tick_interval_duration_seconds` p99.
+#
+# REQUIRES: a zeam image built from PR #903 or later. Older images will
+# refuse `--rayon-threads` and fail to start; leave all three empty in that case.
+zeam_rayon_threads_aggregator: ""
+zeam_rayon_threads_non_aggregator: "6"
+zeam_rayon_threads: ""
+
 # Node deployment mode: 'docker' or 'binary'
 deployment_mode: docker
 

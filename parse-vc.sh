@@ -69,20 +69,17 @@ if [ -z "$isAggregator" ] || [ "$isAggregator" == "null" ]; then
     isAggregator="false"
 fi
 
-# CSV of all attestation subnet ids (e.g. "0,1"). Clients do not read a YAML
-# `subnet:` field for consensus — subnets are validator_index % committee_count.
-# Aggregators must still hear every subnet, so derive ids from
-# config.attestation_committee_count (not from per-validator subnet metadata).
+# Subnet = validator_index % attestation_committee_count (no per-validator YAML field).
+# Aggregators subscribe only to their own committee subnet via --aggregate-subnet-ids.
+hashSigKeyIndex=$(yq eval ".validators | to_entries | .[] | select(.value.name == \"$item\") | .key" "$validator_config_file")
 _ac=$(yq eval '.config.attestation_committee_count // 1' "$validator_config_file")
 _ac=$(echo "$_ac" | tr -d '\r\n' | head -1)
 case "$_ac" in ''|*[!0-9]*) _ac=1;; esac
 if [ "$_ac" -lt 1 ] 2>/dev/null; then _ac=1; fi
-aggregateSubnetIds="0"
-_i=1
-while [ "$_i" -lt "$_ac" ] 2>/dev/null; do
-    aggregateSubnetIds+=",$_i"
-    _i=$((_i + 1))
-done
+aggregateSubnetIds=""
+if [ "$isAggregator" == "true" ] && [ -n "$hashSigKeyIndex" ] && [ "$hashSigKeyIndex" != "null" ]; then
+    aggregateSubnetIds=$((hashSigKeyIndex % _ac))
+fi
 export aggregateSubnetIds
 
 # Extract attestation_committee_count from config section (optional - only if explicitly set)
@@ -106,8 +103,6 @@ echo "$privKey" > "$configDir/$privKeyPath"
 
 # Extract hash-sig key configuration from top-level config
 keyType=$(yq eval ".config.keyType" "$validator_config_file")
-hashSigKeyIndex=$(yq eval ".validators | to_entries | .[] | select(.value.name == \"$item\") | .key" "$validator_config_file")
-
 # Load hash-sig keys if configured
 if [ "$keyType" == "hash-sig" ] && [ "$hashSigKeyIndex" != "null" ] && [ -n "$hashSigKeyIndex" ]; then
     # devnet4+: separate proposer + attester keys (hash-sig-cli); legacy: single pk/sk per index (SSZ only)

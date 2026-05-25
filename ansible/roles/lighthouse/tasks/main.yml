@@ -87,8 +87,11 @@
     - name: Start Lighthouse container
       command: >-
         docker run -d
+        --pull=always
         --name {{ node_name }}
-        --restart unless-stopped
+        --restart {{ docker_container_restart_policy }}
+        {{ ('--memory ' + docker_memory_limits.lighthouse) if (lighthouse_is_aggregator | default('false')) != 'true' else '' }}
+        {{ ('--memory-swap ' + docker_memory_limits.lighthouse) if (lighthouse_is_aggregator | default('false')) != 'true' else '' }}
         --network host
         {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro
