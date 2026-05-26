@@ -42,6 +42,15 @@ if [ -n "${checkpoint_sync_url:-}" ]; then
     checkpoint_sync_flag="--checkpoint-sync-url $checkpoint_sync_url"
 fi
 
+# Shadow fake XMSS aggregation rate flags (qlean QLEAN_ENABLE_SHADOW build)
+shadow_agg_flags=""
+if [ -n "${QLEAN_SHADOW_XMSS_AGGREGATE_SIGNATURES_RATE:-}" ]; then
+    shadow_agg_flags="${shadow_agg_flags} --shadow-xmss-aggregate-signatures-rate ${QLEAN_SHADOW_XMSS_AGGREGATE_SIGNATURES_RATE}"
+fi
+if [ -n "${QLEAN_SHADOW_XMSS_VERIFY_AGGREGATED_SIGNATURES_RATE:-}" ]; then
+    shadow_agg_flags="${shadow_agg_flags} --shadow-xmss-verify-aggregated-signatures-rate ${QLEAN_SHADOW_XMSS_VERIFY_AGGREGATED_SIGNATURES_RATE}"
+fi
+
 node_binary="$scriptDir/qlean/build/out/bin/qlean \
       --genesis-dir $configDir \
       --data-dir $dataDir/$item \
@@ -55,6 +64,7 @@ node_binary="$scriptDir/qlean/build/out/bin/qlean \
       $aggregator_flag \
       $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
+      $shadow_agg_flags \
       -ldebug"
 
 node_docker="$QLEAN_IMAGE \
@@ -70,6 +80,7 @@ node_docker="$QLEAN_IMAGE \
       $aggregator_flag \
       $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
+      $shadow_agg_flags \
       -ldebug"
 
 # choose either binary or docker

@@ -1,0 +1,48 @@
+# Shadow Fuzzer template configuration.
+# Values may be concrete scalars or { min, max } range objects.
+# Ranges are resolved per-run using `seed + run_index`.
+
+[fuzzer]
+max_runs = 20                                                              # Total number of simulation runs in the sweep.
+duration_secs = { min = 120, max = 120 }                                   # Duration of a single Shadow simulation in seconds (range or scalar).
+seed = 42                                                                  # Base seed — per-run seed is `seed + run_index` for reproducibility.
+output_dir = "fuzzer-output"                                               # Directory where per-run output folders are placed.
+runner = "docker-arm"                                                           # Shadow runner: "local" (host shadow binary) or "docker-arm".
+base_genesis_dir = "shadow-devnet/genesis"                                 # Genesis template directory (each run gets its own copy).
+
+[simulation]
+total_nodes = { min = 16, max = 64 }                                      # Total number of validator nodes in the network.
+total_subnets = { min = 1, max = 1 }                                       # Number of attestation subnets (attestation_committee_count).
+aggregators_per_subnet = { min = 1, max = 2 }                              # How many aggregator nodes to select per subnet.
+signatures_aggregation_rate = { min = 1000, max = 1000 }                   # qlean fake XMSS aggregate-signatures rate (sig/s). Placeholder for zeam.
+recursive_aggregation_rate = { min = 10.0, max = 10.0 }                     # Recursive aggregation rate (sig/s). Placeholder until clients expose a knob.
+
+[clients]
+# Per-client sampling weights. Sampled independently then normalized to sum to 1.0.
+# A client may receive zero nodes in a run (pure weighted sampling, no minimum guarantee).
+zeam = { min = 0.2, max = 0.8 }                                            # zeam client sampling weight.
+qlean = { min = 0.2, max = 0.8 }                                           # qlean client sampling weight.
+
+[network]
+latency_jitter_ratio = { min = 0.1, max = 0.3 }                            # ±jitter ratio on geo-latency edges (0.0 = none, 0.3 = ±30%).
+packet_loss = 0.0                                                           # Packet loss fraction on all GML edges.
+
+[network.regions]
+# Region weights control how many nodes land in each geographic region.
+# Sampled independently each run, then normalized. Drives topology.gml latencies.
+us-east = { min = 0.20, max = 0.40 }                                       # US East region weight.
+us-west = 0.15                                                              # US West region weight.
+europe = { min = 0.20, max = 0.35 }                                        # Europe region weight.
+asia = 0.20                                                                 # Asia region weight.
+sa = 0.05                                                                   # South America region weight.
+africa = 0.05                                                               # Africa region weight.
+
+[network.bandwidths]
+# Bandwidth tier weights. Sampled independently each run, then normalized.
+# Each node gets one tier based on these weights.
+"1 Gbit" = { min = 0.03, max = 0.08 }                                      # 1 Gbit bandwidth tier weight.
+"100 Mbit" = { min = 0.10, max = 0.30 }                                    # 100 Mbit bandwidth tier weight.
+"50 Mbit" = { min = 0.60, max = 0.90 }                                     # 50 Mbit bandwidth tier weight.
+
+# Round-trip latency matrix between regions is hardcoded in generate-shadow-topology.py.
+# See REGIONS_LATENCY_MS dict in that script. Jitter (latency_jitter_ratio) is applied on top.

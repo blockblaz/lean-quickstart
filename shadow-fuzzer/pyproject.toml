@@ -1,0 +1,11 @@
+[project]
+name = "lean-quickstart-fuzzer"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "coolname>=2.0",
+    "pyyaml>=6.0",
+]
+
+[tool.uv]
+package = false

@@ -8,12 +8,14 @@ set -e
 #
 # Usage:
 #   ./generate-shadow-yaml.sh <genesis-dir> --project-root <path> [--stop-time 360s] [--output shadow.yaml]
+#       [--seed <int>] [--shadow-data-dir <path>] [--topology-gml <path>] [--bandwidths-json <path>]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 show_usage() {
     cat << EOF
 Usage: $0 <genesis-dir> --project-root <path> [--stop-time 360s] [--output shadow.yaml]
+       [--seed <int>] [--shadow-data-dir <path>] [--topology-gml <path>] [--bandwidths-json <path>]
 
 Generate a Shadow network simulator configuration (shadow.yaml) from validator-config.yaml.
 
@@ -21,9 +23,13 @@ Arguments:
   genesis-dir          Path to genesis directory containing validator-config.yaml
 
 Options:
-  --project-root <path>  Project root directory (parent of lean-quickstart). Required.
-  --stop-time <time>     Shadow simulation stop time (default: 360s)
-  --output <path>        Output shadow.yaml path (default: <project-root>/shadow.yaml)
+  --project-root <path>    Project root directory (parent of lean-quickstart). Required.
+  --stop-time <time>       Shadow simulation stop time (default: 360s)
+  --output <path>          Output shadow.yaml path (default: <project-root>/shadow.yaml)
+  --seed <int>             Shadow general.seed for reproducibility
+  --shadow-data-dir <path> Shadow data output directory (default: <project-root>/shadow.data)
+  --topology-gml <path>    GML topology file; enables geo-latency graph mode
+  --bandwidths-json <path> JSON file mapping node_N → bandwidth tier
 
 This script is client-agnostic. It reads node names from validator-config.yaml,
 extracts the client name from the node prefix (e.g., zeam_0 → zeam), and sources
@@ -45,6 +51,10 @@ shift
 PROJECT_ROOT=""
 STOP_TIME="360s"
 OUTPUT_FILE=""
+SEED=""
+SHADOW_DATA_DIR=""
+TOPOLOGY_GML=""
+BANDWIDTHS_JSON=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -75,10 +85,47 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             ;;
+        --seed)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                SEED="$2"
+                shift 2
+            else
+                echo "❌ Error: --seed requires an integer"
+                exit 1
+            fi
+            ;;
+        --shadow-data-dir)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                mkdir -p "$2"
+                SHADOW_DATA_DIR="$(cd "$2" && pwd)"
+                shift 2
+            else
+                echo "❌ Error: --shadow-data-dir requires a path"
+                exit 1
+            fi
+            ;;
+        --topology-gml)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                TOPOLOGY_GML="$2"
+                shift 2
+            else
+                echo "❌ Error: --topology-gml requires a path"
+                exit 1
+            fi
+            ;;
+        --bandwidths-json)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                BANDWIDTHS_JSON="$2"
+                shift 2
+            else
+                echo "❌ Error: --bandwidths-json requires a path"
+                exit 1
+            fi
+            ;;
         *)
             echo "❌ Unknown option: $1"
             show_usage
-            ;;
+            ;; 
     esac
 done
 
@@ -113,6 +160,16 @@ echo "🔧 Generating shadow.yaml for $node_count nodes..."
 # ========================================
 # Write shadow.yaml preamble
 # ========================================
+USE_GML=false
+if [ -n "$TOPOLOGY_GML" ] && [ -f "$TOPOLOGY_GML" ]; then
+    USE_GML=true
+    echo "   Using GML topology: $TOPOLOGY_GML"
+fi
+
+if [ -n "$BANDWIDTHS_JSON" ] && [ -f "$BANDWIDTHS_JSON" ]; then
+    echo "   Using bandwidth tiers: $BANDWIDTHS_JSON"
+fi
+
 cat > "$OUTPUT_FILE" << EOF
 # Auto-generated Shadow network simulator configuration
 # Generated from: $VALIDATOR_CONFIG
@@ -121,13 +178,35 @@ cat > "$OUTPUT_FILE" << EOF
 general:
   model_unblocked_syscall_latency: true
   stop_time: $STOP_TIME
+EOF
+
+if [ -n "$SEED" ]; then
+    echo "  seed: $SEED" >> "$OUTPUT_FILE"
+fi
+
+cat >> "$OUTPUT_FILE" << EOF
 
 experimental:
   native_preemption_enabled: true
 
 network:
   graph:
+EOF
+
+if $USE_GML; then
+    cat >> "$OUTPUT_FILE" << EOF
+    type: gml
+    file:
+      path: $TOPOLOGY_GML
+  use_shortest_path: true
+EOF
+else
+    cat >> "$OUTPUT_FILE" << EOF
     type: 1_gbit_switch
+EOF
+fi
+
+cat >> "$OUTPUT_FILE" << EOF
 
 hosts:
 EOF
@@ -184,11 +263,40 @@ for i in "${!node_names[@]}"; do
     # Make all path args absolute: replace $configDir, $dataDir references with absolute paths
     # The client-cmd.sh already uses $configDir and $dataDir which we set to absolute paths
 
+    # Determine bandwidth tier from bandwidths JSON if available
+    if [ -n "$BANDWIDTHS_JSON" ] && [ -f "$BANDWIDTHS_JSON" ]; then
+        BW=$(python3 -c "
+import json, sys
+with open('$BANDWIDTHS_JSON') as f:
+    bw = json.load(f)
+print(bw.get('node_$i', '50 Mbit'))
+" 2>/dev/null)
+    else
+        BW=""
+    fi
+
+    # Determine network_node_id
+    if $USE_GML; then
+        NET_NODE_ID=$i
+    else
+        NET_NODE_ID=0
+    fi
+
     # Write host entry
     cat >> "$OUTPUT_FILE" << EOF
   $hostname:
-    network_node_id: 0
+    network_node_id: $NET_NODE_ID
     ip_addr: $ip
+EOF
+
+    if [ -n "$BW" ]; then
+        cat >> "$OUTPUT_FILE" << EOF
+    bandwidth_up: "$BW"
+    bandwidth_down: "$BW"
+EOF
+    fi
+
+    cat >> "$OUTPUT_FILE" << EOF
     processes:
     - path: $binary_path
       args: >-

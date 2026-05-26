@@ -29,3 +29,10 @@ ansible-deployment*.log
 
 # Generated Prometheus config (created by generate-prometheus-config.sh)
 metrics/prometheus/prometheus.yml
+
+# Fuzzer outputs
+shadow-fuzzer/fuzzer-output/
+shadow-fuzzer/uv.lock
+shadow-fuzzer/__pycache__/
+shadow.yaml
+shadow.data/
