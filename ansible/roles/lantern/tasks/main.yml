@@ -4,7 +4,7 @@
 
 - name: Set lantern docker image
   set_fact:
-    lantern_docker_image: "piertwo/lantern:v0.0.4"
+    lantern_docker_image: "piertwo/lantern:v0.0.5"
 
 - name: Extract deployment mode from client-cmd.sh
   shell: |
@@ -82,8 +82,6 @@
         --pull=always
         --name {{ node_name }}
         --restart {{ docker_container_restart_policy }}
-        {{ ('--memory ' + docker_memory_limits.lantern) if (lantern_is_aggregator | default('false')) != 'true' else '' }}
-        {{ ('--memory-swap ' + docker_memory_limits.lantern) if (lantern_is_aggregator | default('false')) != 'true' else '' }}
         --network host
         {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro

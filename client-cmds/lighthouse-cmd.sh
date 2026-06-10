@@ -45,7 +45,7 @@ node_binary="$lighthouse_bin lean_node \
       $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag"
 
-node_docker="hopinheimer/lighthouse:latest lighthouse lean_node \
+node_docker="hopinheimer/lighthouse:devnet5 lighthouse lean_node \
       --datadir /data \
       --config /config/config.yaml \
       --validators /config/validator-config.yaml \

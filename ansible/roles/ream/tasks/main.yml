@@ -73,31 +73,38 @@
     ream_attestation_committee_count: "{{ ream_attestation_committee_count_raw.stdout | trim | int }}"
   run_once: true
 
-# Build a comma-separated list of every subnet id (0 … N-1) so that aggregator
-# nodes can subscribe to attestations from all committees — same approach as zeam.
-- name: Compute aggregate subnet ids from attestation_committee_count
+# Aggregators subscribe only to their committee subnet (validator_index % committee_count).
+# Mirrors parse-vc.sh / ream-cmd.sh and the zeam/ethlambda ansible roles.
+- name: Compute aggregate subnet id for this aggregator node
   shell: |
     set -e
+    idx=$(yq eval '.validators | to_entries | .[] | select(.value.name == "{{ node_name }}") | .key' "{{ local_validator_config_path }}")
     ac=$(yq eval '.config.attestation_committee_count // 1' "{{ local_validator_config_path }}")
+    idx=$(echo "$idx" | tr -d '\r\n' | head -1)
     ac=$(echo "$ac" | tr -d '\r\n' | head -1)
+    case "$idx" in ''|*[!0-9]*) echo ""; exit 0;; esac
     case "$ac" in ''|*[!0-9]*) ac=1;; esac
     if [ "$ac" -lt 1 ]; then ac=1; fi
-    out="0"
-    i=1
-    while [ "$i" -lt "$ac" ]; do
-      out="$out,$i"
-      i=$((i + 1))
-    done
-    echo "$out"
-  register: ream_all_subnets_raw
+    echo $((idx % ac))
+  register: ream_node_subnet_raw
   changed_when: false
   delegate_to: localhost
-  run_once: true
+  when:
+    - node_name is defined
+    - (ream_is_aggregator | default('false')) == 'true'
 
-- name: Set aggregate subnet ids csv
+- name: Set aggregate subnet id for aggregator
   set_fact:
-    ream_aggregate_subnet_ids: "{{ ream_all_subnets_raw.stdout | trim }}"
-  run_once: true
+    ream_aggregate_subnet_ids: "{{ ream_node_subnet_raw.stdout | trim }}"
+  when:
+    - (ream_is_aggregator | default('false')) == 'true'
+    - ream_node_subnet_raw is defined
+    - ream_node_subnet_raw.stdout | trim | length > 0
+
+- name: Clear aggregate subnet ids for non-aggregator
+  set_fact:
+    ream_aggregate_subnet_ids: ""
+  when: (ream_is_aggregator | default('false')) != 'true'
 
 - name: Ensure node key file exists
   stat:
@@ -138,8 +145,6 @@
         --pull=always
         --name {{ node_name }}
         --restart {{ docker_container_restart_policy }}
-        {{ ('--memory ' + docker_memory_limits.ream) if (ream_is_aggregator | default('false')) != 'true' else '' }}
-        {{ ('--memory-swap ' + docker_memory_limits.ream) if (ream_is_aggregator | default('false')) != 'true' else '' }}
         --network host
         {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro
@@ -160,7 +165,7 @@
         --http-port {{ ream_api_port }}
         --attestation-committee-count {{ ream_attestation_committee_count }}
         {{ '--is-aggregator' if (ream_is_aggregator | default('false')) == 'true' else '' }}
-        {{ ('--aggregate-subnet-ids ' + ream_aggregate_subnet_ids) if (ream_is_aggregator | default('false')) == 'true' and (',' in (ream_aggregate_subnet_ids | default(''))) else '' }}
+        {{ ('--aggregate-subnet-ids ' + ream_aggregate_subnet_ids) if (ream_is_aggregator | default('false')) == 'true' and (ream_aggregate_subnet_ids | default('') | length > 0) else '' }}
         {{ ('--checkpoint-sync-url ' + checkpoint_sync_url) if (checkpoint_sync_url is defined and checkpoint_sync_url | length > 0) else '' }}
       register: ream_container
       changed_when: ream_container.rc == 0

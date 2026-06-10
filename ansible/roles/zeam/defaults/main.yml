@@ -3,12 +3,14 @@
 # Note: These are fallback defaults. Actual values are extracted from client-cmds/zeam-cmd.sh
 # in the tasks/main.yml file. These defaults are used if extraction fails.
 
-zeam_docker_image: "0xpartha/zeam:local"
+zeam_docker_image: "blockblaz/zeam:devnet4"
 zeam_binary_path: "{{ playbook_dir }}/../zig-out/bin/zeam"
 deployment_mode: docker  # docker or binary
 
-# Global zeam CLI flags before `node`. Empty by default: published devnet4 image lacks these options.
-# Override when using a zeam build that supports them, e.g. "--console-log-level debug"
+# Global zeam CLI flags before `node`. Leave empty for published images that
+# predate top-level --console-log-level (NoOption if unsupported). Console debug
+# is enabled via the zeam binary default (console_log_level=.debug) once the
+# image is rebuilt from current source; do not pass the flag until then.
 zeam_global_flags: ""
 
 # On-disk store for zeam node (requires zeam with --db-backend). Keep in sync with client-cmds/zeam-cmd.sh.
@@ -30,6 +32,24 @@ zeam_chain_worker: ""
 zeam_rayon_threads_aggregator: ""
 zeam_rayon_threads_non_aggregator: "6"
 zeam_rayon_threads: ""
+
+# Toggle for zeam's QUIC transport in libp2p-glue (blockblaz/zeam#942).
+# "1" => QUIC off, force TCP+yamux+noise only.  "0" => QUIC enabled.
+#
+# MUST STAY "0" ON THIS DEVNET. The devnet is QUIC-ONLY: every validator in
+# ansible-devnet/genesis/validator-config.yaml advertises enrFields.{ip,quic}
+# and NO tcp. Setting "1" makes zeam derive only a /udp/<port>/quic-v1 listen
+# multiaddr, which the TCP-only transport cannot bind ->
+#   "Failed to start listener on any address - network initialization failed"
+# -> container crash-loops. Even if it bound TCP, it would have 0 peers since
+# no other client listens on TCP. The QUIC-off bisection is therefore infeasible
+# here without adding tcp ports to ALL 64 enrFields and redeploying the devnet.
+#
+# BISECTION RESULT (2026-05-29): N/A by topology. Since all gossip is QUIC-only,
+# the corruption already pinned (sha256_libp2p_ingress == sha256_inbound,
+# cross-message byte-bleed) is on the QUIC (quinn/libp2p-quic) receive path by
+# elimination. The libp2p 0.55->0.56 / quic 0.12->0.13 bump did NOT fix it.
+zeam_disable_quic: "0"
 
 # These should be passed from the playbook
 node_name: ""

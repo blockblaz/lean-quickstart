@@ -26,7 +26,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:devnet4') }}"
+    ethlambda_docker_image: "{{ ethlambda_docker_image_raw.stdout | trim | default('ghcr.io/lambdaclass/ethlambda:unstable') }}"
     deployment_mode: "{{ ethlambda_deployment_mode_raw.stdout | trim | default('docker') }}"
 
 - name: Extract node configuration from validator-config.yaml
@@ -127,8 +127,6 @@
         --pull=always
         --name {{ node_name }}
         --restart {{ docker_container_restart_policy }}
-        {{ ('--memory ' + docker_memory_limits.ethlambda) if (ethlambda_is_aggregator | default('false')) != 'true' else '' }}
-        {{ ('--memory-swap ' + docker_memory_limits.ethlambda) if (ethlambda_is_aggregator | default('false')) != 'true' else '' }}
         --network host
         {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro

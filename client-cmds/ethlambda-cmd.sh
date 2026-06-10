@@ -48,7 +48,7 @@ node_binary="$binary_path \
       $checkpoint_sync_flag"
 
 # Command when running as docker container
-node_docker="ghcr.io/lambdaclass/ethlambda:devnet4 \
+node_docker="ghcr.io/lambdaclass/ethlambda:devnet5 \
       --genesis /config/config.yaml \
       --validators /config/annotated_validators.yaml \
       --bootnodes /config/nodes.yaml \

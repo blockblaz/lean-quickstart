@@ -7,8 +7,9 @@
 metrics_flag="--metrics-enable"
 
 # Optional global zeam CLI flags before `node` (e.g. --console-log-level debug).
-# Default empty: blockblaz/zeam:devnet4 and older binaries do not support top-level log flags.
-# With a current zeam build: export ZEAM_GLOBAL_FLAGS='--console-log-level debug'
+# Default empty: older published images reject unknown top-level flags (NoOption).
+# Console debug on devnet: rebuild/push zeam image from source (default is debug).
+# Override: export ZEAM_GLOBAL_FLAGS='--console-log-level debug' with a matching build.
 zeam_global_flags="${ZEAM_GLOBAL_FLAGS:-}"
 
 # Set aggregator flag based on isAggregator value
@@ -115,7 +116,7 @@ else
     rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_NON_AGGREGATOR:-6}"
 fi
 
-node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
+node_binary="$scriptDir/zig-out/bin/zeam $zeam_global_flags node \
       --custom-genesis $configDir \
       --validator-config $validatorConfig \
       --data-dir $dataDir/$item \
@@ -131,7 +132,7 @@ node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       $chain_worker_flag \
       $rayon_threads_flag"
 
-node_docker="--security-opt seccomp=unconfined 0xpartha/zeam:local $zeam_global_flags node \
+node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet5 $zeam_global_flags node \
       --custom-genesis /config \
       --validator-config $validatorConfig \
       --data-dir /data \
