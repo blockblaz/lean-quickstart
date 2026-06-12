@@ -116,6 +116,23 @@ else
     rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_NON_AGGREGATOR:-6}"
 fi
 
+# Opt-in QUIC-stack verbose logging for the gossipsub-wedge investigation.
+# Mirrors `ethlambda-cmd.sh`'s contract: `DEBUG_QUIC=1 ./spin-node.sh ...`
+# unmutes zquic / quic_runtime / connection_manager / tls info+debug logs
+# inside the zeam process (see `main.zig::quicAwareLogFn`).  Without this,
+# only warnings and errors from those scopes reach stderr — the per-frame
+# / per-packet chatter is suppressed, keeping a sustained devnet run from
+# producing tens of MB of "outbox paused" / "drain stalled" lines per node.
+# Truthy strings match the same set as the zeam-side env parser
+# (`1`/`true`/`yes`/`on`, case-insensitive); anything else (including the
+# string `0`) leaves logging muted.
+nodeEnvFlags=""
+case "${DEBUG_QUIC:-0}" in
+  1|true|TRUE|yes|YES|on|ON)
+    nodeEnvFlags="-e DEBUG_QUIC=1"
+    ;;
+esac
+
 node_binary="$scriptDir/zig-out/bin/zeam $zeam_global_flags node \
       --custom-genesis $configDir \
       --validator-config $validatorConfig \
