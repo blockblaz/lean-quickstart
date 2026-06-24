@@ -397,22 +397,29 @@ _verify_aggregator_invariant() {
   local _verify_failed=false
   for _subnet_idx in "${_unique_subnets[@]}"; do
     local _agg_count=0
-    local _agg_name=""
+    local _agg_names=""
     for _node in "${nodes[@]}"; do
       if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
         local _is_agg
         _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
         if [[ "$_is_agg" == "true" ]]; then
           _agg_count=$((_agg_count + 1))
-          _agg_name="$_node"
+          if [[ -z "$_agg_names" ]]; then
+            _agg_names="$_node"
+          else
+            _agg_names="$_agg_names, $_node"
+          fi
         fi
       fi
     done
-    if [ "$_agg_count" -ne 1 ]; then
-      echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
+    # A subnet needs at least one aggregator; more than one is allowed
+    # (multiple aggregators add redundancy so a single aggregator stalling
+    # cannot wedge consensus liveness for the whole subnet).
+    if [ "$_agg_count" -lt 1 ]; then
+      echo "Error: subnet $_subnet_idx has no aggregator — expected at least 1" >&2
       _verify_failed=true
     else
-      _aggregator_summary+=("subnet $_subnet_idx → $_agg_name")
+      _aggregator_summary+=("subnet $_subnet_idx → $_agg_names")
     fi
   done
   if [ "$_verify_failed" == "true" ]; then
@@ -1061,9 +1068,14 @@ for item in "${spin_nodes[@]}"; do
       echo "Core dumps enabled for $item (dumps will be written to $dataDir/$item/)"
     fi
 
+    # Opt-in per-node docker env vars (e.g. `nodeEnvFlags` exported from
+    # *-cmd.sh to enable RUST_LOG=quinn_proto=trace + QLOGDIR for an
+    # ethlambda transport-wedge investigation). Unset by default so normal
+    # runs are unaffected.
     execCmd="$execCmd --name $item --network host \
           -v $configDir:/config \
           -v $dataDir/$item:/data \
+          ${nodeEnvFlags:-} \
           $node_docker"
   fi;
 

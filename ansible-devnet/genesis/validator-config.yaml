@@ -1,11 +1,17 @@
+# devnet-5: 4 subnets, zeam-only (32 validators = 8 per subnet).
+# Aggregators zeam_0..zeam_3 on Aggregator_servers IPs (one container per IP, quic 9001).
+# Regular validators zeam_4..zeam_31 each on a distinct Validator_servers IP.
+# Subnet membership: validator_index % 4.
+# Aggregator IPs per scripts/assign-aggregator-ips.py / lean_ethereum_servers.txt.
+
 shuffle: roundrobin
 deployment_mode: ansible
 config:
   activeEpoch: 18
   keyType: hash-sig
-  attestation_committee_count: 1
+  attestation_committee_count: 4
 validators:
-- name: zeam_8
+- name: zeam_0
   privkey: 8e9f81c9caa9e29d26a7327311ca63a38254efdfccf3ce1362bae47eae0b18b3
   enrFields:
     ip: 77.42.121.211
@@ -14,17 +20,35 @@ validators:
   apiPort: 5055
   isAggregator: true
   count: 1
-- name: ethlambda_8
+- name: zeam_1
   privkey: d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5
   enrFields:
-    ip: 157.180.20.55
+    ip: 89.167.41.98
     quic: 9001
   metricsPort: 9102
   apiPort: 5055
-  isAggregator: false
+  isAggregator: true
   count: 1
-- name: ream_0
+- name: zeam_2
   privkey: af27950128b49cda7e7bc9fcb7b0270f7a3945aa7543326f3bfdbd57d2a97a32
+  enrFields:
+    ip: 89.167.114.168
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: true
+  count: 1
+- name: zeam_3
+  privkey: bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5
+  enrFields:
+    ip: 89.167.120.1
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: true
+  count: 1
+- name: zeam_4
+  privkey: 299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a
   enrFields:
     ip: 37.27.220.14
     quic: 9001
@@ -32,7 +56,7 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: zeam_0
+- name: zeam_5
   privkey: 69c251cdb06039dd99d87e5a1439fa3720615be98c293ec9bcfd041877a2e8ca
   enrFields:
     ip: 157.180.116.162
@@ -41,545 +65,237 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-# - name: grandine_0
-#   privkey: c05937b251889e35c58d4601c29bed8153dc22c548448f85e0ab9ca436d4b904
-#   enrFields:
-#     ip: 65.109.131.177
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-
-# --- remaining nodes (commented out) ---
-# - name: lantern_8
-#   privkey: bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5
-#   enrFields:
-#     ip: 65.109.131.177
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_0
-#   privkey: 299550529a79bc2dce003747c52fb0639465c893e00b0440ac66144d625e066a
-#   enrFields:
-#     ip: 178.104.149.208
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: zeam_0
-#   privkey: 2e9be3f1b0d32ca3a4d62017fbfafe3950b7e90fed6802ff8bd2e0f8c4e2ca91
-#   enrFields:
-#     ip: 157.180.20.55
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: zeam_9
-#   privkey: 0e190e06a62db01bf566af4348277463d26eebab8f6badbcb989242ea4fee050
-#   enrFields:
-#     ip: 37.27.220.14
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_9
-#   privkey: 1176609530e568ec12ad227e60ae71c618bfb13fde5a3257e4b0627216e78e04
-#   enrFields:
-#     ip: 157.180.116.162
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: lantern_1
-#   privkey: fc2f11f90dd90df33bfb5f3467c2cbc37cf93dbb41c7ac556f9eea117418e73d
-#   enrFields:
-#     ip: 37.27.220.14
-#     quic: 9004
-#   metricsPort: 9105
-#   apiPort: 5058
-#   isAggregator: false
-#   count: 1
-# - name: lantern_9
-#   privkey: 8d14c7b02d55ca050ef97a3961aa16828837fb363e4e19e4dd0060f58670a2b3
-#   enrFields:
-#     ip: 204.168.190.188
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_1
-#   privkey: eb8533a0d5071d4dbcb0c4fcf9b8ac6edc3d1a260d2bb348fafc5cdb455aa1d4
-#   enrFields:
-#     ip: 135.181.82.109
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: gean_1
-#   privkey: 5408a68b960a7932e367b32489498a13c339f87ff8090ea54213524b3d76fcff
-#   enrFields:
-#     ip: 95.217.158.60
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: zeam_1
-#   privkey: 74388a2487b943d947c17bf65ca08470f3ad5f045ea0f5aed38a98bbaba1bd49
-#   enrFields:
-#     ip: 65.109.131.177
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: grandine_1
-#   privkey: ab6edee1173379f647b4022d74d4b3342d547e7bb6954664a1a489b95b7c9b60
-#   enrFields:
-#     ip: 37.27.89.135
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: zeam_10
-#   privkey: 7fdceb8166b9d7ab4169d80345ab85fd042b3684ba307c4c02e851c1520975b5
-#   enrFields:
-#     ip: 178.104.151.50
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_10
-#   privkey: 943151f2327ea91357632dd8a3a498242b07eeeebad973ea82d6bead80627d3e
-#   enrFields:
-#     ip: 178.104.133.162
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: lantern_2
-#   privkey: d723f0cc94645848bbacf8aea4e01944e2f4a6f9f2c69b17ed1868f492374a7a
-#   enrFields:
-#     ip: 178.104.149.208
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: lantern_10
-#   privkey: 11ff3a52375898532680c86739dbe0b632088545d0b901181d92053b5fab8d38
-#   enrFields:
-#     ip: 178.104.149.91
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_2
-#   privkey: 4a7c5b2077d0e3c6f5322d0f2fd98cb2efffbceb41de2799e520b48872dc4102
-#   enrFields:
-#     ip: 95.216.154.185
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: gean_2
-#   privkey: 14da65451d15aee0cbdbcd847cfc3474f106c4595bf716306832fc078858f458
-#   enrFields:
-#     ip: 204.168.135.7
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: zeam_2
-#   privkey: 53f1956c292eca6aba53bfd1089682828130db1c0ef980746e5e3e1d94f98360
-#   enrFields:
-#     ip: 37.27.220.14
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: grandine_2
-#   privkey: b4fdf4bc8ea6e74845b19823510c590406ff63371e0573132f1ddb6b455b7bf7
-#   enrFields:
-#     ip: 65.21.182.45
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: zeam_11
-#   privkey: 1027ce52661ef76b5ada68bc8cd45c13ebefb09c99dcad251b9bd4893c71815f
-#   enrFields:
-#     ip: 65.109.138.213
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_11
-#   privkey: 31258c1b84e4a64954fb18dbb04ec9de7079ad4d0273b40380aa1f4ca2f20804
-#   enrFields:
-#     ip: 204.168.134.201
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: lantern_3
-#   privkey: 4701dd38aa11a1affd69b5d95e535210f8c29e720222b906c46bd64cf018f9c7
-#   enrFields:
-#     ip: 95.217.19.42
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: lantern_11
-#   privkey: 877c1489e75914bd46dccb71e0ee2d32af337fbb82f2c9caea73818e00ea9a61
-#   enrFields:
-#     ip: 95.216.173.151
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_3
-#   privkey: 1c454b0399cd2178b46e42c8b599e34f2e7ddab71df96b1fbf510d5951335ea0
-#   enrFields:
-#     ip: 95.216.164.165
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: gean_3
-#   privkey: 51832ccf0a189ed39a6fe13833894445b1fa60fc008fcb7fd7e30405318068d1
-#   enrFields:
-#     ip: 95.216.165.186
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: zeam_3
-#   privkey: f52f1216a9a20f5b2c200ed64f1a2a8e7427772574147a7edf4602b40f820e9b
-#   enrFields:
-#     ip: 178.104.151.50
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: grandine_3
-#   privkey: 27b642b91b25a4dd55638d7936469270f0fc4b77ceba768617291415eeb3ab1a
-#   enrFields:
-#     ip: 37.27.250.20
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: false
-#   count: 1
-# - name: zeam_12
-#   privkey: 0763e1a9f1909df7eae31ef4e93d5aaf45a506624ef81df893fc02e08a4ab94f
-#   enrFields:
-#     ip: 157.180.116.162
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_12
-#   privkey: a5dac14f317084d255c57e5080985b1dbd79cf8fc625a9c7fba781abf07001bd
-#   enrFields:
-#     ip: 157.180.116.162
-#     quic: 9004
-#   metricsPort: 9105
-#   apiPort: 5058
-#   isAggregator: false
-#   count: 1
-# - name: lantern_4
-#   privkey: 62e6c79311ce4ee1b95ff52c8d6b7cccea0bf0b927fbed595d454858b32c49d6
-#   enrFields:
-#     ip: 204.168.190.188
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: lantern_12
-#   privkey: 2aed04fc149298af1376aee0161d5dc67f9d7a47e625a58ae8e44f210d45c2a2
-#   enrFields:
-#     ip: 89.167.120.1
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: true
-#   count: 1
-# - name: ethlambda_4
-#   privkey: 91c2c932a6589e130bfa5281cc27f6b9930ba7f99aa043d334f14578ef7492f1
-#   enrFields:
-#     ip: 95.217.158.60
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: gean_4
-#   privkey: 9b678649edf603b73913e8957fd7c26fe6af08656b8fe14b0d47aa80d3b59c9f
-#   enrFields:
-#     ip: 37.27.89.135
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: zeam_4
-#   privkey: 6cc68faf32d824996ecec2644c61cdb479da9bc1f957f7d09913fac8c49fe578
-#   enrFields:
-#     ip: 65.109.138.213
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: grandine_4
-#   privkey: 936fa39e4f1ce548d977f852f84ee900bbd2789bf85779e0e958d966a1ba7386
-#   enrFields:
-#     ip: 157.180.20.55
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: zeam_13
-#   privkey: ce66f19a179bd74e01b775c696b1744060078fe4d84abb5761a3f1d7cef15562
-#   enrFields:
-#     ip: 178.104.133.162
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_13
-#   privkey: 12bb3c043f2600f27be6bf8916368e9ff01b9ef5c4a7ccdf6aab8e2a24ba55c3
-#   enrFields:
-#     ip: 178.104.149.208
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: lantern_5
-#   privkey: 4caa321fc7598a3da98623a03774ee177c0025fa783fc2fc9c082b297ed96433
-#   enrFields:
-#     ip: 178.104.149.91
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: lantern_13
-#   privkey: 34cfea8f2e6d6f8a28ae8869220450b8069ba0c9cca436a1079d44fa40989820
-#   enrFields:
-#     ip: 95.216.154.185
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_5
-#   privkey: 793a5d9add590b890085b440ceefe3e8c805785f7271feee09d35511e7060056
-#   enrFields:
-#     ip: 89.167.112.241
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: true
-#   count: 1
-# - name: gean_5
-#   privkey: b55c8e411d54ca0ef5ce69e86cba09ae110add1c5d598ed3356adfa5182b82e9
-#   enrFields:
-#     ip: 65.21.182.45
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: zeam_5
-#   privkey: 9cf22e42d463e751958eceace0a3201c661b4326076027c900a04aa845a9e683
-#   enrFields:
-#     ip: 89.167.3.22
-#     quic: 9001
-#   metricsPort: 9102
-#   apiPort: 5055
-#   isAggregator: true
-#   count: 1
-# - name: grandine_5
-#   privkey: 99f1df1cbc7429360d52142a8ec5df6a3ad38a4a39897d2ee356b88fd3a69385
-#   enrFields:
-#     ip: 65.109.131.177
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: zeam_14
-#   privkey: aaf15d4a12fec7409b136d022790d9aaaca3d5679c9e28babe23a424cd80729b
-#   enrFields:
-#     ip: 204.168.134.201
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_14
-#   privkey: 7536676b6ee5f0062030c0b6784c44a175d66cdc39277354c1b9014b419cbc30
-#   enrFields:
-#     ip: 95.217.19.42
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: lantern_6
-#   privkey: 5401bb0acca1620ffddd776c98b5de53034b960eb84a1fe0ce381161789fd980
-#   enrFields:
-#     ip: 95.216.173.151
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: lantern_14
-#   privkey: 2ac17fb2c419558e349400f45fd5077eac9ca7bcd527b0833ac7f630465c5457
-#   enrFields:
-#     ip: 95.216.164.165
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_6
-#   privkey: e673e0a9b6ea018ae0b8039019bcee829037dd5638c2b5a5f085385e46231b6a
-#   enrFields:
-#     ip: 95.216.165.186
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: gean_6
-#   privkey: 0db45359918ec742bd1c354af1c5614969985139d2617790dc2ada928e95a731
-#   enrFields:
-#     ip: 37.27.250.20
-#     quic: 9002
-#   metricsPort: 9103
-#   apiPort: 5056
-#   isAggregator: false
-#   count: 1
-# - name: zeam_6
-#   privkey: c9dcdad85cfffc846c9771f950f4198ae4791972cf86841ee01004f8375b9332
-#   enrFields:
-#     ip: 157.180.116.162
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: grandine_6
-#   privkey: eadfc14b6231cb9a207f96f436f7d55c733ba3781306307b7f81f564e2b53f0a
-#   enrFields:
-#     ip: 37.27.220.14
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: zeam_15
-#   privkey: 2907bc1d1e0a3dee4cc317dfda39a09b5e23596671d7108482edb897616c6b6c
-#   enrFields:
-#     ip: 204.168.135.7
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_15
-#   privkey: 98da18b276aa5a54ceba15e78260286b9dbe03c4bf8b9db061d024ba4446cfff
-#   enrFields:
-#     ip: 204.168.190.188
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: lantern_7
-#   privkey: a8a9cb1f243380d915e4997b3bc5058295d94704870885d5ed6cb1dfea24d77e
-#   enrFields:
-#     ip: 135.181.82.109
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: lantern_15
-#   privkey: 97ae5f1d63fa7c05783f7ae5af4ce1fc43a030833c174e430080a8695ce91d56
-#   enrFields:
-#     ip: 95.217.158.60
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: ethlambda_7
-#   privkey: 17bea5ada768f12d6f0c95ab9618277527e9691e2e4169e73bc92248da122e68
-#   enrFields:
-#     ip: 37.27.89.135
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: gean_7
-#   privkey: 32e4b103c4b349df214d265db9cb1e6d49346e14093fee656828a5e1ef050b8b
-#   enrFields:
-#     ip: 157.180.20.55
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: zeam_7
-#   privkey: c99cd68f66a7460a8aca095d6dd4b6ce953e175d91077f1e7aba27858f68e301
-#   enrFields:
-#     ip: 178.104.133.162
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
-# - name: grandine_7
-#   privkey: 7dd9ca62d79af8e01c95c743ef1a39155a42eded7096599a7f67b3932b387e6c
-#   enrFields:
-#     ip: 178.104.151.50
-#     quic: 9003
-#   metricsPort: 9104
-#   apiPort: 5057
-#   isAggregator: false
-#   count: 1
+- name: zeam_6
+  privkey: 2e9be3f1b0d32ca3a4d62017fbfafe3950b7e90fed6802ff8bd2e0f8c4e2ca91
+  enrFields:
+    ip: 204.168.135.7
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_7
+  privkey: c05937b251889e35c58d4601c29bed8153dc22c548448f85e0ab9ca436d4b904
+  enrFields:
+    ip: 204.168.190.188
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_8
+  privkey: 0e190e06a62db01bf566af4348277463d26eebab8f6badbcb989242ea4fee050
+  enrFields:
+    ip: 135.181.82.109
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_9
+  privkey: 1176609530e568ec12ad227e60ae71c618bfb13fde5a3257e4b0627216e78e04
+  enrFields:
+    ip: 95.217.158.60
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_10
+  privkey: fc2f11f90dd90df33bfb5f3467c2cbc37cf93dbb41c7ac556f9eea117418e73d
+  enrFields:
+    ip: 37.27.89.135
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_11
+  privkey: 8d14c7b02d55ca050ef97a3961aa16828837fb363e4e19e4dd0060f58670a2b3
+  enrFields:
+    ip: 157.180.20.55
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_12
+  privkey: eb8533a0d5071d4dbcb0c4fcf9b8ac6edc3d1a260d2bb348fafc5cdb455aa1d4
+  enrFields:
+    ip: 178.104.151.50
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_13
+  privkey: 5408a68b960a7932e367b32489498a13c339f87ff8090ea54213524b3d76fcff
+  enrFields:
+    ip: 178.104.133.162
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_14
+  privkey: 74388a2487b943d947c17bf65ca08470f3ad5f045ea0f5aed38a98bbaba1bd49
+  enrFields:
+    ip: 178.104.149.208
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_15
+  privkey: ab6edee1173379f647b4022d74d4b3342d547e7bb6954664a1a489b95b7c9b60
+  enrFields:
+    ip: 178.104.149.91
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_16
+  privkey: 7fdceb8166b9d7ab4169d80345ab85fd042b3684ba307c4c02e851c1520975b5
+  enrFields:
+    ip: 95.216.154.185
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_17
+  privkey: 943151f2327ea91357632dd8a3a498242b07eeeebad973ea82d6bead80627d3e
+  enrFields:
+    ip: 65.21.182.45
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_18
+  privkey: d723f0cc94645848bbacf8aea4e01944e2f4a6f9f2c69b17ed1868f492374a7a
+  enrFields:
+    ip: 65.109.131.177
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_19
+  privkey: 11ff3a52375898532680c86739dbe0b632088545d0b901181d92053b5fab8d38
+  enrFields:
+    ip: 65.109.138.213
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_20
+  privkey: 4a7c5b2077d0e3c6f5322d0f2fd98cb2efffbceb41de2799e520b48872dc4102
+  enrFields:
+    ip: 204.168.134.201
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_21
+  privkey: 14da65451d15aee0cbdbcd847cfc3474f106c4595bf716306832fc078858f458
+  enrFields:
+    ip: 95.217.19.42
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_22
+  privkey: 53f1956c292eca6aba53bfd1089682828130db1c0ef980746e5e3e1d94f98360
+  enrFields:
+    ip: 95.216.173.151
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_23
+  privkey: b4fdf4bc8ea6e74845b19823510c590406ff63371e0573132f1ddb6b455b7bf7
+  enrFields:
+    ip: 95.216.164.165
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_24
+  privkey: 1027ce52661ef76b5ada68bc8cd45c13ebefb09c99dcad251b9bd4893c71815f
+  enrFields:
+    ip: 95.216.165.186
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_25
+  privkey: 31258c1b84e4a64954fb18dbb04ec9de7079ad4d0273b40380aa1f4ca2f20804
+  enrFields:
+    ip: 37.27.250.20
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_26
+  privkey: 4701dd38aa11a1affd69b5d95e535210f8c29e720222b906c46bd64cf018f9c7
+  enrFields:
+    ip: 178.105.22.187
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_27
+  privkey: 877c1489e75914bd46dccb71e0ee2d32af337fbb82f2c9caea73818e00ea9a61
+  enrFields:
+    ip: 178.105.124.135
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_28
+  privkey: 1c454b0399cd2178b46e42c8b599e34f2e7ddab71df96b1fbf510d5951335ea0
+  enrFields:
+    ip: 178.105.117.56
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_29
+  privkey: 51832ccf0a189ed39a6fe13833894445b1fa60fc008fcb7fd7e30405318068d1
+  enrFields:
+    ip: 178.105.121.214
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_30
+  privkey: f52f1216a9a20f5b2c200ed64f1a2a8e7427772574147a7edf4602b40f820e9b
+  enrFields:
+    ip: 178.105.22.193
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
+- name: zeam_31
+  privkey: 27b642b91b25a4dd55638d7936469270f0fc4b77ceba768617291415eeb3ab1a
+  enrFields:
+    ip: 178.105.70.184
+    quic: 9001
+  metricsPort: 9102
+  apiPort: 5055
+  isAggregator: false
+  count: 1
