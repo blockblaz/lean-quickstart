@@ -27,7 +27,7 @@
 
 - name: Set docker image and deployment mode from client-cmd.sh
   set_fact:
-    ream_docker_image: "{{ ream_docker_image_raw.stdout | trim | default('ghcr.io/reamlabs/ream:latest-devnet4') }}"
+    ream_docker_image: "{{ ream_docker_image_raw.stdout | trim | default('snaiyer1/ream:latest-devnet5') }}"
     deployment_mode: "{{ ream_deployment_mode_raw.stdout | trim | default('docker') }}"
   delegate_to: localhost
   run_once: true
