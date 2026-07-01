@@ -52,12 +52,11 @@ zeam_rayon_threads: ""
 zeam_disable_quic: "0"
 
 # Gate the noisy zig-libp2p/zquic transport log scopes (.quic_runtime, .zquic, …).
-# "0" (default) => suppress info/debug/warn from the QUIC stack (err always passes).
 # "1"/"true"/"yes"/"on" => unmute the full transport log stream.
-# Scope to one node for a debug capture, e.g.:
-#   ansible-playbook ... --limit zeam_0 -e "zeam_debug_quic=1"
-# Revert by re-running without the override (recreates the container at "0").
-zeam_debug_quic: "0"
+# "0" => suppress info/debug/warn from the QUIC stack (err always passes).
+# Currently ON for a lantern reqresp-flap debug capture. Set back to "0" (or
+# override -e "zeam_debug_quic=0") to re-quiet once the capture is done.
+zeam_debug_quic: "1"
 
 # These should be passed from the playbook
 node_name: ""
