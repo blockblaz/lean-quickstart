@@ -51,6 +51,14 @@ zeam_rayon_threads: ""
 # elimination. The libp2p 0.55->0.56 / quic 0.12->0.13 bump did NOT fix it.
 zeam_disable_quic: "0"
 
+# Gate the noisy zig-libp2p/zquic transport log scopes (.quic_runtime, .zquic, …).
+# "0" (default) => suppress info/debug/warn from the QUIC stack (err always passes).
+# "1"/"true"/"yes"/"on" => unmute the full transport log stream.
+# Scope to one node for a debug capture, e.g.:
+#   ansible-playbook ... --limit zeam_0 -e "zeam_debug_quic=1"
+# Revert by re-running without the override (recreates the container at "0").
+zeam_debug_quic: "0"
+
 # These should be passed from the playbook
 node_name: ""
 genesis_dir: ""
