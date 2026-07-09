@@ -9,6 +9,7 @@ set -e
 # Configuration
 # ========================================
 PK_DOCKER_IMAGE="ethpandaops/eth-beacon-genesis:pk910-leanchain"
+PK_BINARY="${PK_BINARY:-}"
 
 # ========================================
 # Usage and Help
@@ -164,7 +165,12 @@ echo "  ✅ docker found: $(which docker)"
 
 # Hash-sig-cli Docker image (separate attester + proposer keys per validator when using dual-key manifest)
 HASH_SIG_CLI_IMAGE="blockblaz/hash-sig-cli:latest"
-echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
+HASH_SIG_CLI_BINARY="${HASH_SIG_CLI_BINARY:-}"
+if [ -n "$HASH_SIG_CLI_BINARY" ]; then
+    echo "  ✅ Using hash-sig-cli binary: $HASH_SIG_CLI_BINARY"
+else
+    echo "  ✅ Using hash-sig-cli Docker image: $HASH_SIG_CLI_IMAGE"
+fi
 
 echo ""
 
@@ -273,17 +279,26 @@ else
     CURRENT_UID=$(id -u)
     CURRENT_GID=$(id -g)
 
-    # Pull latest image first
-    docker pull "$HASH_SIG_CLI_IMAGE" || true
+    if [ -n "$HASH_SIG_CLI_BINARY" ]; then
+        HASH_SIG_CMD=("$HASH_SIG_CLI_BINARY")
+        HASH_SIG_GENESIS_DIR="$GENESIS_DIR_ABS"
+    else
+        # Pull latest image first
+        docker pull "$HASH_SIG_CLI_IMAGE" || true
 
-    docker run --rm --pull=never \
-      --user "$CURRENT_UID:$CURRENT_GID" \
-      -v "$GENESIS_DIR_ABS:/genesis" \
-      "$HASH_SIG_CLI_IMAGE" \
+        HASH_SIG_CMD=(docker run --rm --pull=never
+            --user "$CURRENT_UID:$CURRENT_GID"
+            -v "$GENESIS_DIR_ABS:/genesis"
+            "$HASH_SIG_CLI_IMAGE"
+        )
+        HASH_SIG_GENESIS_DIR="/genesis"
+    fi
+
+    ${HASH_SIG_CMD[@]} \
       generate \
       --num-validators "$VALIDATOR_COUNT" \
       --log-num-active-epochs "$ACTIVE_EPOCH" \
-      --output-dir "/genesis/hash-sig-keys" \
+      --output-dir "$HASH_SIG_GENESIS_DIR/hash-sig-keys" \
       --export-format ssz
 
     if [ $? -ne 0 ]; then
@@ -444,6 +459,11 @@ echo ""
 # ========================================
 echo "🔧 Step 3: Running PK's eth-beacon-genesis tool..."
 echo "   Docker image: $PK_DOCKER_IMAGE"
+if [ -n "$PK_BINARY" ]; then
+    echo "   Binary: $PK_BINARY"
+else
+    echo "   Docker image: $PK_DOCKER_IMAGE"
+fi
 echo "   Command: leanchain"
 echo ""
 
@@ -467,22 +487,31 @@ CURRENT_GID=$(id -g)
 # Note: PK's tool expects parent directory as mount point
 echo "   Executing docker command..."
 
-# Pull latest image first 
-echo "   Pulling latest image: $PK_DOCKER_IMAGE"
-docker pull "$PK_DOCKER_IMAGE" || true
+if [ -n "$PK_BINARY" ]; then
+    PK_CMD=("$PK_BINARY")
+    PK_GENESIS_DIR="$GENESIS_DIR_ABS"
+else
+    # Pull latest image first 
+    echo "   Pulling latest image: $PK_DOCKER_IMAGE"
+    docker pull "$PK_DOCKER_IMAGE" || true
 
-docker run --rm --pull=never \
-  --user "$CURRENT_UID:$CURRENT_GID" \
-  -v "$PARENT_DIR_ABS:/data" \
-  "$PK_DOCKER_IMAGE" \
+    PK_CMD=(docker run --rm --pull=never
+        --user "$CURRENT_UID:$CURRENT_GID"
+        -v "$GENESIS_DIR_ABS:/data/genesis"
+        "$PK_DOCKER_IMAGE"
+    )
+    PK_GENESIS_DIR="/data/genesis"
+fi
+
+${PK_CMD[@]} \
   leanchain \
-  --config "/data/genesis/config.yaml" \
-  --mass-validators "/data/genesis/validator-config.yaml" \
-  --state-output "/data/genesis/genesis.ssz" \
-  --json-output "/data/genesis/genesis.json" \
-  --nodes-output "/data/genesis/nodes.yaml" \
-  --validators-output "/data/genesis/validators.yaml" \
-  --config-output "/data/genesis/config.yaml"
+  --config "$PK_GENESIS_DIR/config.yaml" \
+  --mass-validators "$PK_GENESIS_DIR/validator-config.yaml" \
+  --state-output "$PK_GENESIS_DIR/genesis.ssz" \
+  --json-output "$PK_GENESIS_DIR/genesis.json" \
+  --nodes-output "$PK_GENESIS_DIR/nodes.yaml" \
+  --validators-output "$PK_GENESIS_DIR/validators.yaml" \
+  --config-output "$PK_GENESIS_DIR/config.yaml"
 
 if [ $? -ne 0 ]; then
     echo ""
