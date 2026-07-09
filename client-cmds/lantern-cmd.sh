@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.4"
+LANTERN_IMAGE="bitminemavan/lantern:v0.0.4"
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
@@ -40,7 +40,7 @@ if [ -z "$httpPort" ]; then
     httpPort="5055"
 fi
 
-# Lantern's repo: https://github.com/Pier-Two/lantern
+# Lantern's repo: https://github.com/bitminetech/lantern
 node_binary="$scriptDir/lantern/build/lantern_cli \
         --data-dir $dataDir/$item \
         --genesis-config $configDir/config.yaml \
