@@ -1,12 +1,12 @@
-# devnet-5: 8 subnets, zeam + ethlambda + grandine + ream (32 validators = 4 per subnet).
+# devnet-5: 8 subnets, zeam + ethlambda + grandine + ream + lantern + gean (32 validators = 4 per subnet).
 # Subnet membership: validator_index % 8 (roundrobin list order).
 #
 #   subnet 0: zeam x4
 #   subnet 1: ethlambda x4
-#   subnet 2: ethlambda x4
+#   subnet 2: lantern x4
 #   subnet 3: ream x4
 #   subnet 4: grandine x4
-#   subnet 5: grandine + zeam + ethlambda + ream
+#   subnet 5: gean x4
 #   subnet 6: zeam + grandine + ethlambda + ream
 #   subnet 7: grandine + ream + zeam + ethlambda
 #
@@ -36,8 +36,8 @@ validators:
   apiPort: 5055
   isAggregator: true
   count: 1
-- name: ethlambda_1
-  privkey: e3e400c679729410864164d1ec74fa056de68b150accc9669306509843b69783
+- name: lantern_0
+  privkey: 62e6c79311ce4ee1b95ff52c8d6b7cccea0bf0b927fbed595d454858b32c49d6
   enrFields:
     ip: 89.167.114.168
     quic: 9001
@@ -63,8 +63,8 @@ validators:
   apiPort: 5055
   isAggregator: true
   count: 1
-- name: grandine_1
-  privkey: ab6edee1173379f647b4022d74d4b3342d547e7bb6954664a1a489b95b7c9b60
+- name: gean_0
+  privkey: b55c8e411d54ca0ef5ce69e86cba09ae110add1c5d598ed3356adfa5182b82e9
   enrFields:
     ip: 95.217.153.36
     quic: 9001
@@ -108,8 +108,8 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ethlambda_3
-  privkey: 1a9cbc0436e12885167ec949bece2f4741872061e28d37f5c692e449f307d2c7
+- name: lantern_1
+  privkey: fc2f11f90dd90df33bfb5f3467c2cbc37cf93dbb41c7ac556f9eea117418e73d
   enrFields:
     ip: 37.27.89.135
     quic: 9001
@@ -135,8 +135,8 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: zeam_3
-  privkey: bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5
+- name: gean_1
+  privkey: 5408a68b960a7932e367b32489498a13c339f87ff8090ea54213524b3d76fcff
   enrFields:
     ip: 178.104.133.162
     quic: 9001
@@ -180,8 +180,8 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ethlambda_5
-  privkey: 002242292706c7fa97ac36d9f1512f293b63549af6db238bbd821e710afec0d7
+- name: lantern_2
+  privkey: 8d14c7b02d55ca050ef97a3961aa16828837fb363e4e19e4dd0060f58670a2b3
   enrFields:
     ip: 65.109.131.177
     quic: 9001
@@ -207,8 +207,8 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ethlambda_6
-  privkey: 64ab88f7c4f58df2ef2b7bda20b6e7356846a5153757848d3a44e84aac3f6949
+- name: gean_2
+  privkey: 14da65451d15aee0cbdbcd847cfc3474f106c4595bf716306832fc078858f458
   enrFields:
     ip: 95.217.19.42
     quic: 9001
@@ -252,8 +252,8 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ethlambda_9
-  privkey: e8e0f2fce08f0c12fd6f2151733c1bce01dec555c8bdc29a6acaaf923eaf0d7b
+- name: lantern_3
+  privkey: 11ff3a52375898532680c86739dbe0b632088545d0b901181d92053b5fab8d38
   enrFields:
     ip: 178.105.22.187
     quic: 9001
@@ -279,8 +279,8 @@ validators:
   apiPort: 5055
   isAggregator: false
   count: 1
-- name: ream_5
-  privkey: 821a13394033c525e19ec1877dffd65b687b2fdc5a98a13238e044960465b76b
+- name: gean_3
+  privkey: 51832ccf0a189ed39a6fe13833894445b1fa60fc008fcb7fd7e30405318068d1
   enrFields:
     ip: 178.105.121.214
     quic: 9001

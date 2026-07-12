@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #-----------------------lantern setup----------------------
-LANTERN_IMAGE="piertwo/lantern:v0.0.5"
+LANTERN_IMAGE="bitminemavan/lantern:v0.0.5"
 
 devnet_flag=""
 if [ -n "$devnet" ]; then
