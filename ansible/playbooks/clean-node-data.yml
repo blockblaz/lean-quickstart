@@ -103,6 +103,7 @@
 
 - name: Clean node data directories on remote hosts
   hosts: clean_targets
+  strategy: free
   gather_facts: no
   vars:
     # Use remote paths on remote hosts

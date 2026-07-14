@@ -18,8 +18,8 @@
 #   skip_genesis     - Set to true to skip genesis generation (default: false)
 #   genesis_offset   - Seconds to add to current time for genesis (default: 360 for ansible mode)
 #
-# Parallelism: ansible.cfg uses strategy=free; run-ansible / ansible-deploy pass -f from
-# unique enrFields.ip in validator-config unless ANSIBLE_FORKS is set.
+# Parallelism: remote plays use strategy=free where safe; run-ansible / ansible-deploy pass
+# -f from unique enrFields.ip in validator-config unless ANSIBLE_FORKS is set.
 
 - name: Clean Data Directories
   import_playbook: clean-node-data.yml

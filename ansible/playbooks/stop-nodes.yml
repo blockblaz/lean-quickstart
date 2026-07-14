@@ -78,6 +78,7 @@
 
 - name: Stop nodes on remote hosts
   hosts: stop_targets
+  strategy: free
   gather_facts: yes
   vars:
     node_name: "{{ inventory_hostname }}"
