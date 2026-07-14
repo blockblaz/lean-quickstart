@@ -133,6 +133,17 @@ case "${DEBUG_QUIC:-0}" in
     ;;
 esac
 
+# Opt-in: enable the experimental ethp2p parallel RS-broadcast transport inside
+# the zeam container. Requires an image built with `-Dethp2p=true` (e.g.
+# 0xpartha/zeam:ethp2p). Mirrors the DEBUG_QUIC contract:
+#   ZEAM_ETHP2P=1 ./spin-node.sh --start ...
+# Off by default; the zeam process reads ZEAM_ETHP2P via getenv at startup.
+case "${ZEAM_ETHP2P:-0}" in
+  1|true|TRUE|yes|YES|on|ON)
+    nodeEnvFlags="$nodeEnvFlags -e ZEAM_ETHP2P=1"
+    ;;
+esac
+
 node_binary="$scriptDir/zig-out/bin/zeam $zeam_global_flags node \
       --custom-genesis $configDir \
       --validator-config $validatorConfig \

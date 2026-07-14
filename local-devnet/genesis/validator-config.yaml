@@ -1,7 +1,10 @@
 # Local ethp2p smoke: 3 nodes, 1 committee.
-#   index 0  zeam_0      -> subnet 0 (aggregator)
-#   index 1  zeam_1      -> subnet 0
-#   index 2  ethlambda_0 -> subnet 0
+#   index 0  zeam_0      -> subnet 0 (aggregator)  libp2p quic 9001 / ethp2p 9002
+#   index 1  zeam_1      -> subnet 0               libp2p quic 9003 / ethp2p 9004
+#   index 2  ethlambda_0 -> subnet 0               libp2p quic 9005 / ethp2p 9006
+# QUIC ports are spaced by 2 so each node's ethp2p port (libp2p + 1, per the
+# ethlambda convention) never collides with another node's libp2p port on the
+# shared --network host stack.
 shuffle: roundrobin
 deployment_mode: local
 config:
@@ -22,7 +25,7 @@ validators:
     privkey: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5"
     enrFields:
       ip: "127.0.0.1"
-      quic: 9002
+      quic: 9003
     metricsPort: 8082
     apiPort: 5052
     isAggregator: false
@@ -31,7 +34,7 @@ validators:
     privkey: "069b696557534721e2b70c98c99fb1d1bb54deb2cce8f3104ba367539313cdf3"
     enrFields:
       ip: "127.0.0.1"
-      quic: 9003
+      quic: 9005
     metricsPort: 8083
     apiPort: 5053
     isAggregator: false
