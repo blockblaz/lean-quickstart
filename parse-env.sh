@@ -84,6 +84,10 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --randomize)
+      randomizeAggregators=true
+      shift
+      ;;
     --checkpoint-sync-url)
       checkpointSyncUrl="$2"
       shift
@@ -108,6 +112,15 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --prepare)
+      prepareMode=true
+      shift
+      ;;
+    --stop-all-containers)
+      stopAllContainers=true
+      shift
+      ;;
+    --deploy-observability)
+      echo "Warning: --deploy-observability is deprecated; use --prepare (observability is included)."
       prepareMode=true
       shift
       ;;
@@ -140,8 +153,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# if no node and no restart-client specified, exit (unless --prepare mode)
-if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]];
+# if no node and no restart-client specified, exit (unless --prepare or --stop-all-containers)
+if [[ ! -n "$node" ]] && [[ ! -n "$restartClient" ]] && [[ "$prepareMode" != "true" ]] && [[ "$stopAllContainers" != "true" ]];
 then
   echo "no node or restart-client specified, exiting..."
   exit
@@ -181,7 +194,8 @@ echo "cleanData = $cleanData"
 echo "popupTerminal = $popupTerminal"
 echo "dockerTag = ${dockerTag:-latest}"
 echo "enableMetrics = $enableMetrics"
-echo "aggregatorNode = ${aggregatorNode:-<auto-select>}"
+echo "aggregatorNode = ${aggregatorNode:-<not set>}"
+echo "randomizeAggregators = ${randomizeAggregators:-false}"
 echo "coreDumps = ${coreDumps:-disabled}"
 echo "checkpointSyncUrl = ${checkpointSyncUrl:-<not set>}"
 echo "restartClient = ${restartClient:-<not set>}"

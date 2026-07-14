@@ -15,6 +15,8 @@
 
 - name: Copy Genesis Files to Remote Hosts
   hosts: all:!local
+  # ansible.cfg uses strategy=free; add_host is not valid under free.
+  strategy: linear
   gather_facts: yes
   vars:
     validator_config_file: "{{ genesis_dir }}/validator-config.yaml"

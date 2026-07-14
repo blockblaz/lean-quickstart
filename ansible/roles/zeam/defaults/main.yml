@@ -3,7 +3,7 @@
 # Note: These are fallback defaults. Actual values are extracted from client-cmds/zeam-cmd.sh
 # in the tasks/main.yml file. These defaults are used if extraction fails.
 
-zeam_docker_image: "blockblaz/zeam:devnet4"
+zeam_docker_image: "0xpartha/zeam:local"
 zeam_binary_path: "{{ playbook_dir }}/../zig-out/bin/zeam"
 deployment_mode: docker  # docker or binary
 
@@ -15,20 +15,21 @@ zeam_global_flags: ""
 zeam_db_backend: "lmdb"
 
 # Chain-worker thread routing (zeam #803 slice c-2b/c-2c).
-# Default "on": prod path post-c-2b. Matches the zeam compiled-in
-# default (post-PR #830) and the client-cmds/zeam-cmd.sh script
-# default (ZEAM_CHAIN_WORKER:-on).
+# Default empty: omit --chain-worker on the CLI so zeam uses its
+# compiled-in default (enabled post-PR #830). Do NOT pass "on" — zeam's
+# bool flag does not take on/off values and "on" breaks parsing of
+# subsequent flags such as --rayon-threads.
 #
-# Override to "off" via -e zeam_chain_worker=off (or in inventory
-# group_vars) to flip back to the legacy synchronous path — acts as
-# the runtime kill-switch without needing a zeam rebuild/redeploy.
-#
-# Set to "" (empty string) to suppress the flag entirely, e.g.
-# when running against a zeam build that does not recognise
-# --chain-worker (v0.4.14 or earlier).
+# Set to "off" or "false" to emit `--chain-worker false` (legacy sync
+# kill-switch). Empty/"on" both mean enabled with no flag passed.
 #
 # REQUIRES: blockblaz/zeam:devnet4 >= v0.4.15.
-zeam_chain_worker: "on"
+zeam_chain_worker: ""
+
+# Rayon thread defaults (keep in sync with client-cmds/zeam-cmd.sh).
+zeam_rayon_threads_aggregator: ""
+zeam_rayon_threads_non_aggregator: "6"
+zeam_rayon_threads: ""
 
 # These should be passed from the playbook
 node_name: ""

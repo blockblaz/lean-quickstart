@@ -13,6 +13,8 @@
 - name: Parse and validate node names
   hosts: localhost
   connection: local
+  # ansible.cfg uses strategy=free; add_host is not valid under free.
+  strategy: linear
   gather_facts: yes
   tags:
     - deploy

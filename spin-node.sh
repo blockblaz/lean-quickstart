@@ -207,7 +207,7 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
   if [ "$dryRun" == "true" ]; then
     echo "[DRY RUN] Would prepare remote servers — running Ansible with --check --diff"
   else
-    echo "Preparing remote servers (verifying and installing required software)..."
+    echo "Preparing remote servers (tools, firewall, observability stack)..."
   fi
 
   if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "prepare" "" "" "" "$dryRun" "" "$networkName"; then
@@ -215,7 +215,79 @@ if [ -n "$prepareMode" ] && [ "$prepareMode" == "true" ]; then
     exit 1
   fi
 
-  [ "$dryRun" == "true" ] && echo "✅ Dry-run complete — no changes were made." || echo "✅ All remote servers are prepared."
+  [ "$dryRun" == "true" ] && echo "✅ Dry-run complete — no changes were made." || echo "✅ All remote servers are prepared (tools, firewall, Prometheus, Promtail, node_exporter, cadvisor)."
+  exit 0
+fi
+
+# Handle --stop-all-containers: stop every Docker container on each unique validator
+# host IP except the per-host observability stack (prometheus, promtail, cadvisor,
+# node_exporter). Does not require --node.
+if [ -n "$stopAllContainers" ] && [ "$stopAllContainers" == "true" ]; then
+  if [ "$deployment_mode" != "ansible" ]; then
+    echo "Error: --stop-all-containers can only be used in ansible mode."
+    echo "Set deployment_mode: ansible in your validator-config.yaml or pass --deploymentMode ansible"
+    exit 1
+  fi
+
+  ignored_flags=()
+  [ -n "$node" ]                && ignored_flags+=("--node")
+  [ -n "$cleanData" ]           && ignored_flags+=("--cleanData")
+  [ -n "$generateGenesis" ]     && ignored_flags+=("--generateGenesis")
+  [ -n "$FORCE_KEYGEN_FLAG" ]   && ignored_flags+=("--forceKeyGen")
+  [ -n "$stopNodes" ]           && ignored_flags+=("--stop")
+  [ -n "$restartClient" ]       && ignored_flags+=("--restart-client")
+  [ -n "$checkpointSyncUrl" ]   && ignored_flags+=("--checkpoint-sync-url")
+  [ -n "$dockerTag" ]           && ignored_flags+=("--tag")
+  [ -n "$aggregatorNode" ]      && ignored_flags+=("--aggregator")
+  [ -n "$coreDumps" ]           && ignored_flags+=("--coreDumps")
+  [ -n "$enableMetrics" ]       && ignored_flags+=("--metrics")
+  [ -n "$popupTerminal" ]       && ignored_flags+=("--popupTerminal")
+  [ -n "$dockerWithSudo" ]      && ignored_flags+=("--dockerWithSudo")
+  [ -n "$skipLeanpoint" ]       && ignored_flags+=("--skip-leanpoint")
+  [ -n "$skipNemo" ]            && ignored_flags+=("--skip-nemo")
+  [ -n "$replaceWith" ]         && ignored_flags+=("--replace-with")
+
+  if [ ${#ignored_flags[@]} -gt 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                        ❌  ERROR                            ║"
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  --stop-all-containers does not accept the following flag(s): ║"
+    for flag in "${ignored_flags[@]}"; do
+      printf  "║    %-60s║\n" "• $flag"
+    done
+    echo "╠══════════════════════════════════════════════════════════════╣"
+    echo "║  Allowed flags with --stop-all-containers:                  ║"
+    echo "║    • --validatorConfig <path>                               ║"
+    echo "║    • --subnets N                                            ║"
+    echo "║    • --sshKey / --private-key                               ║"
+    echo "║    • --useRoot                                              ║"
+    echo "║    • --deploymentMode ansible                               ║"
+    echo "║    • --network, --dry-run, --logs                           ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
+
+  if ! command -v ansible-playbook &> /dev/null; then
+    echo "Error: ansible-playbook is not installed."
+    echo "Install Ansible: brew install ansible (macOS) or pip install ansible"
+    exit 1
+  fi
+
+  if [ "$dryRun" == "true" ]; then
+    echo "[DRY RUN] Would stop all non-observability containers on validator hosts"
+  else
+    echo "Stopping every Docker container on each validator host IP (including stale containers not in validator-config.yaml)..."
+    echo "Preserving observability only: prometheus, promtail, cadvisor, node_exporter"
+  fi
+
+  if ! "$scriptDir/run-ansible.sh" "$configDir" "" "" "" "$validator_config_file" "$sshKeyFile" "$useRoot" "stop-all-containers" "" "" "" "$dryRun" "" "$networkName"; then
+    echo "❌ Stop-all-containers operation failed."
+    exit 1
+  fi
+
+  [ "$dryRun" == "true" ] && echo "✅ Dry-run complete — no changes were made." || echo "✅ Stopped all non-observability containers on reachable validator hosts (unreachable hosts skipped)."
   exit 0
 fi
 
@@ -271,15 +343,13 @@ restart_with_checkpoint_sync=false
 # shows ops/inventory groups — not the per-validator committee subnet map.
 # Nodes without 'subnet:' and without a clear rule default to subnet 0.
 #
-# When --aggregator is specified, that node is used as the aggregator for
-# its own subnet; all other subnets still get a random selection (still
-# excluding that node's client type from pools on other subnets).
+# Default: keep isAggregator flags from validator-config.yaml (no reshuffle).
+# Use --randomize to reset and pick one aggregator per subnet at random (unique
+# by client type when possible). --aggregator sets one subnet's aggregator;
+# with --randomize, other subnets are still filled randomly.
 #
-# Default random mode (no --aggregator): aggregators are unique by CLIENT
-# (prefix before the first '_', e.g. zeam from zeam_0). Example with 5 subnets:
-# if zeam_* is chosen for subnet 0, no zeam_* node may be aggregator on
-# subnets 1–4. If subnets outnumber distinct clients, the pool is exhausted
-# and we fall back to unrestricted random with a warning.
+# Ansible mode: scripts/assign-aggregator-ips.py aligns each subnet aggregator
+# onto the matching Aggregator_servers IP from lean_ethereum_servers.txt.
 
 # Helper: get the subnet index for a node from the config.
 # If the node has an explicit 'subnet' field, use it.
@@ -315,10 +385,45 @@ _client_prefix() {
   esac
 }
 
+_aggregator_summary=()
+_subnet_indices=()
+for _node in "${nodes[@]}"; do
+  _subnet_indices+=("$(_node_subnet "$_node")")
+done
+_unique_subnets=($(printf '%s\n' "${_subnet_indices[@]}" | sort -un))
+echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
+
+_verify_aggregator_invariant() {
+  local _verify_failed=false
+  for _subnet_idx in "${_unique_subnets[@]}"; do
+    local _agg_count=0
+    local _agg_name=""
+    for _node in "${nodes[@]}"; do
+      if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
+        local _is_agg
+        _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
+        if [[ "$_is_agg" == "true" ]]; then
+          _agg_count=$((_agg_count + 1))
+          _agg_name="$_node"
+        fi
+      fi
+    done
+    if [ "$_agg_count" -ne 1 ]; then
+      echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
+      _verify_failed=true
+    else
+      _aggregator_summary+=("subnet $_subnet_idx → $_agg_name")
+    fi
+  done
+  if [ "$_verify_failed" == "true" ]; then
+    echo "Aggregator invariant check failed. Aborting." >&2
+    exit 1
+  fi
+}
+
 if [ -n "$restartClient" ]; then
   echo "Note: skipping aggregator selection — --restart-client retains existing isAggregator assignments."
-  _aggregator_summary=()
-else
+elif [ "$randomizeAggregators" == "true" ]; then
 
   # If --aggregator was given, validate it exists before doing anything else.
   if [ -n "$aggregatorNode" ]; then
@@ -329,45 +434,30 @@ else
         break
       fi
     done
-    if [[ "$aggregator_found" == false ]]; then
+    if [[ "$aggregator_found" == "false" ]]; then
       echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
       echo "Available nodes: ${nodes[@]}"
       exit 1
     fi
   fi
 
-  # Collect unique subnet indices from the 'subnet' field (0 when absent).
-  _subnet_indices=()
-  for _node in "${nodes[@]}"; do
-    _subnet_indices+=("$(_node_subnet "$_node")")
-  done
-  _unique_subnets=($(printf '%s\n' "${_subnet_indices[@]}" | sort -un))
+  _aggregator_summary=()
 
-  echo "Detected ${#_unique_subnets[@]} subnet(s): ${_unique_subnets[*]}"
-
-  # Snapshot which nodes already have isAggregator: true before we reset anything.
-  # This lets us honour manual edits in the YAML when no --aggregator flag was passed.
-  # Uses dynamic variable names (_preset_agg_<subnet>) for bash 3.2 compatibility
-  # (bash 3.2 ships with macOS and does not support declare -A).
+  # Snapshot presets before reset (used when --aggregator does not cover a subnet).
   for _node in "${nodes[@]}"; do
     _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
     if [[ "$_is_agg" == "true" ]]; then
       _sn="$(_node_subnet "$_node")"
       _varname="_preset_agg_${_sn}"
-      # Keep the first preset aggregator found per subnet.
       [[ -z "${!_varname:-}" ]] && printf -v "$_varname" '%s' "$_node"
     fi
   done
 
-  # Reset every node's isAggregator flag (skipped in dry-run).
   if [ "$dryRun" != "true" ]; then
     yq eval -i '.validators[].isAggregator = false' "$validator_config_file"
   fi
 
-  # Select one aggregator per subnet and set the flag.
-  # Priority: 1) --aggregator CLI flag  2) pre-existing isAggregator: true  3) random
-  # _used_agg_prefixes: client types already chosen (default random / preset / --aggregator).
-  _aggregator_summary=()
+  # Priority per subnet: 1) --aggregator  2) preset (if valid)  3) random
   _used_agg_prefixes=" "
   for _subnet_idx in "${_unique_subnets[@]}"; do
     _subnet_nodes=()
@@ -378,19 +468,15 @@ else
     _selected_agg=""
 
     if [ -n "$aggregatorNode" ] && [[ "$(_node_subnet "$aggregatorNode")" == "$_subnet_idx" ]]; then
-      # 1. Explicit --aggregator flag.
       _selected_agg="$aggregatorNode"
     elif _pv="_preset_agg_${_subnet_idx}"; [ -n "${!_pv:-}" ]; then
-      # 2. A node had isAggregator: true in the config — respect the manual choice.
       _preset="${!_pv}"
-      # Validate the preset node is still in the active nodes list.
       _preset_valid=false
       for _n in "${_subnet_nodes[@]}"; do
         [[ "$_n" == "$_preset" ]] && _preset_valid=true && break
       done
       if [[ "$_preset_valid" == "true" ]]; then
         _selected_agg="$_preset"
-        # Default mode: one client type at most once across subnets — drop conflicting presets.
         if [ -z "$aggregatorNode" ]; then
           _pp="$(_client_prefix "$_selected_agg")"
           if [[ "$_used_agg_prefixes" == *" $_pp "* ]]; then
@@ -399,13 +485,11 @@ else
           fi
         fi
       else
-        # Preset node no longer exists — fall back to random and warn.
         echo "Warning: preset aggregator '$_preset' for subnet $_subnet_idx is not in the active node list; selecting randomly." >&2
         _selected_agg=""
       fi
     fi
 
-    # 3. Random (or preset fallback): prefer client types not yet used as aggregator.
     if [ -z "$_selected_agg" ]; then
       _eligible_aggs=()
       for _n in "${_subnet_nodes[@]}"; do
@@ -433,31 +517,61 @@ else
     if [ "$dryRun" != "true" ]; then
       yq eval -i "(.validators[] | select(.name == \"$_selected_agg\") | .isAggregator) = true" "$validator_config_file"
     fi
-    _aggregator_summary+=("subnet $_subnet_idx → $_selected_agg")
+    _aggregator_summary+=("subnet $_subnet_idx → $_selected_agg (randomized)")
   done
 
-  # Verify the invariant: exactly 1 aggregator per subnet (skipped in dry-run).
   if [ "$dryRun" != "true" ]; then
-    _verify_failed=false
-    for _subnet_idx in "${_unique_subnets[@]}"; do
-      _agg_count=0
-      for _node in "${nodes[@]}"; do
-        if [[ "$(_node_subnet "$_node")" == "$_subnet_idx" ]]; then
-          _is_agg=$(yq eval ".validators[] | select(.name == \"$_node\") | .isAggregator" "$validator_config_file")
-          [[ "$_is_agg" == "true" ]] && _agg_count=$((_agg_count + 1))
-        fi
-      done
-      if [ "$_agg_count" -ne 1 ]; then
-        echo "Error: subnet $_subnet_idx has $_agg_count aggregator(s) — expected exactly 1" >&2
-        _verify_failed=true
-      fi
-    done
-    if [ "$_verify_failed" == "true" ]; then
-      echo "Aggregator invariant check failed. Aborting." >&2
-      exit 1
-    fi
+    _verify_aggregator_invariant
   fi
 
+elif [ -n "$aggregatorNode" ]; then
+  aggregator_found=false
+  for available_node in "${nodes[@]}"; do
+    if [[ "$aggregatorNode" == "$available_node" ]]; then
+      aggregator_found=true
+      break
+    fi
+  done
+  if [[ "$aggregator_found" == "false" ]]; then
+    echo "Error: Specified aggregator '$aggregatorNode' not found in validator config"
+    echo "Available nodes: ${nodes[@]}"
+    exit 1
+  fi
+
+  _agg_subnet="$(_node_subnet "$aggregatorNode")"
+  echo "Setting aggregator for subnet $_agg_subnet to $aggregatorNode (other subnets unchanged)."
+  if [ "$dryRun" != "true" ]; then
+    for _node in "${nodes[@]}"; do
+      if [[ "$(_node_subnet "$_node")" == "$_agg_subnet" ]]; then
+        if [[ "$_node" == "$aggregatorNode" ]]; then
+          yq eval -i "(.validators[] | select(.name == \"$_node\") | .isAggregator) = true" "$validator_config_file"
+        else
+          yq eval -i "(.validators[] | select(.name == \"$_node\") | .isAggregator) = false" "$validator_config_file"
+        fi
+      fi
+    done
+    _verify_aggregator_invariant
+  else
+    _aggregator_summary+=("subnet $_agg_subnet → $aggregatorNode (--aggregator)")
+  fi
+
+else
+  echo "Keeping isAggregator assignments from validator-config.yaml (use --randomize to reshuffle)."
+  if [ "$dryRun" != "true" ]; then
+    _verify_aggregator_invariant
+  fi
+fi
+
+# Ansible: align subnet aggregators onto dedicated Aggregator_servers IPs.
+if [ -z "$restartClient" ] && [ "$deployment_mode" == "ansible" ]; then
+  _assign_agg_ip_args=("$scriptDir/scripts/assign-aggregator-ips.py" "$validator_config_file")
+  if [ "$dryRun" == "true" ]; then
+    _assign_agg_ip_args+=(--dry-run)
+  fi
+  if ! python3 "${_assign_agg_ip_args[@]}"; then
+    echo "Error: failed to assign aggregator server IPs." >&2
+    exit 1
+  fi
 fi  # end: aggregator selection (skipped for --restart-client)
 
 # Print aggregator selection summary inline (quick confirmation during setup).
@@ -921,13 +1035,13 @@ for item in "${spin_nodes[@]}"; do
   else
     # Extract image name from node_docker (find word containing ':' which is the image:tag)
     docker_image=$(echo "$node_docker" | grep -oE '[^ ]+:[^ ]+' | head -1)
-    # Pull image first 
+    # Pull image before run; --pull=always re-checks the registry at start.
     if [ -n "$dockerWithSudo" ]; then
       sudo docker pull "$docker_image" || true
     else
       docker pull "$docker_image" || true
     fi
-    execCmd="docker run --rm --pull=never"
+    execCmd="docker run --rm --pull=always"
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"

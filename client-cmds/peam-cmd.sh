@@ -21,7 +21,14 @@ allowed_topics="/leanconsensus/$topic_domain/block/ssz_snappy,/leanconsensus/$to
 topic_scores="/leanconsensus/$topic_domain/block/ssz_snappy:2,/leanconsensus/$topic_domain/aggregation/ssz_snappy:1"
 topic_validators="/leanconsensus/$topic_domain/block/ssz_snappy=block,/leanconsensus/$topic_domain/aggregation/ssz_snappy=aggregation"
 
-for ((subnet = 0; subnet < committee_count; subnet++)); do
+# Attestation topics: one committee subnet per node (aggregator or validator).
+# parse-vc.sh sets aggregateSubnetIds for aggregators; otherwise use local index.
+attestation_subnets="${aggregateSubnetIds:-}"
+if [ -z "$attestation_subnets" ]; then
+    attestation_subnets=$((local_validator_index % committee_count))
+fi
+IFS=',' read -r -a _attestation_subnet_arr <<< "$attestation_subnets"
+for subnet in "${_attestation_subnet_arr[@]}"; do
     att_topic="/leanconsensus/$topic_domain/attestation_${subnet}/ssz_snappy"
     allowed_topics="$allowed_topics,$att_topic"
     topic_scores="$topic_scores,$att_topic:1"
@@ -53,15 +60,10 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
-# In multi-subnet deployments, an aggregator must subscribe to every subnet's
-# attestation topics so it can aggregate votes from all committees. The caller
-# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
-# full subnet id set for the network. Note: peam already subscribes to all
-# subnets in [0, committee_count) via allowed_topics above; this flag exists
-# for contract parity with other clients and is a no-op unless the binary
-# recognises it.
+# Aggregators: parse-vc.sh exports a single committee subnet in aggregateSubnetIds.
+# Peam allowed_topics above should match that subnet when isAggregator is true.
 aggregate_subnet_ids_flag=""
-if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ]; then
     aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
 fi
 

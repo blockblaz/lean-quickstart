@@ -80,6 +80,11 @@
 
 - name: Deploy Grandine node using Docker
   block:
+    - name: Pull Grandine docker image
+      command: docker pull {{ grandine_docker_image }}
+      register: grandine_docker_pull
+      changed_when: '"Downloaded newer image" in grandine_docker_pull.stdout'
+
     - name: Stop existing Grandine container (if any)
       command: docker rm -f {{ node_name }}
       register: grandine_stop
@@ -91,7 +96,9 @@
         docker run -d
         --pull=always
         --name {{ node_name }}
-        --restart unless-stopped
+        --restart {{ docker_container_restart_policy }}
+        {{ ('--memory ' + docker_memory_limits.grandine) if (grandine_is_aggregator | default('false')) != 'true' else '' }}
+        {{ ('--memory-swap ' + docker_memory_limits.grandine) if (grandine_is_aggregator | default('false')) != 'true' else '' }}
         --network host
         {{ '--init --ulimit core=-1 --workdir /data' if (enable_core_dumps | default('') == 'all') or (node_name in (enable_core_dumps | default('')).split(',')) or (node_name.split('_')[0] in (enable_core_dumps | default('')).split(',')) else '' }}
         -v {{ genesis_dir }}:/config:ro

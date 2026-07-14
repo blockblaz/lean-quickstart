@@ -4,6 +4,10 @@
 - name: Parse and validate node names
   hosts: localhost
   connection: local
+  # ansible.cfg sets strategy=free for large devnets; add_host is not
+  # supported under free (it would run once per inventory host). Linear
+  # keeps this localhost-only play correct while building clean_targets.
+  strategy: linear
   gather_facts: no
   vars:
     validator_config_file: "{{ local_validator_config_path | default(genesis_dir + '/validator-config.yaml') }}"

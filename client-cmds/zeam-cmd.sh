@@ -17,12 +17,11 @@ if [ "$isAggregator" == "true" ]; then
     aggregator_flag="--is-aggregator"
 fi
 
-# In multi-subnet deployments, an aggregator must subscribe to every subnet's
-# attestation topics so it can aggregate votes from all committees. The caller
-# (spin-node.sh / ansible roles) exports aggregateSubnetIds as a CSV of the
-# full subnet id set for the network.
+# Aggregators subscribe only to their committee subnet (validator_index %
+# attestation_committee_count). parse-vc.sh exports that single id in
+# aggregateSubnetIds when isAggregator is true.
 aggregate_subnet_ids_flag=""
-if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ] && [[ "$aggregateSubnetIds" == *,* ]]; then
+if [ "$isAggregator" == "true" ] && [ -n "${aggregateSubnetIds:-}" ]; then
     aggregate_subnet_ids_flag="--aggregate-subnet-ids $aggregateSubnetIds"
 fi
 
@@ -56,36 +55,65 @@ db_backend_flag="--db-backend ${zeam_db_backend}"
 # (typical=1, never >16), and `lean_chain_queue_dropped_total` (should
 # stay 0 under nominal load).
 #
-# Default `on`: matches the zeam compiled-in default (post-PR #830).
-# Operators can override via `export ZEAM_CHAIN_WORKER=off` to flip
-# back to the legacy synchronous path (kill-switch) without a
-# rebuild/redeploy of zeam itself.
+# Default empty/on: omit --chain-worker so zeam uses its compiled-in
+# default (enabled post-PR #830). Do NOT pass `--chain-worker on` —
+# zeam's bool flag does not take on/off values and "on" breaks parsing
+# of subsequent flags such as --rayon-threads.
 #
-# REQUIRES: a zeam build with chain-worker support, i.e.
-# `blockblaz/zeam:devnet4` >= v0.4.15. Older images (v0.4.14 with the
-# broken bool CLI shape, or v0.4.13 / pre-c-1) do not recognise
-# `--chain-worker on` and will fail to start. If running against an
-# older image set `export ZEAM_CHAIN_WORKER=` (empty) to suppress
-# the flag entirely.
+# Override via `export ZEAM_CHAIN_WORKER=off` to emit
+# `--chain-worker false` (legacy synchronous kill-switch).
+#
 # Note `${VAR-default}` (no colon) so an explicitly-empty
-# `ZEAM_CHAIN_WORKER=` suppresses the flag entirely — the colon form
-# would also overwrite the empty value with `on`, leaving no way to
-# bypass for older zeam builds.
+# `ZEAM_CHAIN_WORKER=` suppresses the flag entirely.
 zeam_chain_worker="${ZEAM_CHAIN_WORKER-on}"
 chain_worker_flag=""
 case "$zeam_chain_worker" in
-    on|off)
-        chain_worker_flag="--chain-worker $zeam_chain_worker"
+    on|"")
+        # Enabled (compiled default); omit flag.
         ;;
-    "")
-        # Explicitly empty — no flag, zeam takes its compiled-in
-        # default (`.on` post-PR #830). Use this against zeam
-        # builds that do not recognise `--chain-worker` at all.
+    off|false)
+        chain_worker_flag="--chain-worker false"
         ;;
     *)
-        echo "WARN(zeam-cmd): ZEAM_CHAIN_WORKER='$zeam_chain_worker' is not 'on' or 'off' or empty; ignoring (no --chain-worker flag passed)" >&2
+        echo "WARN(zeam-cmd): ZEAM_CHAIN_WORKER='$zeam_chain_worker' is not 'on', 'off', 'false', or empty; ignoring (no --chain-worker flag passed)" >&2
         ;;
 esac
+
+# Rayon worker count for the multisig (XMSS) aggregate prover (zeam #903 / #899).
+#
+# Aggregators use zeam auto-tune (cpu_count - 4 reserved system threads) when
+# ZEAM_RAYON_THREADS_AGGREGATOR is unset. Non-aggregators default to 6 so
+# block/attestation XMSS verification (onBlock verify_signatures) gets enough
+# rayon workers on typical 8-vCPU devnet hosts.
+#
+# Override env vars (client-cmds / ansible group_vars):
+#   - ZEAM_RAYON_THREADS_AGGREGATOR      # optional aggregator override
+#   - ZEAM_RAYON_THREADS_NON_AGGREGATOR  # non-aggregator default (6)
+#   - ZEAM_RAYON_THREADS                 # uniform override for both roles
+#
+# For aggregators, ZEAM_RAYON_THREADS_AGGREGATOR wins when set; otherwise zeam
+# auto-tune. For non-aggregators, ZEAM_RAYON_THREADS wins when set; otherwise
+# ZEAM_RAYON_THREADS_NON_AGGREGATOR (6).
+#
+# Sizing guidance for a 16-vCPU host: 12 is the recommended aggregator starting
+# point (cpu_count - 4 reserved system threads: libxev/libp2p/api/metrics). For
+# 8-vCPU non-aggregators: 6 (= cpu_count - 4, same budget rule). Do not exceed
+# cpu_count - 4 or those reserved threads start to starve, surfacing as
+# `zeam_fork_choice_tick_interval_duration_seconds` p99 climbing.
+#
+# REQUIRES: a zeam build with PR #903 merged plus a docker image cut from it.
+# Older images do not recognise `--rayon-threads` and will fail to start. Leave
+# all three env vars unset to suppress the flag entirely for pre-#903 images.
+rayon_threads_flag=""
+if [ "$isAggregator" == "true" ]; then
+    if [ -n "${ZEAM_RAYON_THREADS_AGGREGATOR:-}" ]; then
+        rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_AGGREGATOR}"
+    fi
+elif [ -n "${ZEAM_RAYON_THREADS:-}" ]; then
+    rayon_threads_flag="--rayon-threads $ZEAM_RAYON_THREADS"
+else
+    rayon_threads_flag="--rayon-threads ${ZEAM_RAYON_THREADS_NON_AGGREGATOR:-6}"
+fi
 
 node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       --custom-genesis $configDir \
@@ -100,9 +128,10 @@ node_binary="$scriptDir/../zig-out/bin/zeam $zeam_global_flags node \
       $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $db_backend_flag \
-      $chain_worker_flag"
+      $chain_worker_flag \
+      $rayon_threads_flag"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_global_flags node \
+node_docker="--security-opt seccomp=unconfined 0xpartha/zeam:local $zeam_global_flags node \
       --custom-genesis /config \
       --validator-config $validatorConfig \
       --data-dir /data \
@@ -115,7 +144,8 @@ node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet4 $zeam_glob
       $aggregate_subnet_ids_flag \
       $checkpoint_sync_flag \
       $db_backend_flag \
-      $chain_worker_flag"
+      $chain_worker_flag \
+      $rayon_threads_flag"
 
 # choose either binary or docker
 node_setup="docker"
