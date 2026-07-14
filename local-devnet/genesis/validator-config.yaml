@@ -1,21 +1,16 @@
-# Local devnet: 10 zeam nodes across 2 attestation subnets on 127.0.0.1.
-#
-# Shuffle = roundrobin, validator_index = position in `validators` list.
-# Subnet membership = validator_index % attestation_committee_count (2):
-#   subnet 0: zeam_0, zeam_2, zeam_4, zeam_6, zeam_8
-#   subnet 1: zeam_1, zeam_3, zeam_5, zeam_7, zeam_9
-#
-# Aggregators (one per subnet): zeam_0, zeam_1.
-# Ports: QUIC 9001–9010, metrics 8081–8090, API 5051–5060.
+# Local ethp2p smoke: 3 nodes, 1 committee.
+#   index 0  zeam_0      -> subnet 0 (aggregator)
+#   index 1  zeam_1      -> subnet 0
+#   index 2  ethlambda_0 -> subnet 0
 shuffle: roundrobin
 deployment_mode: local
 config:
   activeEpoch: 18
   keyType: "hash-sig"
-  attestation_committee_count: 2
+  attestation_committee_count: 1
 validators:
   - name: "zeam_0"
-    privkey: "bdf953adc161873ba026330c56450453f582e3c4ee6cb713644794bcfdd85fe5"
+    privkey: "8e9f81c9caa9e29d26a7327311ca63a38254efdfccf3ce1362bae47eae0b18b3"
     enrFields:
       ip: "127.0.0.1"
       quic: 9001
@@ -24,83 +19,20 @@ validators:
     isAggregator: true
     count: 1
   - name: "zeam_1"
-    privkey: "8ab5f842ce9ce9e19fdda055a6d388e259798884143addbd113b2e5e1efd081d"
+    privkey: "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5"
     enrFields:
       ip: "127.0.0.1"
       quic: 9002
     metricsPort: 8082
     apiPort: 5052
-    isAggregator: true
+    isAggregator: false
     count: 1
-  - name: "zeam_2"
-    privkey: "27233307793686fe5bd9ddd167c9159b3136ed6a04e1ae1b01dade3f8f372840"
+  - name: "ethlambda_0"
+    privkey: "069b696557534721e2b70c98c99fb1d1bb54deb2cce8f3104ba367539313cdf3"
     enrFields:
       ip: "127.0.0.1"
       quic: 9003
     metricsPort: 8083
     apiPort: 5053
-    isAggregator: false
-    count: 1
-  - name: "zeam_3"
-    privkey: "e1446d25baeacf93287af41ea7fc0caa7d68698549eaf8393b894150f4941683"
-    enrFields:
-      ip: "127.0.0.1"
-      quic: 9004
-    metricsPort: 8084
-    apiPort: 5054
-    isAggregator: false
-    count: 1
-  - name: "zeam_4"
-    privkey: "ee8daeecc5e09d0825086d61939bcddcd4ab477a06b12d51858e79b4595861e6"
-    enrFields:
-      ip: "127.0.0.1"
-      quic: 9005
-    metricsPort: 8085
-    apiPort: 5055
-    isAggregator: false
-    count: 1
-  - name: "zeam_5"
-    privkey: "425204c77189667b767351d203379a5a01e67db6f755b78ab339dc3e33881972"
-    enrFields:
-      ip: "127.0.0.1"
-      quic: 9006
-    metricsPort: 8086
-    apiPort: 5056
-    isAggregator: false
-    count: 1
-  - name: "zeam_6"
-    privkey: "85dfc6a1ff780e559cc05e7cb458bf77e4790ae4e56789b63fda407883198591"
-    enrFields:
-      ip: "127.0.0.1"
-      quic: 9007
-    metricsPort: 8087
-    apiPort: 5057
-    isAggregator: false
-    count: 1
-  - name: "zeam_7"
-    privkey: "f4e46f1041dec6300c80e3b671d082d018b6fe5cc3c42cb7374941adba69c808"
-    enrFields:
-      ip: "127.0.0.1"
-      quic: 9008
-    metricsPort: 8088
-    apiPort: 5058
-    isAggregator: false
-    count: 1
-  - name: "zeam_8"
-    privkey: "f03c84c6576e6c78e55d8648624e8e300f2a03cd78a0c8ceed566ea0fc185750"
-    enrFields:
-      ip: "127.0.0.1"
-      quic: 9009
-    metricsPort: 8089
-    apiPort: 5059
-    isAggregator: false
-    count: 1
-  - name: "zeam_9"
-    privkey: "0f64e59c6963a29da9ce8705a0cffd80ca73748bf6a0b75972eb234e2544e5c0"
-    enrFields:
-      ip: "127.0.0.1"
-      quic: 9010
-    metricsPort: 8090
-    apiPort: 5060
     isAggregator: false
     count: 1

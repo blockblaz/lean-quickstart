@@ -149,7 +149,7 @@ node_binary="$scriptDir/zig-out/bin/zeam $zeam_global_flags node \
       $chain_worker_flag \
       $rayon_threads_flag"
 
-node_docker="--security-opt seccomp=unconfined blockblaz/zeam:devnet5 $zeam_global_flags node \
+node_docker="--security-opt seccomp=unconfined 0xpartha/zeam:ethp2p $zeam_global_flags node \
       --custom-genesis /config \
       --validator-config $validatorConfig \
       --data-dir /data \
