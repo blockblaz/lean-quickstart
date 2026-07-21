@@ -134,6 +134,12 @@ while [[ $# -gt 0 ]]; do
       enableLogs=true
       shift
       ;;
+    --detach)
+      # Run local docker nodes detached (-d --restart unless-stopped) and let
+      # spin-node.sh exit without tearing them down. Local docker mode only.
+      detachNodes=true
+      shift
+      ;;
     *)    # unknown option
       shift # past argument
       ;;
@@ -191,3 +197,4 @@ echo "dryRun = ${dryRun:-false}"
 echo "replaceWith = ${replaceWith:-<not set>}"
 echo "networkName = $networkName"
 echo "enableLogs = ${enableLogs:-false}"
+echo "detachNodes = ${detachNodes:-false}"
