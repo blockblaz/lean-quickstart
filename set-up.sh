@@ -33,8 +33,13 @@ if [ -n "$generateGenesis" ] || [ ! -f "$configDir/validators.yaml" ] || [ ! -f 
     _validator_config_flag="--validator-config $validatorConfig"
   fi
 
+  # Forward the sudo preference so the genesis keygen/tool docker calls work on
+  # hosts where the docker socket needs root (user not in the docker group).
+  _docker_sudo_flag=""
+  [ -n "$dockerWithSudo" ] && _docker_sudo_flag="--dockerWithSudo"
+
   # Run the generator with deployment mode
-  if ! $genesis_generator "$configDir" --mode "$deployment_mode" $FORCE_KEYGEN_FLAG $_validator_config_flag; then
+  if ! $genesis_generator "$configDir" --mode "$deployment_mode" $FORCE_KEYGEN_FLAG $_validator_config_flag $_docker_sudo_flag; then
     echo "❌ Genesis generation failed!"
     exit 1
   fi

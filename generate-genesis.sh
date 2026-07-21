@@ -90,6 +90,7 @@ VALIDATOR_CONFIG_FILE="$GENESIS_DIR/validator-config.yaml"
 SKIP_KEY_GEN="true"
 DEPLOYMENT_MODE="local"  # Default to local mode
 GENESIS_TIME_OFFSET=""   # Will be set based on mode or --offset flag
+DOCKER_CMD="docker"      # Set to "sudo docker" via --dockerWithSudo (hosts where the docker socket needs root)
 shift
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -127,6 +128,10 @@ while [[ $# -gt 0 ]]; do
                 echo "❌ Error: --validator-config requires a path"
                 exit 1
             fi
+            ;;
+        --dockerWithSudo)
+            DOCKER_CMD="sudo docker"
+            shift
             ;;
         *)
             shift
@@ -274,9 +279,9 @@ else
     CURRENT_GID=$(id -g)
 
     # Pull latest image first
-    docker pull "$HASH_SIG_CLI_IMAGE" || true
+    $DOCKER_CMD pull "$HASH_SIG_CLI_IMAGE" || true
 
-    docker run --rm --pull=never \
+    $DOCKER_CMD run --rm --pull=never \
       --user "$CURRENT_UID:$CURRENT_GID" \
       -v "$GENESIS_DIR_ABS:/genesis" \
       "$HASH_SIG_CLI_IMAGE" \
@@ -469,9 +474,9 @@ echo "   Executing docker command..."
 
 # Pull latest image first 
 echo "   Pulling latest image: $PK_DOCKER_IMAGE"
-docker pull "$PK_DOCKER_IMAGE" || true
+$DOCKER_CMD pull "$PK_DOCKER_IMAGE" || true
 
-docker run --rm --pull=never \
+$DOCKER_CMD run --rm --pull=never \
   --user "$CURRENT_UID:$CURRENT_GID" \
   -v "$PARENT_DIR_ABS:/data" \
   "$PK_DOCKER_IMAGE" \

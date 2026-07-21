@@ -908,6 +908,15 @@ for item in "${spin_nodes[@]}"; do
   echo "$sourceCmd"
   eval $sourceCmd
 
+  # --detach only supports docker nodes: it relies on `docker run -d
+  # --restart unless-stopped` to outlive this script. A binary has no such
+  # supervisor, so a detached binary would just run in the foreground here (or,
+  # if backgrounded, die when the script exits). Fail fast instead.
+  if [ "$detachNodes" == "true" ] && [ "$node_setup" == "binary" ]; then
+    echo "❌ --detach is only supported for docker nodes; '$item' is configured for binary mode."
+    exit 1
+  fi
+
   # spin nodes
   if [ "$node_setup" == "binary" ]
   then
@@ -927,7 +936,14 @@ for item in "${spin_nodes[@]}"; do
     else
       docker pull "$docker_image" || true
     fi
-    execCmd="docker run --rm --pull=never"
+    if [ "$detachNodes" == "true" ]; then
+      # Detached: run in the background with a restart policy so the devnet
+      # keeps running after spin-node.sh exits. No --rm, so the container is
+      # kept for `docker logs` inspection.
+      execCmd="docker run -d --restart unless-stopped --pull=never"
+    else
+      execCmd="docker run --rm --pull=never"
+    fi
     if [ -n "$dockerWithSudo" ]
     then
       execCmd="sudo $execCmd"
@@ -960,6 +976,13 @@ for item in "${spin_nodes[@]}"; do
 
   if [ "$dryRun" == "true" ]; then
     echo "[DRY RUN] Would execute: $execCmd"
+    pid=0
+  elif [ "$detachNodes" == "true" ]; then
+    # Detached `docker run -d` returns immediately after printing the
+    # container id; logs are captured by the docker daemon (docker logs <node>).
+    # There is no foreground process to track, so record a placeholder pid.
+    echo "$execCmd"
+    eval "$execCmd"
     pid=0
   else
     sed_remove_ansi='s/\x1b\[[0-9;]*[mJHG]//g'
@@ -1066,17 +1089,37 @@ cleanup() {
 
 _print_deployment_summary
 
-trap "echo exit signal received;cleanup" SIGINT SIGTERM
-echo -e "\n\nwaiting for nodes to exit"
-printf '%*s' $(tput cols) | tr ' ' '-'
-echo "press Ctrl+C to exit and cleanup..."
-# Wait for background processes - use a compatible approach for all shells
-if [ ${#spinned_pids[@]} -gt 0 ]; then
-  for pid in "${spinned_pids[@]}"; do
-    wait $pid 2>/dev/null || true
-  done
+if [ "$detachNodes" == "true" ]; then
+  # Detached mode: leave the devnet running once spin-node.sh exits. Skip the
+  # trap/wait/cleanup entirely so the containers (started with
+  # --restart unless-stopped) survive independently of this script.
+  echo -e "\n\ndevnet started in detached mode; nodes keep running after this script exits"
+  printf '%*s' $(tput cols) | tr ' ' '-'
+  echo
+  # Mirror the sudo preference in the hints so copy-pasted commands work on
+  # hosts where the docker socket needs root (--dockerWithSudo).
+  _hint_docker="docker"
+  _hint_stop_flags=""
+  if [ -n "$dockerWithSudo" ]; then
+    _hint_docker="sudo docker"
+    _hint_stop_flags=" --dockerWithSudo"
+  fi
+  echo "  view logs:  $_hint_docker logs -f <node>      (e.g. $_hint_docker logs -f ${spin_nodes[0]})"
+  echo "  stop all:   NETWORK_DIR=$NETWORK_DIR $0 --node all --stop$_hint_stop_flags"
+  echo "  (or raw:    $_hint_docker rm -f $container_names)"
 else
-  # Fallback: wait for any background job
-  wait
+  trap "echo exit signal received;cleanup" SIGINT SIGTERM
+  echo -e "\n\nwaiting for nodes to exit"
+  printf '%*s' $(tput cols) | tr ' ' '-'
+  echo "press Ctrl+C to exit and cleanup..."
+  # Wait for background processes - use a compatible approach for all shells
+  if [ ${#spinned_pids[@]} -gt 0 ]; then
+    for pid in "${spinned_pids[@]}"; do
+      wait $pid 2>/dev/null || true
+    done
+  else
+    # Fallback: wait for any background job
+    wait
+  fi
+  cleanup
 fi
-cleanup
