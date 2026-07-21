@@ -908,6 +908,15 @@ for item in "${spin_nodes[@]}"; do
   echo "$sourceCmd"
   eval $sourceCmd
 
+  # --detach only supports docker nodes: it relies on `docker run -d
+  # --restart unless-stopped` to outlive this script. A binary has no such
+  # supervisor, so a detached binary would just run in the foreground here (or,
+  # if backgrounded, die when the script exits). Fail fast instead.
+  if [ "$detachNodes" == "true" ] && [ "$node_setup" == "binary" ]; then
+    echo "❌ --detach is only supported for docker nodes; '$item' is configured for binary mode."
+    exit 1
+  fi
+
   # spin nodes
   if [ "$node_setup" == "binary" ]
   then
@@ -1087,9 +1096,17 @@ if [ "$detachNodes" == "true" ]; then
   echo -e "\n\ndevnet started in detached mode; nodes keep running after this script exits"
   printf '%*s' $(tput cols) | tr ' ' '-'
   echo
-  echo "  view logs:  docker logs -f <node>      (e.g. docker logs -f ${spin_nodes[0]})"
-  echo "  stop all:   NETWORK_DIR=$NETWORK_DIR $0 --node all --stop"
-  echo "  (or raw:    docker rm -f $container_names)"
+  # Mirror the sudo preference in the hints so copy-pasted commands work on
+  # hosts where the docker socket needs root (--dockerWithSudo).
+  _hint_docker="docker"
+  _hint_stop_flags=""
+  if [ -n "$dockerWithSudo" ]; then
+    _hint_docker="sudo docker"
+    _hint_stop_flags=" --dockerWithSudo"
+  fi
+  echo "  view logs:  $_hint_docker logs -f <node>      (e.g. $_hint_docker logs -f ${spin_nodes[0]})"
+  echo "  stop all:   NETWORK_DIR=$NETWORK_DIR $0 --node all --stop$_hint_stop_flags"
+  echo "  (or raw:    $_hint_docker rm -f $container_names)"
 else
   trap "echo exit signal received;cleanup" SIGINT SIGTERM
   echo -e "\n\nwaiting for nodes to exit"
